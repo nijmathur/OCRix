@@ -273,6 +273,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.11"
+  dev_build:
+    dependency: transitive
+    description:
+      name: dev_build
+      sha256: f526d1fbe68875f6119ffc333f114dfe6aa93ad04439276d53968f7977cc410e
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0+11"
   dio:
     dependency: "direct main"
     description:
@@ -840,14 +848,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.6"
-  msal_flutter:
-    dependency: "direct main"
-    description:
-      name: msal_flutter
-      sha256: "5123bda74d513f44dd6489fe30835a138c40299bdf1e33a00df7007607c09258"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.1"
   nested:
     dependency: transitive
     description:
@@ -968,6 +968,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.2"
+  process_run:
+    dependency: transitive
+    description:
+      name: process_run
+      sha256: c917dfb5f7afad4c7485bc00a4df038621248fce046105020cea276d1a87c820
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.0"
   provider:
     dependency: "direct main"
     description:
@@ -1077,6 +1085,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.5.4"
+  sqflite_common_ffi:
+    dependency: "direct main"
+    description:
+      name: sqflite_common_ffi
+      sha256: "4d6137c29e930d6e4a8ff373989dd9de7bac12e3bc87bce950f6e844e8ad3bb5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.3.3"
+  sqflite_common_ffi_web:
+    dependency: "direct main"
+    description:
+      name: sqflite_common_ffi_web
+      sha256: e9d1cb35a5ff7c43072968ed734e0a1a859564fd2b2c8654e0c6244a57dc82a8
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.4.4"
+  sqlite3:
+    dependency: transitive
+    description:
+      name: sqlite3
+      sha256: bb174b3ec2527f9c5f680f73a89af8149dd99782fbb56ea88ad0807c5638f2ed
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.7"
   sqlite3_flutter_libs:
     dependency: "direct main"
     description:

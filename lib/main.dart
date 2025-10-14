@@ -32,7 +32,6 @@ class OCRixApp extends ConsumerWidget {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        fontFamily: 'Roboto',
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           elevation: 0,
@@ -65,7 +64,6 @@ class OCRixApp extends ConsumerWidget {
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
-        fontFamily: 'Roboto',
         appBarTheme: const AppBarTheme(
           centerTitle: true,
           elevation: 0,

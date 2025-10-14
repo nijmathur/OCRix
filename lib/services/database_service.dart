@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:encrypt/encrypt.dart';
+import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:logger/logger.dart';
 import '../models/document.dart';
@@ -17,8 +17,8 @@ class DatabaseService {
   static Database? _database;
   final Logger _logger = Logger();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  Encrypter? _encrypter;
-  IV? _iv;
+  encrypt.Encrypter? _encrypter;
+  encrypt.IV? _iv;
 
   Future<Database> get database async {
     _database ??= await _initDatabase();
@@ -30,12 +30,13 @@ class DatabaseService {
       // Initialize encryption
       await _initializeEncryption();
 
+      // Mobile/Desktop platforms
       final documentsDir = await getApplicationDocumentsDirectory();
       final path = join(documentsDir.path, 'privacy_documents.db');
 
       return await openDatabase(
         path,
-        version: 1,
+        version: 3, // Increment to force recreation with correct schema
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
@@ -50,14 +51,14 @@ class DatabaseService {
       // Get or create encryption key
       String? keyString = await _secureStorage.read(key: 'encryption_key');
       if (keyString == null) {
-        final key = Key.fromSecureRandom(32);
+        final key = encrypt.Key.fromSecureRandom(32);
         keyString = key.base64;
         await _secureStorage.write(key: 'encryption_key', value: keyString);
       }
 
-      final key = Key.fromBase64(keyString);
-      _encrypter = Encrypter(AES(key));
-      _iv = IV.fromSecureRandom(16);
+      final key = encrypt.Key.fromBase64(keyString);
+      _encrypter = encrypt.Encrypter(encrypt.AES(key));
+      _iv = encrypt.IV.fromSecureRandom(16);
     } catch (e) {
       _logger.e('Failed to initialize encryption: $e');
       rethrow;
@@ -92,18 +93,35 @@ class DatabaseService {
         )
       ''');
 
-      // Create search index table with FTS5
-      await db.execute('''
-        CREATE VIRTUAL TABLE search_index USING fts5(
-          doc_id,
-          title,
-          extracted_text,
-          tags,
-          notes,
-          content='documents',
-          content_rowid='rowid'
-        )
-      ''');
+      // Create search index table with FTS5 (if available)
+      try {
+        await db.execute('''
+          CREATE VIRTUAL TABLE search_index USING fts5(
+            doc_id,
+            title,
+            extracted_text,
+            tags,
+            notes,
+            content='documents',
+            content_rowid='rowid'
+          )
+        ''');
+        _logger.i('FTS5 search index created successfully');
+      } catch (e) {
+        _logger.w('FTS5 not available, creating fallback search table: $e');
+        // Create a regular table for search fallback
+        await db.execute('''
+          CREATE TABLE search_index (
+            doc_id TEXT PRIMARY KEY,
+            title TEXT,
+            extracted_text TEXT,
+            tags TEXT,
+            notes TEXT,
+            FOREIGN KEY (doc_id) REFERENCES documents (id)
+          )
+        ''');
+        _logger.i('Fallback search table created');
+      }
 
       // Create user settings table
       await db.execute('''
@@ -160,6 +178,33 @@ class DatabaseService {
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     // Handle database migrations here
     _logger.i('Database upgraded from version $oldVersion to $newVersion');
+
+    if (oldVersion < 3) {
+      // Drop and recreate search_index table with correct schema
+      try {
+        await db.execute('DROP TABLE IF EXISTS search_index');
+        _logger.i('Dropped old search_index table');
+      } catch (e) {
+        _logger.w('Error dropping search_index table: $e');
+      }
+
+      // Recreate with correct schema
+      try {
+        await db.execute('''
+          CREATE TABLE search_index (
+            doc_id TEXT PRIMARY KEY,
+            title TEXT,
+            extracted_text TEXT,
+            tags TEXT,
+            notes TEXT,
+            FOREIGN KEY (doc_id) REFERENCES documents (id)
+          )
+        ''');
+        _logger.i('Recreated search_index table with correct schema');
+      } catch (e) {
+        _logger.e('Error recreating search_index table: $e');
+      }
+    }
   }
 
   // Document operations
@@ -169,7 +214,7 @@ class DatabaseService {
       await db.transaction((txn) async {
         // Insert document
         await txn.insert('documents', _documentToMap(document));
-        
+
         // Insert into search index
         await txn.insert('search_index', {
           'doc_id': document.id,
@@ -181,7 +226,8 @@ class DatabaseService {
       });
 
       // Log audit
-      await _logAudit(AuditAction.create, 'document', document.id, 'Document created');
+      await _logAudit(
+          AuditAction.create, 'document', document.id, 'Document created');
 
       _logger.i('Document inserted: ${document.id}');
       return document.id;
@@ -229,7 +275,8 @@ class DatabaseService {
 
       if (searchQuery != null && searchQuery.isNotEmpty) {
         if (whereClause.isNotEmpty) whereClause += ' AND ';
-        whereClause += 'id IN (SELECT doc_id FROM search_index WHERE search_index MATCH ?)';
+        whereClause +=
+            'id IN (SELECT doc_id FROM search_index WHERE search_index MATCH ?)';
         whereArgs.add(searchQuery);
       }
 
@@ -276,7 +323,8 @@ class DatabaseService {
       });
 
       // Log audit
-      await _logAudit(AuditAction.update, 'document', document.id, 'Document updated');
+      await _logAudit(
+          AuditAction.update, 'document', document.id, 'Document updated');
 
       _logger.i('Document updated: ${document.id}');
     } catch (e) {
@@ -291,7 +339,7 @@ class DatabaseService {
       await db.transaction((txn) async {
         // Delete from search index
         await txn.delete('search_index', where: 'doc_id = ?', whereArgs: [id]);
-        
+
         // Delete document
         await txn.delete('documents', where: 'id = ?', whereArgs: [id]);
       });
@@ -327,7 +375,7 @@ class DatabaseService {
       for (final map in maps) {
         final key = map['key'] as String;
         final value = map['value'] as String;
-        
+
         // Parse different data types
         if (value == 'true' || value == 'false') {
           settingsMap[key] = value == 'true';
@@ -364,7 +412,8 @@ class DatabaseService {
       });
 
       // Log audit
-      await _logAudit(AuditAction.update, 'user_settings', 'global', 'Settings updated');
+      await _logAudit(
+          AuditAction.update, 'user_settings', 'global', 'Settings updated');
 
       _logger.i('User settings updated');
     } catch (e) {
@@ -374,7 +423,8 @@ class DatabaseService {
   }
 
   // Audit log operations
-  Future<void> _logAudit(AuditAction action, String resourceType, String resourceId, String? details) async {
+  Future<void> _logAudit(AuditAction action, String resourceType,
+      String resourceId, String? details) async {
     try {
       final auditLog = AuditLog.create(
         action: action,
@@ -434,14 +484,27 @@ class DatabaseService {
   Future<List<Document>> searchDocuments(String query) async {
     final db = await database;
     try {
-      final maps = await db.rawQuery('''
-        SELECT d.* FROM documents d
-        JOIN search_index s ON d.id = s.doc_id
-        WHERE search_index MATCH ?
-        ORDER BY rank
-      ''', [query]);
-
-      return maps.map((map) => _mapToDocument(map)).toList();
+      // Try FTS5 search first
+      try {
+        final maps = await db.rawQuery('''
+          SELECT d.* FROM documents d
+          JOIN search_index s ON d.id = s.doc_id
+          WHERE search_index MATCH ?
+          ORDER BY rank
+        ''', [query]);
+        return maps.map((map) => _mapToDocument(map)).toList();
+      } catch (e) {
+        _logger.w('FTS5 search failed, using fallback: $e');
+        // Fallback to LIKE search
+        final searchTerm = '%$query%';
+        final maps = await db.rawQuery('''
+          SELECT d.* FROM documents d
+          JOIN search_index s ON d.id = s.doc_id
+          WHERE s.title LIKE ? OR s.extracted_text LIKE ? OR s.tags LIKE ? OR s.notes LIKE ?
+          ORDER BY d.scan_date DESC
+        ''', [searchTerm, searchTerm, searchTerm, searchTerm]);
+        return maps.map((map) => _mapToDocument(map)).toList();
+      }
     } catch (e) {
       _logger.e('Failed to search documents: $e');
       rethrow;
@@ -553,7 +616,8 @@ class DatabaseService {
   String? decryptData(String encryptedData) {
     if (_encrypter == null || _iv == null) return encryptedData;
     try {
-      return _encrypter!.decrypt(Encrypted.fromBase64(encryptedData), iv: _iv!);
+      return _encrypter!
+          .decrypt(encrypt.Encrypted.fromBase64(encryptedData), iv: _iv!);
     } catch (e) {
       _logger.e('Failed to decrypt data: $e');
       return encryptedData;

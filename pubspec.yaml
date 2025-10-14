@@ -19,6 +19,9 @@ dependencies:
     sqflite: ^2.3.0
     path: ^1.8.3
     sqlite3_flutter_libs: ^0.5.18
+    # Web-compatible database
+    sqflite_common_ffi: ^2.3.0
+    sqflite_common_ffi_web: ^0.4.0
 
     # Encryption & Security
     encrypt: ^5.0.1
@@ -36,7 +39,7 @@ dependencies:
     google_sign_in: ^6.2.1
     googleapis: ^11.4.0
     googleapis_auth: ^1.4.1
-    msal_flutter: ^2.0.1
+    # msal_flutter: ^2.0.1  # Temporarily disabled due to Kotlin version conflict
 
     # File Operations
     path_provider: ^2.1.1
@@ -82,11 +85,11 @@ flutter:
         - assets/images/
         - assets/icons/
 
-    fonts:
-        - family: Roboto
-          fonts:
-              - asset: fonts/Roboto-Regular.ttf
-              - asset: fonts/Roboto-Medium.ttf
-                weight: 500
-              - asset: fonts/Roboto-Bold.ttf
-                weight: 700
+    # fonts:
+    #     - family: Roboto
+    #       fonts:
+    #           - asset: fonts/Roboto-Regular.ttf
+    #           - asset: fonts/Roboto-Medium.ttf
+    #             weight: 500
+    #           - asset: fonts/Roboto-Bold.ttf
+    #             weight: 700

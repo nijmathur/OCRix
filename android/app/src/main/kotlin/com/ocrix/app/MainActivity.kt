@@ -1,4 +1,4 @@
-package com.privacy.documentscanner.privacy_document_scanner
+package com.ocrix.app
 
 import io.flutter.embedding.android.FlutterActivity
 
