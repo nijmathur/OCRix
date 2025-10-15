@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import '../../providers/document_provider.dart';
 
 class CameraPreviewWidget extends ConsumerWidget {
   final VoidCallback? onCapture;
+  final Function(String)? onImageSelected;
   final bool isCapturing;
 
   const CameraPreviewWidget({
     super.key,
     this.onCapture,
+    this.onImageSelected,
     this.isCapturing = false,
   });
 
@@ -157,8 +162,47 @@ class CameraPreviewWidget extends ConsumerWidget {
     // TODO: Implement camera switching
   }
 
-  void _pickFromGallery(BuildContext context) {
-    // TODO: Implement gallery picker
+  void _pickFromGallery(BuildContext context) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2000,
+        maxHeight: 2000,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        // Copy the selected image to our app directory
+        final directory = await getApplicationDocumentsDirectory();
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final fileName = 'gallery_$timestamp.jpg';
+        final filePath = '${directory.path}/scans/$fileName';
+
+        // Create scans directory if it doesn't exist
+        final scansDir = Directory('${directory.path}/scans');
+        if (!await scansDir.exists()) {
+          await scansDir.create(recursive: true);
+        }
+
+        // Copy image to our directory
+        await File(image.path).copy(filePath);
+
+        // Call the callback with the image path
+        if (onImageSelected != null) {
+          onImageSelected!(filePath);
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error selecting image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showCameraSettings(BuildContext context, WidgetRef ref) {

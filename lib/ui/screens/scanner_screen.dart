@@ -138,6 +138,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
     return CameraPreviewWidget(
       onCapture: _captureImage,
+      onImageSelected: _handleImageSelected,
       isCapturing: scannerState.isCapturing,
     );
   }
@@ -339,6 +340,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         _capturedImagePath = imagePath;
       });
     }
+  }
+
+  void _handleImageSelected(String imagePath) {
+    setState(() {
+      _capturedImagePath = imagePath;
+    });
+    // Switch to details tab to show the selected image
+    _tabController.animateTo(1);
   }
 
   Future<void> _saveDocument() async {
