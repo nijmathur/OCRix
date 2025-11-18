@@ -78,7 +78,7 @@ jobs:
                   script: |
                       const fs = require('fs');
                       const { execSync } = require('child_process');
-                      
+
                       try {
                           // Get coverage summary using lcov
                           const summary = execSync('lcov --summary coverage/lcov.info 2>&1 | grep -A 3 "lines\|functions\|branches" || echo "Coverage summary not available"', { encoding: 'utf-8' });
