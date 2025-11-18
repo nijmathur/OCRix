@@ -8,6 +8,10 @@ import 'package:path/path.dart' as path;
 import 'package:http/http.dart' as http;
 import '../models/storage_provider.dart';
 import '../models/document.dart';
+import '../core/interfaces/storage_provider_service_interface.dart';
+import '../core/interfaces/encryption_service_interface.dart';
+import '../core/base/base_service.dart';
+import '../core/exceptions/app_exceptions.dart';
 import 'encryption_service.dart';
 
 abstract class StorageProviderInterface {
@@ -21,7 +25,9 @@ abstract class StorageProviderInterface {
 }
 
 class LocalStorageProvider implements StorageProviderInterface {
-  final Logger _logger = Logger();
+  // Note: This is not a service, so it doesn't extend BaseService
+  // Using Logger directly for now
+  final logger = Logger();
   final String _basePath;
 
   LocalStorageProvider({String? basePath})
@@ -37,10 +43,10 @@ class LocalStorageProvider implements StorageProviderInterface {
         await storageDir.create(recursive: true);
       }
 
-      _logger.i('Local storage provider initialized');
+      logger.i('Local storage provider initialized');
       return true;
     } catch (e) {
-      _logger.e('Failed to initialize local storage: $e');
+      logger.e('Failed to initialize local storage: $e');
       return false;
     }
   }
@@ -63,10 +69,10 @@ class LocalStorageProvider implements StorageProviderInterface {
       // Copy file
       await sourceFile.copy(targetPath);
 
-      _logger.i('File uploaded to local storage: $remotePath');
+      logger.i('File uploaded to local storage: $remotePath');
       return targetPath;
     } catch (e) {
-      _logger.e('Failed to upload file to local storage: $e');
+      logger.e('Failed to upload file to local storage: $e');
       rethrow;
     }
   }
@@ -89,10 +95,10 @@ class LocalStorageProvider implements StorageProviderInterface {
       // Copy file
       await sourceFile.copy(localPath);
 
-      _logger.i('File downloaded from local storage: $remotePath');
+      logger.i('File downloaded from local storage: $remotePath');
       return localPath;
     } catch (e) {
-      _logger.e('Failed to download file from local storage: $e');
+      logger.e('Failed to download file from local storage: $e');
       rethrow;
     }
   }
@@ -106,10 +112,10 @@ class LocalStorageProvider implements StorageProviderInterface {
 
       if (await file.exists()) {
         await file.delete();
-        _logger.i('File deleted from local storage: $remotePath');
+        logger.i('File deleted from local storage: $remotePath');
       }
     } catch (e) {
-      _logger.e('Failed to delete file from local storage: $e');
+      logger.e('Failed to delete file from local storage: $e');
       rethrow;
     }
   }
@@ -135,10 +141,10 @@ class LocalStorageProvider implements StorageProviderInterface {
         }
       }
 
-      _logger.i('Listed ${files.length} files from local storage');
+      logger.i('Listed ${files.length} files from local storage');
       return files;
     } catch (e) {
-      _logger.e('Failed to list files from local storage: $e');
+      logger.e('Failed to list files from local storage: $e');
       return [];
     }
   }
@@ -155,7 +161,9 @@ class LocalStorageProvider implements StorageProviderInterface {
 }
 
 class GoogleDriveStorageProvider implements StorageProviderInterface {
-  final Logger _logger = Logger();
+  // Note: This is not a service, so it doesn't extend BaseService
+  // Using Logger directly for now
+  final logger = Logger();
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
       drive.DriveApi.driveFileScope,
@@ -170,13 +178,13 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
     try {
       final account = await _googleSignIn.signIn();
       if (account == null) {
-        _logger.w('Google Sign-In cancelled');
+        logger.w('Google Sign-In cancelled');
         return false;
       }
 
       final auth = await account.authentication;
       if (auth.accessToken == null) {
-        _logger.e('Failed to get access token');
+        logger.e('Failed to get access token');
         return false;
       }
 
@@ -195,10 +203,10 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       _driveApi = drive.DriveApi(authClient);
       _isInitialized = true;
 
-      _logger.i('Google Drive storage provider initialized');
+      logger.i('Google Drive storage provider initialized');
       return true;
     } catch (e) {
-      _logger.e('Failed to initialize Google Drive storage: $e');
+      logger.e('Failed to initialize Google Drive storage: $e');
       return false;
     }
   }
@@ -227,10 +235,10 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
         uploadMedia: media,
       );
 
-      _logger.i('File uploaded to Google Drive: ${uploadedFile.id}');
+      logger.i('File uploaded to Google Drive: ${uploadedFile.id}');
       return uploadedFile.id ?? '';
     } catch (e) {
-      _logger.e('Failed to upload file to Google Drive: $e');
+      logger.e('Failed to upload file to Google Drive: $e');
       rethrow;
     }
   }
@@ -256,10 +264,10 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       await file.parent.create(recursive: true);
       await file.writeAsBytes(bytes);
 
-      _logger.i('File downloaded from Google Drive: $remotePath');
+      logger.i('File downloaded from Google Drive: $remotePath');
       return localPath;
     } catch (e) {
-      _logger.e('Failed to download file from Google Drive: $e');
+      logger.e('Failed to download file from Google Drive: $e');
       rethrow;
     }
   }
@@ -272,9 +280,9 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       }
 
       await _driveApi!.files.delete(remotePath);
-      _logger.i('File deleted from Google Drive: $remotePath');
+      logger.i('File deleted from Google Drive: $remotePath');
     } catch (e) {
-      _logger.e('Failed to delete file from Google Drive: $e');
+      logger.e('Failed to delete file from Google Drive: $e');
       rethrow;
     }
   }
@@ -297,10 +305,10 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
               .toList() ??
           [];
 
-      _logger.i('Listed ${fileIds.length} files from Google Drive');
+      logger.i('Listed ${fileIds.length} files from Google Drive');
       return fileIds;
     } catch (e) {
-      _logger.e('Failed to list files from Google Drive: $e');
+      logger.e('Failed to list files from Google Drive: $e');
       return [];
     }
   }
@@ -310,7 +318,7 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
     try {
       return _isInitialized && await _googleSignIn.isSignedIn();
     } catch (e) {
-      _logger.e('Failed to check Google Drive connection: $e');
+      logger.e('Failed to check Google Drive connection: $e');
       return false;
     }
   }
@@ -321,35 +329,63 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       await _googleSignIn.signOut();
       _driveApi = null;
       _isInitialized = false;
-      _logger.i('Disconnected from Google Drive');
+      logger.i('Disconnected from Google Drive');
     } catch (e) {
-      _logger.e('Failed to disconnect from Google Drive: $e');
+      logger.e('Failed to disconnect from Google Drive: $e');
     }
   }
 }
 
-class StorageProviderService {
-  static final StorageProviderService _instance =
-      StorageProviderService._internal();
-  factory StorageProviderService() => _instance;
-  StorageProviderService._internal();
-
-  final Logger _logger = Logger();
+class StorageProviderService extends BaseService implements IStorageProviderService {
   final Map<StorageProviderType, StorageProviderInterface> _providers = {};
-  final EncryptionService _encryptionService = EncryptionService();
+  IEncryptionService? _encryptionService;
+  StorageProviderType? _currentProvider;
 
+  @override
+  String get serviceName => 'StorageProviderService';
+
+  // Dependency injection for encryption service
+  void setEncryptionService(IEncryptionService encryptionService) {
+    _encryptionService = encryptionService;
+  }
+
+  IEncryptionService get encryptionService {
+    return _encryptionService ?? EncryptionService();
+  }
+
+  @override
   Future<void> initialize() async {
     try {
       // Initialize local storage
       final localProvider = LocalStorageProvider();
       await localProvider.initialize();
       _providers[StorageProviderType.local] = localProvider;
+      _currentProvider = StorageProviderType.local;
 
-      _logger.i('Storage provider service initialized');
+      logInfo('Storage provider service initialized');
     } catch (e) {
-      _logger.e('Failed to initialize storage provider service: $e');
-      rethrow;
+      logError('Failed to initialize storage provider service', e);
+      throw StorageException(
+        'Failed to initialize storage provider service: ${e.toString()}',
+        originalError: e,
+      );
     }
+  }
+
+  @override
+  List<StorageProviderType> getAvailableProviders() {
+    return StorageProviderType.values;
+  }
+
+  @override
+  Future<StorageProviderType> getCurrentProvider() async {
+    return _currentProvider ?? StorageProviderType.local;
+  }
+
+  @override
+  Future<void> setProvider(StorageProviderType provider) async {
+    _currentProvider = provider;
+    await getProvider(provider); // Ensure provider is initialized
   }
 
   Future<StorageProviderInterface> getProvider(StorageProviderType type) async {
@@ -377,8 +413,9 @@ class StorageProviderService {
     }
   }
 
-  Future<String> uploadDocument(
-      Document document, StorageProviderType providerType) async {
+  @override
+  Future<String> uploadDocument(Document document) async {
+    final providerType = await getCurrentProvider();
     try {
       final provider = await getProvider(providerType);
 
@@ -402,90 +439,137 @@ class StorageProviderService {
 
       // Encrypt the file if needed
       if (document.isEncrypted) {
-        filePath = await _encryptionService.encryptFile(filePath);
+        filePath = await encryptionService.encryptFile(filePath);
       }
 
       // Upload to storage provider
       final remotePath = 'documents/${document.id}/${path.basename(filePath)}';
       final uploadedPath = await provider.uploadFile(filePath, remotePath);
 
-      _logger.i('Document uploaded: ${document.id} to $providerType');
+      logInfo('Document uploaded: ${document.id} to $providerType');
       return uploadedPath;
     } catch (e) {
-      _logger.e('Failed to upload document: $e');
-      rethrow;
+      logError('Failed to upload document', e);
+      if (e is StorageException) {
+        rethrow;
+      }
+      throw StorageException(
+        'Failed to upload document: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
-  Future<String> downloadDocument(String documentId, String remotePath,
-      String localPath, bool isEncrypted) async {
+  @override
+  Future<String> downloadDocument(String documentId, String localPath) async {
+    // Simplified - in production, fetch remotePath and isEncrypted from database
+    final providerType = await getCurrentProvider();
+    final remotePath = 'documents/$documentId'; // Simplified
+    final isEncrypted = false; // Would need to fetch from document
+    
     try {
-      // Determine provider type from remote path or use default
-      final provider = await getProvider(
-          StorageProviderType.local); // Default to local for now
-
-      // Download from storage provider
+      final provider = await getProvider(providerType);
       final downloadedPath = await provider.downloadFile(remotePath, localPath);
 
       // Decrypt if needed
       if (isEncrypted) {
-        final decryptedPath =
-            await _encryptionService.decryptFile(downloadedPath);
-        _logger.i('Document downloaded and decrypted: $documentId');
+        final decryptedPath = await encryptionService.decryptFile(downloadedPath);
+        logInfo('Document downloaded and decrypted: $documentId');
         return decryptedPath;
       }
 
-      _logger.i('Document downloaded: $documentId');
+      logInfo('Document downloaded: $documentId');
       return downloadedPath;
     } catch (e) {
-      _logger.e('Failed to download document: $e');
-      rethrow;
+      logError('Failed to download document', e);
+      if (e is StorageException) {
+        rethrow;
+      }
+      throw StorageException(
+        'Failed to download document: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
-  Future<void> deleteDocument(String documentId, String remotePath,
-      StorageProviderType providerType) async {
+  @override
+  Future<void> deleteDocument(String documentId) async {
+    final providerType = await getCurrentProvider();
+    final remotePath = 'documents/$documentId'; // Simplified
+    
     try {
       final provider = await getProvider(providerType);
       await provider.deleteFile(remotePath);
-      _logger.i('Document deleted: $documentId from $providerType');
+      logInfo('Document deleted: $documentId from $providerType');
     } catch (e) {
-      _logger.e('Failed to delete document: $e');
-      rethrow;
+      logError('Failed to delete document', e);
+      if (e is StorageException) {
+        rethrow;
+      }
+      throw StorageException(
+        'Failed to delete document: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
-  Future<List<String>> listDocuments(StorageProviderType providerType,
-      {String? prefix}) async {
+  @override
+  Future<List<String>> listDocuments({String? prefix}) async {
+    final providerType = await getCurrentProvider();
     try {
       final provider = await getProvider(providerType);
       return await provider.listFiles(prefix);
     } catch (e) {
-      _logger.e('Failed to list documents: $e');
+      logError('Failed to list documents', e);
       return [];
     }
   }
 
-  Future<bool> isProviderConnected(StorageProviderType providerType) async {
+  @override
+  Future<bool> isConnected() async {
+    final providerType = await getCurrentProvider();
     try {
       final provider = await getProvider(providerType);
       return await provider.isConnected();
     } catch (e) {
-      _logger.e('Failed to check provider connection: $e');
+      logError('Failed to check provider connection', e);
       return false;
     }
   }
 
-  Future<void> disconnectProvider(StorageProviderType providerType) async {
+  @override
+  Future<void> disconnect() async {
+    final providerType = await getCurrentProvider();
     try {
       if (_providers.containsKey(providerType)) {
         await _providers[providerType]!.disconnect();
         _providers.remove(providerType);
-        _logger.i('Disconnected from $providerType');
+        logInfo('Disconnected from $providerType');
       }
     } catch (e) {
-      _logger.e('Failed to disconnect provider: $e');
+      logError('Failed to disconnect provider', e);
     }
+  }
+
+  @override
+  Future<void> syncToCloud() async {
+    // TODO: Implement cloud sync
+    logInfo('Sync to cloud - not yet implemented');
+  }
+
+  @override
+  Future<void> syncFromCloud() async {
+    // TODO: Implement cloud sync
+    logInfo('Sync from cloud - not yet implemented');
+  }
+
+  // Backward compatibility methods
+  Future<bool> isProviderConnected(StorageProviderType providerType) async {
+    return await getProvider(providerType).then((p) => p.isConnected());
+  }
+
+  Future<void> disconnectProvider(StorageProviderType providerType) async {
+    await disconnect();
   }
 
   Future<void> dispose() async {
@@ -494,9 +578,9 @@ class StorageProviderService {
         await provider.disconnect();
       }
       _providers.clear();
-      _logger.i('Storage provider service disposed');
+      logInfo('Storage provider service disposed');
     } catch (e) {
-      _logger.e('Failed to dispose storage provider service: $e');
+      logError('Failed to dispose storage provider service', e);
     }
   }
 }

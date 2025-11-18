@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'providers/document_provider.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/splash_screen.dart';
-import 'services/database_service.dart';
-import 'services/encryption_service.dart';
-import 'services/ocr_service.dart';
-import 'services/camera_service.dart';
-import 'services/storage_provider_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -114,12 +110,19 @@ class _AppInitializerState extends ConsumerState<AppInitializer> {
 
   Future<void> _initializeApp() async {
     try {
-      // Initialize services
-      await DatabaseService().database;
-      await EncryptionService().initialize();
-      await OCRService().initialize();
-      await CameraService().initialize();
-      await StorageProviderService().initialize();
+      // Initialize services using providers
+      final container = ProviderContainer();
+      final databaseService = container.read(databaseServiceProvider);
+      final encryptionService = container.read(encryptionServiceProvider);
+      final ocrService = container.read(ocrServiceProvider);
+      final cameraService = container.read(cameraServiceProvider);
+      final storageService = container.read(storageProviderServiceProvider);
+
+      await databaseService.initialize();
+      await encryptionService.initialize();
+      await ocrService.initialize();
+      await cameraService.initialize();
+      await storageService.initialize();
 
       setState(() {
         _isInitialized = true;

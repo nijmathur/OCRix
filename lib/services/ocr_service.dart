@@ -3,29 +3,34 @@ import 'dart:typed_data';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart'
     hide TextBlock;
 import 'package:image/image.dart' as img;
-import 'package:logger/logger.dart';
 import 'package:flutter/material.dart';
 import '../models/document.dart';
 import '../core/models/ocr_result.dart';
+import '../core/interfaces/ocr_service_interface.dart';
+import '../core/base/base_service.dart';
+import '../core/exceptions/app_exceptions.dart';
 
-class OCRService {
-  static final OCRService _instance = OCRService._internal();
-  factory OCRService() => _instance;
-  OCRService._internal();
-
-  final Logger _logger = Logger();
+class OCRService extends BaseService implements IOCRService {
   TextRecognizer? _textRecognizer;
 
+  @override
+  String get serviceName => 'OCRService';
+
+  @override
   Future<void> initialize() async {
     try {
       _textRecognizer = TextRecognizer();
-      _logger.i('OCR Service initialized');
+      logInfo('OCR Service initialized');
     } catch (e) {
-      _logger.e('Failed to initialize OCR service: $e');
-      rethrow;
+      logError('Failed to initialize OCR service', e);
+      throw OCRException(
+        'Failed to initialize OCR service: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
+  @override
   Future<OCRResult> extractTextFromImage(String imagePath) async {
     try {
       if (_textRecognizer == null) {
@@ -39,8 +44,7 @@ class OCRService {
       final confidence = _calculateConfidence(recognizedText);
       final detectedLanguage = _detectLanguage(extractedText);
 
-      _logger
-          .i('Text extracted from image: ${extractedText.length} characters');
+      logInfo('Text extracted from image: ${extractedText.length} characters');
 
       return OCRResult(
         text: extractedText,
@@ -55,19 +59,26 @@ class OCRService {
             .toList(),
       );
     } catch (e) {
-      _logger.e('Failed to extract text from image: $e');
-      rethrow;
+      logError('Failed to extract text from image', e);
+      if (e is OCRException) {
+        rethrow;
+      }
+      throw OCRException(
+        'Failed to extract text from image: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
-  Future<OCRResult> extractTextFromBytes(Uint8List imageBytes) async {
+  @override
+  Future<OCRResult> extractTextFromBytes(List<int> imageBytes) async {
     try {
       if (_textRecognizer == null) {
         await initialize();
       }
 
       final inputImage = InputImage.fromBytes(
-        bytes: imageBytes,
+        bytes: Uint8List.fromList(imageBytes),
         metadata: InputImageMetadata(
           size: const Size(0, 0), // Will be determined from image
           rotation: InputImageRotation.rotation0deg,
@@ -82,8 +93,7 @@ class OCRService {
       final confidence = _calculateConfidence(recognizedText);
       final detectedLanguage = _detectLanguage(extractedText);
 
-      _logger
-          .i('Text extracted from bytes: ${extractedText.length} characters');
+      logInfo('Text extracted from bytes: ${extractedText.length} characters');
 
       return OCRResult(
         text: extractedText,
@@ -98,11 +108,18 @@ class OCRService {
             .toList(),
       );
     } catch (e) {
-      _logger.e('Failed to extract text from bytes: $e');
-      rethrow;
+      logError('Failed to extract text from bytes', e);
+      if (e is OCRException) {
+        rethrow;
+      }
+      throw OCRException(
+        'Failed to extract text from bytes: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
+  @override
   Future<DocumentType> categorizeDocument(String text) async {
     try {
       final lowerText = text.toLowerCase();
@@ -139,19 +156,20 @@ class OCRService {
 
       return DocumentType.other;
     } catch (e) {
-      _logger.e('Failed to categorize document: $e');
+      logError('Failed to categorize document', e);
       return DocumentType.other;
     }
   }
 
-  Future<Uint8List> preprocessImage(String imagePath) async {
+  @override
+  Future<List<int>> preprocessImage(String imagePath) async {
     try {
       final file = File(imagePath);
       final bytes = await file.readAsBytes();
       final image = img.decodeImage(bytes);
 
       if (image == null) {
-        throw Exception('Failed to decode image');
+        throw OCRException('Failed to decode image');
       }
 
       // Apply image preprocessing
@@ -170,10 +188,16 @@ class OCRService {
       // Apply sharpening - simplified version
       final sharpenedImage = enhancedImage;
 
-      return Uint8List.fromList(img.encodeJpg(sharpenedImage, quality: 95));
+      return img.encodeJpg(sharpenedImage, quality: 95);
     } catch (e) {
-      _logger.e('Failed to preprocess image: $e');
-      rethrow;
+      logError('Failed to preprocess image', e);
+      if (e is OCRException) {
+        rethrow;
+      }
+      throw OCRException(
+        'Failed to preprocess image: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -214,9 +238,10 @@ class OCRService {
     return keywords.any((keyword) => text.contains(keyword));
   }
 
+  @override
   Future<void> dispose() async {
     await _textRecognizer?.close();
     _textRecognizer = null;
-    _logger.i('OCR Service disposed');
+    logInfo('OCR Service disposed');
   }
 }

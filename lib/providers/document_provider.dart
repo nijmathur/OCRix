@@ -8,24 +8,38 @@ import '../services/database_service.dart';
 import '../services/ocr_service.dart';
 import '../services/camera_service.dart';
 import '../services/storage_provider_service.dart';
+import '../services/encryption_service.dart';
 import '../services/image_processing_service.dart';
+import '../core/interfaces/database_service_interface.dart';
+import '../core/interfaces/ocr_service_interface.dart';
+import '../core/interfaces/camera_service_interface.dart';
+import '../core/interfaces/encryption_service_interface.dart';
+import '../core/interfaces/storage_provider_service_interface.dart';
 import '../core/interfaces/image_processing_service_interface.dart';
 import '../core/models/ocr_result.dart';
 
-final databaseServiceProvider = Provider<DatabaseService>((ref) {
+// Service providers - using interfaces for dependency inversion
+final databaseServiceProvider = Provider<IDatabaseService>((ref) {
   return DatabaseService();
 });
 
-final ocrServiceProvider = Provider<OCRService>((ref) {
+final ocrServiceProvider = Provider<IOCRService>((ref) {
   return OCRService();
 });
 
-final cameraServiceProvider = Provider<CameraService>((ref) {
+final cameraServiceProvider = Provider<ICameraService>((ref) {
   return CameraService();
 });
 
-final storageProviderServiceProvider = Provider<StorageProviderService>((ref) {
-  return StorageProviderService();
+final encryptionServiceProvider = Provider<IEncryptionService>((ref) {
+  return EncryptionService();
+});
+
+final storageProviderServiceProvider = Provider<IStorageProviderService>((ref) {
+  final service = StorageProviderService();
+  // Inject encryption service
+  service.setEncryptionService(ref.read(encryptionServiceProvider));
+  return service;
 });
 
 final documentListProvider = FutureProvider<List<Document>>((ref) async {
@@ -55,16 +69,16 @@ final documentByTypeProvider =
 });
 
 class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
-  final DatabaseService _databaseService;
-  final OCRService _ocrService;
+  final IDatabaseService _databaseService;
+  final IOCRService _ocrService;
   final IImageProcessingService _imageProcessingService;
   final Logger _logger = Logger();
 
   DocumentNotifier(
     this._databaseService,
     this._ocrService,
-    CameraService cameraService,
-    StorageProviderService storageService, {
+    ICameraService cameraService,
+    IStorageProviderService storageService, {
     IImageProcessingService? imageProcessingService,
   }) : _imageProcessingService = imageProcessingService ?? ImageProcessingService(),
         super(const AsyncValue.loading()) {
@@ -240,7 +254,7 @@ final documentNotifierProvider =
 });
 
 class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
-  final DatabaseService _databaseService;
+  final IDatabaseService _databaseService;
   final Logger _logger = Logger();
 
   DocumentDetailNotifier(this._databaseService)
@@ -293,8 +307,8 @@ final documentDetailNotifierProvider = StateNotifierProvider.family<
 });
 
 class ScannerNotifier extends StateNotifier<ScannerState> {
-  final CameraService _cameraService;
-  final OCRService _ocrService;
+  final ICameraService _cameraService;
+  final IOCRService _ocrService;
   final Logger _logger = Logger();
 
   ScannerNotifier(this._cameraService, this._ocrService)
