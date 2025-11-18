@@ -1,68 +1,94 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite/sqflite.dart' hide DatabaseException;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:encrypt/encrypt.dart' as encrypt;
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:logger/logger.dart';
 import '../models/document.dart';
 import '../models/user_settings.dart';
 import '../models/audit_log.dart';
+import '../core/interfaces/database_service_interface.dart';
+import '../core/interfaces/encryption_service_interface.dart';
+import '../core/base/base_service.dart';
+import '../core/config/app_config.dart';
+import '../core/exceptions/app_exceptions.dart';
+import 'encryption_service.dart';
 
-class DatabaseService {
+class DatabaseService extends BaseService implements IDatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
   DatabaseService._internal();
 
-  static Database? _database;
-  final Logger _logger = Logger();
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  encrypt.Encrypter? _encrypter;
-  encrypt.IV? _iv;
+  // Encryption service - will be refactored to use interface next
+  // For now, use concrete class directly
+  late final EncryptionService _encryptionServiceInstance = EncryptionService();
+  
+  // Dependency injection - can be set for testing
+  IEncryptionService? _encryptionService;
+  
+  // For backward compatibility, allow setting encryption service
+  // In production, this will be injected via Riverpod
+  void setEncryptionService(IEncryptionService encryptionService) {
+    _encryptionService = encryptionService;
+  }
 
+  // Get encryption service - uses concrete class for now
+  // Will be refactored when EncryptionService implements IEncryptionService
+  dynamic get encryptionService {
+    if (_encryptionService != null) {
+      return _encryptionService!;
+    }
+    // Temporary: use concrete class until EncryptionService implements interface
+    return _EncryptionServiceAdapter(_encryptionServiceInstance);
+  }
+
+  static Database? _database;
+  bool _isInitialized = false;
+
+  @override
+  String get serviceName => 'DatabaseService';
+
+  /// Database getter for backward compatibility
+  /// Use initialize() instead for new code
   Future<Database> get database async {
-    _database ??= await _initDatabase();
+    if (!_isInitialized) {
+      await initialize();
+    }
     return _database!;
   }
 
-  Future<Database> _initDatabase() async {
+  @override
+  Future<void> initialize() async {
+    if (_isInitialized && _database != null) {
+      return;
+    }
+
     try {
-      // Initialize encryption
-      await _initializeEncryption();
+      logInfo('Initializing database...');
+
+      // Initialize encryption service if needed
+      if (!encryptionService.isInitialized) {
+        await encryptionService.initialize();
+      }
 
       // Mobile/Desktop platforms
       final documentsDir = await getApplicationDocumentsDirectory();
-      final path = join(documentsDir.path, 'privacy_documents.db');
+      final path = join(documentsDir.path, AppConfig.databaseName);
 
-      return await openDatabase(
+      _database = await openDatabase(
         path,
-        version: 4, // Increment to add image BLOB columns
+        version: AppConfig.databaseVersion,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
-    } catch (e) {
-      _logger.e('Failed to initialize database: $e');
-      rethrow;
-    }
-  }
 
-  Future<void> _initializeEncryption() async {
-    try {
-      // Get or create encryption key
-      String? keyString = await _secureStorage.read(key: 'encryption_key');
-      if (keyString == null) {
-        final key = encrypt.Key.fromSecureRandom(32);
-        keyString = key.base64;
-        await _secureStorage.write(key: 'encryption_key', value: keyString);
-      }
-
-      final key = encrypt.Key.fromBase64(keyString);
-      _encrypter = encrypt.Encrypter(encrypt.AES(key));
-      _iv = encrypt.IV.fromSecureRandom(16);
+      _isInitialized = true;
+      logInfo('Database initialized successfully');
     } catch (e) {
-      _logger.e('Failed to initialize encryption: $e');
-      rethrow;
+      logError('Failed to initialize database', e);
+      throw DatabaseException(
+        'Failed to initialize database: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -112,9 +138,9 @@ class DatabaseService {
             content_rowid='rowid'
           )
         ''');
-        _logger.i('FTS5 search index created successfully');
+        logInfo('FTS5 search index created successfully');
       } catch (e) {
-        _logger.w('FTS5 not available, creating fallback search table: $e');
+        logWarning('FTS5 not available, creating fallback search table: $e');
         // Create a regular table for search fallback
         await db.execute('''
           CREATE TABLE search_index (
@@ -126,7 +152,7 @@ class DatabaseService {
             FOREIGN KEY (doc_id) REFERENCES documents (id)
           )
         ''');
-        _logger.i('Fallback search table created');
+        logInfo('Fallback search table created');
       }
 
       // Create user settings table
@@ -174,24 +200,27 @@ class DatabaseService {
       final defaultSettings = UserSettings.defaultSettings();
       await _insertUserSettings(db, defaultSettings);
 
-      _logger.i('Database created successfully');
+      logInfo('Database created successfully');
     } catch (e) {
-      _logger.e('Failed to create database: $e');
-      rethrow;
+      logError('Failed to create database', e);
+      throw DatabaseException(
+        'Failed to create database: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     // Handle database migrations here
-    _logger.i('Database upgraded from version $oldVersion to $newVersion');
+    logInfo('Database upgraded from version $oldVersion to $newVersion');
 
     if (oldVersion < 3) {
       // Drop and recreate search_index table with correct schema
       try {
         await db.execute('DROP TABLE IF EXISTS search_index');
-        _logger.i('Dropped old search_index table');
+        logInfo('Dropped old search_index table');
       } catch (e) {
-        _logger.w('Error dropping search_index table: $e');
+        logWarning('Error dropping search_index table: $e');
       }
 
       // Recreate with correct schema
@@ -206,9 +235,9 @@ class DatabaseService {
             FOREIGN KEY (doc_id) REFERENCES documents (id)
           )
         ''');
-        _logger.i('Recreated search_index table with correct schema');
+        logInfo('Recreated search_index table with correct schema');
       } catch (e) {
-        _logger.e('Error recreating search_index table: $e');
+        logError('Error recreating search_index table', e);
       }
     }
 
@@ -223,9 +252,9 @@ class DatabaseService {
             .execute('ALTER TABLE documents ADD COLUMN image_width INTEGER');
         await db
             .execute('ALTER TABLE documents ADD COLUMN image_height INTEGER');
-        _logger.i('Added image BLOB columns to documents table');
+        logInfo('Added image BLOB columns to documents table');
       } catch (e) {
-        _logger.e('Error adding image BLOB columns: $e');
+        logError('Error adding image BLOB columns', e);
       }
     }
   }
@@ -252,11 +281,14 @@ class DatabaseService {
       await _logAudit(
           AuditAction.create, 'document', document.id, 'Document created');
 
-      _logger.i('Document inserted: ${document.id}');
+      logInfo('Document inserted: ${document.id}');
       return document.id;
     } catch (e) {
-      _logger.e('Failed to insert document: $e');
-      rethrow;
+      logError('Failed to insert document', e);
+      throw DatabaseException(
+        'Failed to insert document: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -275,8 +307,11 @@ class DatabaseService {
       }
       return null;
     } catch (e) {
-      _logger.e('Failed to get document: $e');
-      rethrow;
+      logError('Failed to get document', e);
+      throw DatabaseException(
+        'Failed to get document: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -314,8 +349,11 @@ class DatabaseService {
 
       return maps.map((map) => _mapToDocument(map)).toList();
     } catch (e) {
-      _logger.e('Failed to get documents: $e');
-      rethrow;
+      logError('Failed to get documents', e);
+      throw DatabaseException(
+        'Failed to get documents: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -349,10 +387,13 @@ class DatabaseService {
       await _logAudit(
           AuditAction.update, 'document', document.id, 'Document updated');
 
-      _logger.i('Document updated: ${document.id}');
+      logInfo('Document updated: ${document.id}');
     } catch (e) {
-      _logger.e('Failed to update document: $e');
-      rethrow;
+      logError('Failed to update document', e);
+      throw DatabaseException(
+        'Failed to update document: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -370,10 +411,13 @@ class DatabaseService {
       // Log audit
       await _logAudit(AuditAction.delete, 'document', id, 'Document deleted');
 
-      _logger.i('Document deleted: $id');
+      logInfo('Document deleted: $id');
     } catch (e) {
-      _logger.e('Failed to delete document: $e');
-      rethrow;
+      logError('Failed to delete document', e);
+      throw DatabaseException(
+        'Failed to delete document: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -411,7 +455,7 @@ class DatabaseService {
 
       return UserSettings.fromJson(settingsMap);
     } catch (e) {
-      _logger.e('Failed to get user settings: $e');
+      logError('Failed to get user settings', e);
       return UserSettings.defaultSettings();
     }
   }
@@ -438,10 +482,13 @@ class DatabaseService {
       await _logAudit(
           AuditAction.update, 'user_settings', 'global', 'Settings updated');
 
-      _logger.i('User settings updated');
+      logInfo('User settings updated');
     } catch (e) {
-      _logger.e('Failed to update user settings: $e');
-      rethrow;
+      logError('Failed to update user settings', e);
+      throw DatabaseException(
+        'Failed to update user settings: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -461,7 +508,8 @@ class DatabaseService {
       final db = await database;
       await db.insert('audit_log', _auditLogToMap(auditLog));
     } catch (e) {
-      _logger.e('Failed to log audit: $e');
+      logError('Failed to log audit', e);
+      // Don't throw - audit logging failures shouldn't break the app
     }
   }
 
@@ -498,8 +546,11 @@ class DatabaseService {
 
       return maps.map((map) => _mapToAuditLog(map)).toList();
     } catch (e) {
-      _logger.e('Failed to get audit logs: $e');
-      rethrow;
+      logError('Failed to get audit logs', e);
+      throw DatabaseException(
+        'Failed to get audit logs: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -517,7 +568,7 @@ class DatabaseService {
         ''', [query]);
         return maps.map((map) => _mapToDocument(map)).toList();
       } catch (e) {
-        _logger.w('FTS5 search failed, using fallback: $e');
+        logWarning('FTS5 search failed, using fallback: $e');
         // Fallback to LIKE search
         final searchTerm = '%$query%';
         final maps = await db.rawQuery('''
@@ -529,8 +580,11 @@ class DatabaseService {
         return maps.map((map) => _mapToDocument(map)).toList();
       }
     } catch (e) {
-      _logger.e('Failed to search documents: $e');
-      rethrow;
+      logError('Failed to search documents', e);
+      throw DatabaseException(
+        'Failed to search documents: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -635,25 +689,29 @@ class DatabaseService {
     );
   }
 
-  // Encryption helpers
-  String? encryptData(String data) {
-    if (_encrypter == null || _iv == null) return data;
+  // Encryption helpers - now use EncryptionService
+  // These methods are kept for backward compatibility but delegate to EncryptionService
+  Future<String?> encryptData(String data) async {
     try {
-      return _encrypter!.encrypt(data, iv: _iv!).base64;
+      if (!encryptionService.isInitialized) {
+        await encryptionService.initialize();
+      }
+      return await encryptionService.encryptText(data);
     } catch (e) {
-      _logger.e('Failed to encrypt data: $e');
-      return data;
+      logError('Failed to encrypt data', e);
+      return data; // Return original on failure for backward compatibility
     }
   }
 
-  String? decryptData(String encryptedData) {
-    if (_encrypter == null || _iv == null) return encryptedData;
+  Future<String?> decryptData(String encryptedData) async {
     try {
-      return _encrypter!
-          .decrypt(encrypt.Encrypted.fromBase64(encryptedData), iv: _iv!);
+      if (!encryptionService.isInitialized) {
+        await encryptionService.initialize();
+      }
+      return await encryptionService.decryptText(encryptedData);
     } catch (e) {
-      _logger.e('Failed to decrypt data: $e');
-      return encryptedData;
+      logError('Failed to decrypt data', e);
+      return encryptedData; // Return original on failure for backward compatibility
     }
   }
 
@@ -664,4 +722,50 @@ class DatabaseService {
       _database = null;
     }
   }
+}
+
+// Temporary adapter until EncryptionService implements IEncryptionService
+class _EncryptionServiceAdapter implements IEncryptionService {
+  final EncryptionService _service;
+  
+  _EncryptionServiceAdapter(this._service);
+  
+  @override
+  bool get isInitialized => _service.isInitialized;
+  
+  @override
+  Future<void> initialize() => _service.initialize();
+  
+  @override
+  Future<String> encryptText(String text) => _service.encryptText(text);
+  
+  @override
+  Future<String> decryptText(String encryptedText) => _service.decryptText(encryptedText);
+  
+  @override
+  Future<String> encryptFile(String filePath) => _service.encryptFile(filePath);
+  
+  @override
+  Future<String> decryptFile(String encryptedFilePath) => _service.decryptFile(encryptedFilePath);
+  
+  @override
+  Future<List<int>> encryptBytes(List<int> bytes) => _service.encryptBytes(Uint8List.fromList(bytes)).then((b) => b.toList());
+  
+  @override
+  Future<List<int>> decryptBytes(List<int> encryptedBytes) => _service.decryptBytes(Uint8List.fromList(encryptedBytes)).then((b) => b.toList());
+  
+  @override
+  Future<bool> isBiometricAvailable() => _service.isBiometricAvailable();
+  
+  @override
+  Future<bool> authenticateWithBiometrics({String? reason}) => _service.authenticateWithBiometrics();
+  
+  @override
+  Future<void> changeEncryptionKey() => _service.changeEncryptionKey();
+  
+  @override
+  Future<void> clearEncryptionKey() => _service.clearEncryptionKey();
+  
+  @override
+  Future<Map<String, dynamic>> getEncryptionInfo() => _service.getEncryptionInfo();
 }

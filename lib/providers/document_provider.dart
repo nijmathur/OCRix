@@ -3,12 +3,13 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:camera/camera.dart';
-import 'package:image/image.dart' as img;
 import '../models/document.dart';
 import '../services/database_service.dart';
 import '../services/ocr_service.dart';
 import '../services/camera_service.dart';
 import '../services/storage_provider_service.dart';
+import '../services/image_processing_service.dart';
+import '../core/interfaces/image_processing_service_interface.dart';
 
 final databaseServiceProvider = Provider<DatabaseService>((ref) {
   return DatabaseService();
@@ -55,14 +56,17 @@ final documentByTypeProvider =
 class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
   final DatabaseService _databaseService;
   final OCRService _ocrService;
+  final IImageProcessingService _imageProcessingService;
   final Logger _logger = Logger();
 
   DocumentNotifier(
     this._databaseService,
     this._ocrService,
     CameraService cameraService,
-    StorageProviderService storageService,
-  ) : super(const AsyncValue.loading()) {
+    StorageProviderService storageService, {
+    IImageProcessingService? imageProcessingService,
+  }) : _imageProcessingService = imageProcessingService ?? ImageProcessingService(),
+        super(const AsyncValue.loading()) {
     _loadDocuments();
   }
 
@@ -102,13 +106,10 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         throw Exception('Image file is empty');
       }
 
-      // Process image for optimal storage
-      final processedImageData = await _processImageForStorage(imageBytes);
-
-      // Get image dimensions
-      final decodedImage = img.decodeImage(processedImageData);
-      final imageWidth = decodedImage?.width;
-      final imageHeight = decodedImage?.height;
+      // Process image for optimal storage using ImageProcessingService
+      final processedResult = await _imageProcessingService.processImageForStorage(
+        imageBytes.toList(),
+      );
 
       // Extract text using OCR
       final ocrResult = await _ocrService.extractTextFromImage(imagePath);
@@ -119,11 +120,11 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       // Create document with image data
       final document = Document.create(
         title: title ?? _generateTitle(ocrResult.text, documentType),
-        imageData: processedImageData,
-        imageFormat: 'jpeg',
-        imageSize: processedImageData.length,
-        imageWidth: imageWidth,
-        imageHeight: imageHeight,
+        imageData: Uint8List.fromList(processedResult.imageBytes),
+        imageFormat: processedResult.format,
+        imageSize: processedResult.size,
+        imageWidth: processedResult.width,
+        imageHeight: processedResult.height,
         imagePath: imagePath, // Keep for backward compatibility
         extractedText: ocrResult.text,
         type: documentType,
@@ -214,38 +215,11 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         : '${type.displayName} - ${DateTime.now().toString().split(' ')[0]}';
   }
 
-  /// Process image for optimal storage in database
-  Future<Uint8List> _processImageForStorage(Uint8List imageBytes) async {
-    try {
-      // Decode image
-      final image = img.decodeImage(imageBytes);
-      if (image == null) {
-        throw Exception('Failed to decode image');
-      }
-
-      // Resize if too large (max 1920x1080 for storage efficiency)
-      img.Image processedImage = image;
-      if (image.width > 1920 || image.height > 1920) {
-        final scale = image.width > image.height
-            ? 1920.0 / image.width
-            : 1920.0 / image.height;
-
-        processedImage = img.copyResize(
-          image,
-          width: (image.width * scale).round(),
-          height: (image.height * scale).round(),
-        );
-      }
-
-      // Convert to JPEG with 85% quality for good balance of size/quality
-      final processedBytes = img.encodeJpg(processedImage, quality: 85);
-      return Uint8List.fromList(processedBytes);
-    } catch (e) {
-      _logger.w('Failed to process image, using original: $e');
-      return imageBytes;
-    }
-  }
 }
+
+final imageProcessingServiceProvider = Provider<IImageProcessingService>((ref) {
+  return ImageProcessingService();
+});
 
 final documentNotifierProvider =
     StateNotifierProvider<DocumentNotifier, AsyncValue<List<Document>>>((ref) {
@@ -253,9 +227,15 @@ final documentNotifierProvider =
   final ocrService = ref.read(ocrServiceProvider);
   final cameraService = ref.read(cameraServiceProvider);
   final storageService = ref.read(storageProviderServiceProvider);
+  final imageProcessingService = ref.read(imageProcessingServiceProvider);
 
   return DocumentNotifier(
-      databaseService, ocrService, cameraService, storageService);
+    databaseService,
+    ocrService,
+    cameraService,
+    storageService,
+    imageProcessingService: imageProcessingService,
+  );
 });
 
 class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
