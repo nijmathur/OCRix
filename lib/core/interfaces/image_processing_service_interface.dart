@@ -1,3 +1,5 @@
+import '../models/processed_image_result.dart';
+
 /// Interface for image processing operations
 abstract class IImageProcessingService {
   /// Process image for optimal storage in database
@@ -18,34 +20,6 @@ abstract class IImageProcessingService {
   Future<List<int>> compressToJpeg(
     List<int> imageBytes, {
     int quality = 85,
-  });
-}
-
-/// Result of image processing
-class ProcessedImageResult {
-  final List<int> imageBytes;
-  final int? width;
-  final int? height;
-  final int size;
-  final String format;
-
-  const ProcessedImageResult({
-    required this.imageBytes,
-    this.width,
-    this.height,
-    required this.size,
-    this.format = 'jpeg',
-  });
-}
-
-/// Image dimensions
-class ImageDimensions {
-  final int width;
-  final int height;
-
-  const ImageDimensions({
-    required this.width,
-    required this.height,
   });
 }
 

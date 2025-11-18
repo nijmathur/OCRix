@@ -10,6 +10,7 @@ import '../services/camera_service.dart';
 import '../services/storage_provider_service.dart';
 import '../services/image_processing_service.dart';
 import '../core/interfaces/image_processing_service_interface.dart';
+import '../core/models/ocr_result.dart';
 
 final databaseServiceProvider = Provider<DatabaseService>((ref) {
   return DatabaseService();

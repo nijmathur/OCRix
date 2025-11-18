@@ -21,10 +21,10 @@ class DatabaseService extends BaseService implements IDatabaseService {
   // Encryption service - will be refactored to use interface next
   // For now, use concrete class directly
   late final EncryptionService _encryptionServiceInstance = EncryptionService();
-  
+
   // Dependency injection - can be set for testing
   IEncryptionService? _encryptionService;
-  
+
   // For backward compatibility, allow setting encryption service
   // In production, this will be injected via Riverpod
   void setEncryptionService(IEncryptionService encryptionService) {
@@ -727,45 +727,52 @@ class DatabaseService extends BaseService implements IDatabaseService {
 // Temporary adapter until EncryptionService implements IEncryptionService
 class _EncryptionServiceAdapter implements IEncryptionService {
   final EncryptionService _service;
-  
+
   _EncryptionServiceAdapter(this._service);
-  
+
   @override
   bool get isInitialized => _service.isInitialized;
-  
+
   @override
   Future<void> initialize() => _service.initialize();
-  
+
   @override
   Future<String> encryptText(String text) => _service.encryptText(text);
-  
+
   @override
-  Future<String> decryptText(String encryptedText) => _service.decryptText(encryptedText);
-  
+  Future<String> decryptText(String encryptedText) =>
+      _service.decryptText(encryptedText);
+
   @override
   Future<String> encryptFile(String filePath) => _service.encryptFile(filePath);
-  
+
   @override
-  Future<String> decryptFile(String encryptedFilePath) => _service.decryptFile(encryptedFilePath);
-  
+  Future<String> decryptFile(String encryptedFilePath) =>
+      _service.decryptFile(encryptedFilePath);
+
   @override
-  Future<List<int>> encryptBytes(List<int> bytes) => _service.encryptBytes(Uint8List.fromList(bytes)).then((b) => b.toList());
-  
+  Future<List<int>> encryptBytes(List<int> bytes) =>
+      _service.encryptBytes(Uint8List.fromList(bytes)).then((b) => b.toList());
+
   @override
-  Future<List<int>> decryptBytes(List<int> encryptedBytes) => _service.decryptBytes(Uint8List.fromList(encryptedBytes)).then((b) => b.toList());
-  
+  Future<List<int>> decryptBytes(List<int> encryptedBytes) => _service
+      .decryptBytes(Uint8List.fromList(encryptedBytes))
+      .then((b) => b.toList());
+
   @override
   Future<bool> isBiometricAvailable() => _service.isBiometricAvailable();
-  
+
   @override
-  Future<bool> authenticateWithBiometrics({String? reason}) => _service.authenticateWithBiometrics();
-  
+  Future<bool> authenticateWithBiometrics({String? reason}) =>
+      _service.authenticateWithBiometrics();
+
   @override
   Future<void> changeEncryptionKey() => _service.changeEncryptionKey();
-  
+
   @override
   Future<void> clearEncryptionKey() => _service.clearEncryptionKey();
-  
+
   @override
-  Future<Map<String, dynamic>> getEncryptionInfo() => _service.getEncryptionInfo();
+  Future<Map<String, dynamic>> getEncryptionInfo() =>
+      _service.getEncryptionInfo();
 }

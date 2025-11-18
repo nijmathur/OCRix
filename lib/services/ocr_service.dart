@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart'
+    hide TextBlock;
 import 'package:image/image.dart' as img;
 import 'package:logger/logger.dart';
 import 'package:flutter/material.dart';
 import '../models/document.dart';
+import '../core/models/ocr_result.dart';
 
 class OCRService {
   static final OCRService _instance = OCRService._internal();
@@ -217,30 +219,4 @@ class OCRService {
     _textRecognizer = null;
     _logger.i('OCR Service disposed');
   }
-}
-
-class OCRResult {
-  final String text;
-  final double confidence;
-  final String detectedLanguage;
-  final List<TextBlock> blocks;
-
-  const OCRResult({
-    required this.text,
-    required this.confidence,
-    required this.detectedLanguage,
-    required this.blocks,
-  });
-}
-
-class TextBlock {
-  final String text;
-  final String confidence;
-  final Rect boundingBox;
-
-  const TextBlock({
-    required this.text,
-    required this.confidence,
-    required this.boundingBox,
-  });
 }

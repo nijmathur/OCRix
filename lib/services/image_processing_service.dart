@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import '../core/interfaces/image_processing_service_interface.dart';
+import '../core/models/processed_image_result.dart';
 import '../core/base/base_service.dart';
 import '../core/config/app_config.dart';
 import '../core/exceptions/app_exceptions.dart';
