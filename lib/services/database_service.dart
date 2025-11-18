@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -36,7 +37,7 @@ class DatabaseService {
 
       return await openDatabase(
         path,
-        version: 3, // Increment to force recreation with correct schema
+        version: 4, // Increment to add image BLOB columns
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
       );
@@ -72,14 +73,19 @@ class DatabaseService {
         CREATE TABLE documents (
           id TEXT PRIMARY KEY,
           title TEXT NOT NULL,
-          image_path TEXT NOT NULL,
+          image_data BLOB,
+          image_format TEXT DEFAULT 'jpeg',
+          image_size INTEGER,
+          image_width INTEGER,
+          image_height INTEGER,
+          image_path TEXT,
           extracted_text TEXT,
           type TEXT NOT NULL,
           scan_date INTEGER NOT NULL,
           tags TEXT,
           metadata TEXT,
           storage_provider TEXT NOT NULL,
-          is_encrypted INTEGER NOT NULL DEFAULT 1,
+          is_encrypted INTEGER NOT NULL DEFAULT 0,
           confidence_score REAL NOT NULL,
           detected_language TEXT NOT NULL,
           device_info TEXT NOT NULL,
@@ -203,6 +209,23 @@ class DatabaseService {
         _logger.i('Recreated search_index table with correct schema');
       } catch (e) {
         _logger.e('Error recreating search_index table: $e');
+      }
+    }
+
+    if (oldVersion < 4) {
+      // Add image BLOB columns to documents table
+      try {
+        await db.execute('ALTER TABLE documents ADD COLUMN image_data BLOB');
+        await db.execute(
+            'ALTER TABLE documents ADD COLUMN image_format TEXT DEFAULT "jpeg"');
+        await db.execute('ALTER TABLE documents ADD COLUMN image_size INTEGER');
+        await db
+            .execute('ALTER TABLE documents ADD COLUMN image_width INTEGER');
+        await db
+            .execute('ALTER TABLE documents ADD COLUMN image_height INTEGER');
+        _logger.i('Added image BLOB columns to documents table');
+      } catch (e) {
+        _logger.e('Error adding image BLOB columns: $e');
       }
     }
   }
@@ -516,6 +539,11 @@ class DatabaseService {
     return {
       'id': document.id,
       'title': document.title,
+      'image_data': document.imageData,
+      'image_format': document.imageFormat,
+      'image_size': document.imageSize,
+      'image_width': document.imageWidth,
+      'image_height': document.imageHeight,
       'image_path': document.imagePath,
       'extracted_text': document.extractedText,
       'type': document.type.name,
@@ -541,6 +569,11 @@ class DatabaseService {
     return Document(
       id: map['id'],
       title: map['title'],
+      imageData: map['image_data'] as Uint8List?,
+      imageFormat: map['image_format'] ?? 'jpeg',
+      imageSize: map['image_size'] as int?,
+      imageWidth: map['image_width'] as int?,
+      imageHeight: map['image_height'] as int?,
       imagePath: map['image_path'],
       extractedText: map['extracted_text'] ?? '',
       type: DocumentType.values.firstWhere(

@@ -1,6 +1,9 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import 'package:camera/camera.dart';
+import 'package:image/image.dart' as img;
 import '../models/document.dart';
 import '../services/database_service.dart';
 import '../services/ocr_service.dart';
@@ -88,16 +91,40 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
     try {
       state = const AsyncValue.loading();
 
+      // Read and process image file
+      final imageFile = File(imagePath);
+      if (!await imageFile.exists()) {
+        throw Exception('Image file not found: $imagePath');
+      }
+
+      final imageBytes = await imageFile.readAsBytes();
+      if (imageBytes.isEmpty) {
+        throw Exception('Image file is empty');
+      }
+
+      // Process image for optimal storage
+      final processedImageData = await _processImageForStorage(imageBytes);
+
+      // Get image dimensions
+      final decodedImage = img.decodeImage(processedImageData);
+      final imageWidth = decodedImage?.width;
+      final imageHeight = decodedImage?.height;
+
       // Extract text using OCR
       final ocrResult = await _ocrService.extractTextFromImage(imagePath);
 
       // Categorize document
       final documentType = await _ocrService.categorizeDocument(ocrResult.text);
 
-      // Create document
+      // Create document with image data
       final document = Document.create(
         title: title ?? _generateTitle(ocrResult.text, documentType),
-        imagePath: imagePath,
+        imageData: processedImageData,
+        imageFormat: 'jpeg',
+        imageSize: processedImageData.length,
+        imageWidth: imageWidth,
+        imageHeight: imageHeight,
+        imagePath: imagePath, // Keep for backward compatibility
         extractedText: ocrResult.text,
         type: documentType,
         confidenceScore: ocrResult.confidence,
@@ -185,6 +212,38 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
     return firstLine.isNotEmpty
         ? firstLine
         : '${type.displayName} - ${DateTime.now().toString().split(' ')[0]}';
+  }
+
+  /// Process image for optimal storage in database
+  Future<Uint8List> _processImageForStorage(Uint8List imageBytes) async {
+    try {
+      // Decode image
+      final image = img.decodeImage(imageBytes);
+      if (image == null) {
+        throw Exception('Failed to decode image');
+      }
+
+      // Resize if too large (max 1920x1080 for storage efficiency)
+      img.Image processedImage = image;
+      if (image.width > 1920 || image.height > 1920) {
+        final scale = image.width > image.height
+            ? 1920.0 / image.width
+            : 1920.0 / image.height;
+
+        processedImage = img.copyResize(
+          image,
+          width: (image.width * scale).round(),
+          height: (image.height * scale).round(),
+        );
+      }
+
+      // Convert to JPEG with 85% quality for good balance of size/quality
+      final processedBytes = img.encodeJpg(processedImage, quality: 85);
+      return Uint8List.fromList(processedBytes);
+    } catch (e) {
+      _logger.w('Failed to process image, using original: $e');
+      return imageBytes;
+    }
   }
 }
 

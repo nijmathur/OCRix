@@ -42,14 +42,33 @@ class DocumentCard extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // Placeholder for document image
-            Center(
-              child: Icon(
-                _getDocumentTypeIcon(document.type),
-                size: 48,
-                color: Theme.of(context).colorScheme.primary,
+            // Document image or placeholder
+            if (document.imageData != null)
+              Center(
+                child: Image.memory(
+                  document.imageData!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Center(
+                      child: Icon(
+                        _getDocumentTypeIcon(document.type),
+                        size: 48,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    );
+                  },
+                ),
+              )
+            else
+              Center(
+                child: Icon(
+                  _getDocumentTypeIcon(document.type),
+                  size: 48,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
-            ),
             // Security indicator
             if (document.isEncrypted)
               Positioned(

@@ -382,10 +382,27 @@ class StorageProviderService {
     try {
       final provider = await getProvider(providerType);
 
-      // Encrypt the document if needed
-      String filePath = document.imagePath;
+      // Check if document has image data or image path
+      if (document.imageData == null && document.imagePath == null) {
+        throw Exception('Document has no image data or path to upload');
+      }
+
+      // For database-stored images, we need to create a temporary file
+      String filePath;
+      if (document.imageData != null) {
+        // Create temporary file from image data
+        final tempDir = await Directory.systemTemp.createTemp('upload_');
+        final tempFile = File('${tempDir.path}/${document.id}.jpg');
+        await tempFile.writeAsBytes(document.imageData!);
+        filePath = tempFile.path;
+      } else {
+        // Use existing image path
+        filePath = document.imagePath!;
+      }
+
+      // Encrypt the file if needed
       if (document.isEncrypted) {
-        filePath = await _encryptionService.encryptFile(document.imagePath);
+        filePath = await _encryptionService.encryptFile(filePath);
       }
 
       // Upload to storage provider
