@@ -1,37 +1,53 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:camera/camera.dart';
+import 'package:camera/camera.dart' hide CameraException;
 import 'package:image/image.dart' as img;
-import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/material.dart';
+import '../core/interfaces/camera_service_interface.dart';
+import '../core/base/base_service.dart';
+import '../core/exceptions/app_exceptions.dart';
 
-class CameraService {
-  static final CameraService _instance = CameraService._internal();
-  factory CameraService() => _instance;
-  CameraService._internal();
-
-  final Logger _logger = Logger();
+class CameraService extends BaseService implements ICameraService {
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
   bool _isInitialized = false;
 
+  @override
+  String get serviceName => 'CameraService';
+
+  @override
   List<CameraDescription> get cameras => _cameras;
+
+  @override
   CameraController? get controller => _controller;
+
+  @override
   bool get isInitialized => _isInitialized;
 
+  @override
   Future<void> initialize() async {
+    if (_isInitialized) {
+      return;
+    }
+
     try {
       _cameras = await availableCameras();
       if (_cameras.isEmpty) {
-        throw Exception('No cameras available');
+        throw CameraException('No cameras available');
       }
       _isInitialized = true;
-      _logger.i('Camera service initialized with ${_cameras.length} cameras');
+      logInfo('Camera service initialized with ${_cameras.length} cameras');
     } catch (e) {
-      _logger.e('Failed to initialize camera service: $e');
-      rethrow;
+      logError('Failed to initialize camera service', e);
+      if (e is CameraException) {
+        rethrow;
+      }
+      throw CameraException(
+        'Failed to initialize camera service: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -59,17 +75,24 @@ class CameraService {
       );
 
       await _controller!.initialize();
-      _logger.i('Camera controller initialized for ${camera.name}');
+      logInfo('Camera controller initialized for ${camera.name}');
     } catch (e) {
-      _logger.e('Failed to initialize camera controller: $e');
-      rethrow;
+      logError('Failed to initialize camera controller', e);
+      if (e is CameraException) {
+        rethrow;
+      }
+      throw CameraException(
+        'Failed to initialize camera controller: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
+  @override
   Future<String> captureImage() async {
     try {
       if (_controller == null || !_controller!.value.isInitialized) {
-        throw Exception('Camera controller not initialized');
+        throw CameraException('Camera controller not initialized');
       }
 
       final XFile image = await _controller!.takePicture();
@@ -89,38 +112,46 @@ class CameraService {
       // Copy image to our directory
       await File(image.path).copy(filePath);
 
-      _logger.i('Image captured and saved to: $filePath');
+      logInfo('Image captured and saved to: $filePath');
       return filePath;
     } catch (e) {
-      _logger.e('Failed to capture image: $e');
+      logError('Failed to capture image: $e');
       rethrow;
     }
   }
 
-  Future<Uint8List> captureImageBytes() async {
+  @override
+  Future<List<int>> captureImageBytes() async {
     try {
       if (_controller == null || !_controller!.value.isInitialized) {
-        throw Exception('Camera controller not initialized');
+        throw CameraException('Camera controller not initialized');
       }
 
       final XFile image = await _controller!.takePicture();
       final bytes = await image.readAsBytes();
 
-      _logger.i('Image captured as bytes: ${bytes.length} bytes');
-      return bytes;
+      logInfo('Image captured as bytes: ${bytes.length} bytes');
+      return bytes.toList();
     } catch (e) {
-      _logger.e('Failed to capture image bytes: $e');
-      rethrow;
+      logError('Failed to capture image bytes', e);
+      if (e is CameraException) {
+        rethrow;
+      }
+      throw CameraException(
+        'Failed to capture image bytes: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
-  Future<String> processAndSaveImage(Uint8List imageBytes,
+  @override
+  Future<String> processAndSaveImage(List<int> imageBytes,
       {String? fileName}) async {
     try {
       // Decode and process image
-      final image = img.decodeImage(imageBytes);
+      final image = img.decodeImage(Uint8List.fromList(imageBytes));
       if (image == null) {
-        throw Exception('Failed to decode image');
+        throw CameraException('Failed to decode image');
       }
 
       // Apply image processing
@@ -142,11 +173,17 @@ class CameraService {
       final file = File(filePath);
       await file.writeAsBytes(img.encodeJpg(processedImage, quality: 95));
 
-      _logger.i('Processed image saved to: $filePath');
+      logInfo('Processed image saved to: $filePath');
       return filePath;
     } catch (e) {
-      _logger.e('Failed to process and save image: $e');
-      rethrow;
+      logError('Failed to process and save image', e);
+      if (e is CameraException) {
+        rethrow;
+      }
+      throw CameraException(
+        'Failed to process and save image: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -172,27 +209,35 @@ class CameraService {
     return image;
   }
 
+  @override
   Future<void> startPreview() async {
     try {
       if (_controller == null || !_controller!.value.isInitialized) {
-        throw Exception('Camera controller not initialized');
+        throw CameraException('Camera controller not initialized');
       }
       await _controller!.startImageStream(_onImageStream);
-      _logger.i('Camera preview started');
+      logInfo('Camera preview started');
     } catch (e) {
-      _logger.e('Failed to start camera preview: $e');
-      rethrow;
+      logError('Failed to start camera preview', e);
+      if (e is CameraException) {
+        rethrow;
+      }
+      throw CameraException(
+        'Failed to start camera preview: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
+  @override
   Future<void> stopPreview() async {
     try {
       if (_controller != null) {
         await _controller!.stopImageStream();
-        _logger.i('Camera preview stopped');
+        logInfo('Camera preview stopped');
       }
     } catch (e) {
-      _logger.e('Failed to stop camera preview: $e');
+      logError('Failed to stop camera preview: $e');
     }
   }
 
@@ -201,70 +246,76 @@ class CameraService {
     // This could be used for live document detection
   }
 
+  @override
   Future<void> setFlashMode(FlashMode mode) async {
     try {
       if (_controller != null && _controller!.value.isInitialized) {
         await _controller!.setFlashMode(mode);
-        _logger.i('Flash mode set to: $mode');
+        logInfo('Flash mode set to: $mode');
       }
     } catch (e) {
-      _logger.e('Failed to set flash mode: $e');
+      logError('Failed to set flash mode: $e');
     }
   }
 
+  @override
   Future<void> setFocusMode(FocusMode mode) async {
     try {
       if (_controller != null && _controller!.value.isInitialized) {
         await _controller!.setFocusMode(mode);
-        _logger.i('Focus mode set to: $mode');
+        logInfo('Focus mode set to: $mode');
       }
     } catch (e) {
-      _logger.e('Failed to set focus mode: $e');
+      logError('Failed to set focus mode: $e');
     }
   }
 
+  @override
   Future<void> setExposureMode(ExposureMode mode) async {
     try {
       if (_controller != null && _controller!.value.isInitialized) {
         await _controller!.setExposureMode(mode);
-        _logger.i('Exposure mode set to: $mode');
+        logInfo('Exposure mode set to: $mode');
       }
     } catch (e) {
-      _logger.e('Failed to set exposure mode: $e');
+      logError('Failed to set exposure mode: $e');
     }
   }
 
+  @override
   Future<void> setFocusPoint(Offset point) async {
     try {
       if (_controller != null && _controller!.value.isInitialized) {
         await _controller!.setFocusPoint(point);
-        _logger.i('Focus point set to: $point');
+        logInfo('Focus point set to: $point');
       }
     } catch (e) {
-      _logger.e('Failed to set focus point: $e');
+      logError('Failed to set focus point: $e');
     }
   }
 
+  @override
   Future<void> setExposurePoint(Offset point) async {
     try {
       if (_controller != null && _controller!.value.isInitialized) {
         await _controller!.setExposurePoint(point);
-        _logger.i('Exposure point set to: $point');
+        logInfo('Exposure point set to: $point');
       }
     } catch (e) {
-      _logger.e('Failed to set exposure point: $e');
+      logError('Failed to set exposure point: $e');
     }
   }
 
+  @override
   Future<void> dispose() async {
     try {
       await stopPreview();
       await _controller?.dispose();
       _controller = null;
       _isInitialized = false;
-      _logger.i('Camera service disposed');
+      logInfo('Camera service disposed');
     } catch (e) {
-      _logger.e('Failed to dispose camera service: $e');
+      logError('Failed to dispose camera service: $e');
     }
   }
 }

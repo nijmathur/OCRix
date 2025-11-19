@@ -1,14 +1,38 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:equatable/equatable.dart';
 import 'package:uuid/uuid.dart';
+import 'dart:typed_data';
+import 'dart:convert';
 
 part 'document.g.dart';
+
+class Uint8ListConverter implements JsonConverter<Uint8List?, String?> {
+  const Uint8ListConverter();
+
+  @override
+  Uint8List? fromJson(String? json) {
+    if (json == null) return null;
+    return Uint8List.fromList(base64Decode(json));
+  }
+
+  @override
+  String? toJson(Uint8List? object) {
+    if (object == null) return null;
+    return base64Encode(object);
+  }
+}
 
 @JsonSerializable()
 class Document extends Equatable {
   final String id;
   final String title;
-  final String imagePath;
+  @Uint8ListConverter()
+  final Uint8List? imageData;
+  final String imageFormat;
+  final int? imageSize;
+  final int? imageWidth;
+  final int? imageHeight;
+  final String? imagePath; // Keep for backward compatibility
   final String extractedText;
   final DocumentType type;
   final DateTime scanDate;
@@ -30,7 +54,12 @@ class Document extends Equatable {
   const Document({
     required this.id,
     required this.title,
-    required this.imagePath,
+    this.imageData,
+    this.imageFormat = 'jpeg',
+    this.imageSize,
+    this.imageWidth,
+    this.imageHeight,
+    this.imagePath,
     required this.extractedText,
     required this.type,
     required this.scanDate,
@@ -52,7 +81,12 @@ class Document extends Equatable {
 
   factory Document.create({
     required String title,
-    required String imagePath,
+    String? imagePath,
+    Uint8List? imageData,
+    String imageFormat = 'jpeg',
+    int? imageSize,
+    int? imageWidth,
+    int? imageHeight,
     required String extractedText,
     required DocumentType type,
     required double confidenceScore,
@@ -63,12 +97,17 @@ class Document extends Equatable {
     List<String> tags = const [],
     Map<String, dynamic> metadata = const {},
     String storageProvider = 'local',
-    bool isEncrypted = true,
+    bool isEncrypted = false, // Changed to false since we're storing in DB now
   }) {
     final now = DateTime.now();
     return Document(
       id: const Uuid().v4(),
       title: title,
+      imageData: imageData,
+      imageFormat: imageFormat,
+      imageSize: imageSize,
+      imageWidth: imageWidth,
+      imageHeight: imageHeight,
       imagePath: imagePath,
       extractedText: extractedText,
       type: type,
@@ -91,6 +130,11 @@ class Document extends Equatable {
   Document copyWith({
     String? id,
     String? title,
+    Uint8List? imageData,
+    String? imageFormat,
+    int? imageSize,
+    int? imageWidth,
+    int? imageHeight,
     String? imagePath,
     String? extractedText,
     DocumentType? type,
@@ -113,6 +157,11 @@ class Document extends Equatable {
     return Document(
       id: id ?? this.id,
       title: title ?? this.title,
+      imageData: imageData ?? this.imageData,
+      imageFormat: imageFormat ?? this.imageFormat,
+      imageSize: imageSize ?? this.imageSize,
+      imageWidth: imageWidth ?? this.imageWidth,
+      imageHeight: imageHeight ?? this.imageHeight,
       imagePath: imagePath ?? this.imagePath,
       extractedText: extractedText ?? this.extractedText,
       type: type ?? this.type,
@@ -134,13 +183,19 @@ class Document extends Equatable {
     );
   }
 
-  factory Document.fromJson(Map<String, dynamic> json) => _$DocumentFromJson(json);
+  factory Document.fromJson(Map<String, dynamic> json) =>
+      _$DocumentFromJson(json);
   Map<String, dynamic> toJson() => _$DocumentToJson(this);
 
   @override
   List<Object?> get props => [
         id,
         title,
+        imageData,
+        imageFormat,
+        imageSize,
+        imageWidth,
+        imageHeight,
         imagePath,
         extractedText,
         type,

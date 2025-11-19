@@ -147,7 +147,6 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
 
   Widget _buildImageTab() {
     return DocumentImageViewer(
-      imagePath: widget.document.imagePath,
       document: widget.document,
     );
   }

@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
+import 'dart:typed_data';
 import '../../models/document.dart';
 
 class DocumentImageViewer extends StatefulWidget {
-  final String imagePath;
   final Document document;
 
   const DocumentImageViewer({
     super.key,
-    required this.imagePath,
     required this.document,
   });
 
@@ -21,11 +19,12 @@ class _DocumentImageViewerState extends State<DocumentImageViewer> {
       TransformationController();
   bool _isLoading = true;
   String? _error;
+  Uint8List? _imageData;
 
   @override
   void initState() {
     super.initState();
-    _checkImageExists();
+    _loadImageData();
   }
 
   @override
@@ -34,19 +33,27 @@ class _DocumentImageViewerState extends State<DocumentImageViewer> {
     super.dispose();
   }
 
-  Future<void> _checkImageExists() async {
+  Future<void> _loadImageData() async {
     try {
-      final file = File(widget.imagePath);
-      if (await file.exists()) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      // First try to get image data from document
+      if (widget.document.imageData != null) {
         setState(() {
+          _imageData = widget.document.imageData;
           _isLoading = false;
         });
-      } else {
-        setState(() {
-          _isLoading = false;
-          _error = 'Image file not found';
-        });
+        return;
       }
+
+      // Fallback: if no image data, show error
+      setState(() {
+        _isLoading = false;
+        _error = 'No image data available for this document';
+      });
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -89,8 +96,24 @@ class _DocumentImageViewerState extends State<DocumentImageViewer> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _checkImageExists,
+              onPressed: _loadImageData,
               child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_imageData == null) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.broken_image, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No image data available',
+              style: TextStyle(fontSize: 18),
             ),
           ],
         ),
@@ -106,8 +129,8 @@ class _DocumentImageViewerState extends State<DocumentImageViewer> {
         height: double.infinity,
         color: Colors.black,
         child: Center(
-          child: Image.file(
-            File(widget.imagePath),
+          child: Image.memory(
+            _imageData!,
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) {
               return Column(
@@ -121,7 +144,7 @@ class _DocumentImageViewerState extends State<DocumentImageViewer> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'The image file may be corrupted or inaccessible',
+                    'The image data may be corrupted',
                     style: Theme.of(context).textTheme.bodyMedium,
                     textAlign: TextAlign.center,
                   ),

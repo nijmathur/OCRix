@@ -3,16 +3,13 @@ import 'dart:typed_data';
 import 'dart:convert';
 import 'package:encrypt/encrypt.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:logger/logger.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:crypto/crypto.dart';
+import '../core/interfaces/encryption_service_interface.dart';
+import '../core/base/base_service.dart';
+import '../core/exceptions/app_exceptions.dart';
 
-class EncryptionService {
-  static final EncryptionService _instance = EncryptionService._internal();
-  factory EncryptionService() => _instance;
-  EncryptionService._internal();
-
-  final Logger _logger = Logger();
+class EncryptionService extends BaseService implements IEncryptionService {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final LocalAuthentication _localAuth = LocalAuthentication();
 
@@ -21,16 +18,28 @@ class EncryptionService {
   Key? _key;
   bool _isInitialized = false;
 
+  @override
+  String get serviceName => 'EncryptionService';
+
+  @override
   bool get isInitialized => _isInitialized;
 
+  @override
   Future<void> initialize() async {
+    if (_isInitialized) {
+      return;
+    }
+
     try {
       await _loadOrCreateKey();
       _isInitialized = true;
-      _logger.i('Encryption service initialized');
+      logInfo('Encryption service initialized');
     } catch (e) {
-      _logger.e('Failed to initialize encryption service: $e');
-      rethrow;
+      logError('Failed to initialize encryption service', e);
+      throw EncryptionException(
+        'Failed to initialize encryption service: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
@@ -44,21 +53,25 @@ class EncryptionService {
         _key = Key.fromSecureRandom(32);
         keyString = _key!.base64;
         await _secureStorage.write(key: 'encryption_key', value: keyString);
-        _logger.i('New encryption key generated');
+        logInfo('New encryption key generated');
       } else {
         // Load existing key
         _key = Key.fromBase64(keyString);
-        _logger.i('Existing encryption key loaded');
+        logInfo('Existing encryption key loaded');
       }
 
       _encrypter = Encrypter(AES(_key!));
       _iv = IV.fromSecureRandom(16);
     } catch (e) {
-      _logger.e('Failed to load or create encryption key: $e');
-      rethrow;
+      logError('Failed to load or create encryption key', e);
+      throw EncryptionException(
+        'Failed to load or create encryption key: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
+  @override
   Future<String> encryptText(String text) async {
     try {
       if (!_isInitialized) {
@@ -66,18 +79,25 @@ class EncryptionService {
       }
 
       if (_encrypter == null || _iv == null) {
-        throw Exception('Encryption not initialized');
+        throw EncryptionException('Encryption not initialized');
       }
 
       final encrypted = _encrypter!.encrypt(text, iv: _iv!);
-      _logger.i('Text encrypted successfully');
+      logInfo('Text encrypted successfully');
       return encrypted.base64;
     } catch (e) {
-      _logger.e('Failed to encrypt text: $e');
-      rethrow;
+      logError('Failed to encrypt text', e);
+      if (e is EncryptionException) {
+        rethrow;
+      }
+      throw EncryptionException(
+        'Failed to encrypt text: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
+  @override
   Future<String> decryptText(String encryptedText) async {
     try {
       if (!_isInitialized) {
@@ -85,65 +105,87 @@ class EncryptionService {
       }
 
       if (_encrypter == null || _iv == null) {
-        throw Exception('Encryption not initialized');
+        throw EncryptionException('Encryption not initialized');
       }
 
       final encrypted = Encrypted.fromBase64(encryptedText);
       final decrypted = _encrypter!.decrypt(encrypted, iv: _iv!);
-      _logger.i('Text decrypted successfully');
+      logInfo('Text decrypted successfully');
       return decrypted;
     } catch (e) {
-      _logger.e('Failed to decrypt text: $e');
-      rethrow;
+      logError('Failed to decrypt text', e);
+      if (e is EncryptionException) {
+        rethrow;
+      }
+      throw EncryptionException(
+        'Failed to decrypt text: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
-  Future<Uint8List> encryptBytes(Uint8List data) async {
+  @override
+  Future<List<int>> encryptBytes(List<int> bytes) async {
     try {
       if (!_isInitialized) {
         await initialize();
       }
 
       if (_encrypter == null || _iv == null) {
-        throw Exception('Encryption not initialized');
+        throw EncryptionException('Encryption not initialized');
       }
 
+      final data = Uint8List.fromList(bytes);
       final encrypted = _encrypter!.encryptBytes(data, iv: _iv!);
-      _logger.i(
-          'Bytes encrypted successfully: ${data.length} -> ${encrypted.bytes.length}');
-      return encrypted.bytes;
+      logInfo(
+          'Bytes encrypted successfully: ${bytes.length} -> ${encrypted.bytes.length}');
+      return encrypted.bytes.toList();
     } catch (e) {
-      _logger.e('Failed to encrypt bytes: $e');
-      rethrow;
+      logError('Failed to encrypt bytes', e);
+      if (e is EncryptionException) {
+        rethrow;
+      }
+      throw EncryptionException(
+        'Failed to encrypt bytes: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
-  Future<Uint8List> decryptBytes(Uint8List encryptedData) async {
+  @override
+  Future<List<int>> decryptBytes(List<int> encryptedBytes) async {
     try {
       if (!_isInitialized) {
         await initialize();
       }
 
       if (_encrypter == null || _iv == null) {
-        throw Exception('Encryption not initialized');
+        throw EncryptionException('Encryption not initialized');
       }
 
-      final encrypted = Encrypted(encryptedData);
+      final encrypted = Encrypted(Uint8List.fromList(encryptedBytes));
       final decrypted = _encrypter!.decryptBytes(encrypted, iv: _iv!);
-      _logger.i(
-          'Bytes decrypted successfully: ${encryptedData.length} -> ${decrypted.length}');
-      return Uint8List.fromList(decrypted);
+      logInfo(
+          'Bytes decrypted successfully: ${encryptedBytes.length} -> ${decrypted.length}');
+      return decrypted.toList();
     } catch (e) {
-      _logger.e('Failed to decrypt bytes: $e');
-      rethrow;
+      logError('Failed to decrypt bytes', e);
+      if (e is EncryptionException) {
+        rethrow;
+      }
+      throw EncryptionException(
+        'Failed to decrypt bytes: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
+  @override
   Future<String> encryptFile(String filePath) async {
     try {
       final file = File(filePath);
       if (!await file.exists()) {
-        throw Exception('File does not exist: $filePath');
+        throw EncryptionException('File does not exist: $filePath');
       }
 
       final bytes = await file.readAsBytes();
@@ -152,21 +194,28 @@ class EncryptionService {
       // Save encrypted file with .enc extension
       final encryptedFilePath = '$filePath.enc';
       final encryptedFile = File(encryptedFilePath);
-      await encryptedFile.writeAsBytes(encryptedBytes);
+      await encryptedFile.writeAsBytes(Uint8List.fromList(encryptedBytes));
 
-      _logger.i('File encrypted: $filePath -> $encryptedFilePath');
+      logInfo('File encrypted: $filePath -> $encryptedFilePath');
       return encryptedFilePath;
     } catch (e) {
-      _logger.e('Failed to encrypt file: $e');
-      rethrow;
+      logError('Failed to encrypt file', e);
+      if (e is EncryptionException) {
+        rethrow;
+      }
+      throw EncryptionException(
+        'Failed to encrypt file: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
+  @override
   Future<String> decryptFile(String encryptedFilePath) async {
     try {
       final encryptedFile = File(encryptedFilePath);
       if (!await encryptedFile.exists()) {
-        throw Exception('Encrypted file does not exist: $encryptedFilePath');
+        throw EncryptionException('Encrypted file does not exist: $encryptedFilePath');
       }
 
       final encryptedBytes = await encryptedFile.readAsBytes();
@@ -175,35 +224,42 @@ class EncryptionService {
       // Remove .enc extension
       final decryptedFilePath = encryptedFilePath.replaceAll('.enc', '');
       final decryptedFile = File(decryptedFilePath);
-      await decryptedFile.writeAsBytes(decryptedBytes);
+      await decryptedFile.writeAsBytes(Uint8List.fromList(decryptedBytes));
 
-      _logger.i('File decrypted: $encryptedFilePath -> $decryptedFilePath');
+      logInfo('File decrypted: $encryptedFilePath -> $decryptedFilePath');
       return decryptedFilePath;
     } catch (e) {
-      _logger.e('Failed to decrypt file: $e');
-      rethrow;
+      logError('Failed to decrypt file', e);
+      if (e is EncryptionException) {
+        rethrow;
+      }
+      throw EncryptionException(
+        'Failed to decrypt file: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
-  Future<bool> authenticateWithBiometrics() async {
+  @override
+  Future<bool> authenticateWithBiometrics({String? reason}) async {
     try {
       // Check if biometric authentication is available
       final isAvailable = await _localAuth.canCheckBiometrics;
       if (!isAvailable) {
-        _logger.w('Biometric authentication not available');
+        logWarning('Biometric authentication not available');
         return false;
       }
 
       // Get available biometrics
       final availableBiometrics = await _localAuth.getAvailableBiometrics();
       if (availableBiometrics.isEmpty) {
-        _logger.w('No biometrics enrolled');
+        logWarning('No biometrics enrolled');
         return false;
       }
 
       // Authenticate
       final isAuthenticated = await _localAuth.authenticate(
-        localizedReason: 'Authenticate to access encrypted documents',
+        localizedReason: reason ?? 'Authenticate to access encrypted documents',
         options: const AuthenticationOptions(
           biometricOnly: true,
           stickyAuth: true,
@@ -211,74 +267,31 @@ class EncryptionService {
       );
 
       if (isAuthenticated) {
-        _logger.i('Biometric authentication successful');
+        logInfo('Biometric authentication successful');
       } else {
-        _logger.w('Biometric authentication failed');
+        logWarning('Biometric authentication failed');
       }
 
       return isAuthenticated;
     } catch (e) {
-      _logger.e('Biometric authentication error: $e');
+      logError('Biometric authentication error', e);
       return false;
     }
   }
 
+  @override
   Future<bool> isBiometricAvailable() async {
     try {
       final isAvailable = await _localAuth.canCheckBiometrics;
       final availableBiometrics = await _localAuth.getAvailableBiometrics();
       return isAvailable && availableBiometrics.isNotEmpty;
     } catch (e) {
-      _logger.e('Failed to check biometric availability: $e');
+      logError('Failed to check biometric availability', e);
       return false;
     }
   }
 
-  String generateHash(String data) {
-    try {
-      final bytes = utf8.encode(data);
-      final digest = sha256.convert(bytes);
-      return digest.toString();
-    } catch (e) {
-      _logger.e('Failed to generate hash: $e');
-      rethrow;
-    }
-  }
-
-  String generateFileHash(String filePath) {
-    try {
-      final file = File(filePath);
-      if (!file.existsSync()) {
-        throw Exception('File does not exist: $filePath');
-      }
-
-      final bytes = file.readAsBytesSync();
-      final digest = sha256.convert(bytes);
-      return digest.toString();
-    } catch (e) {
-      _logger.e('Failed to generate file hash: $e');
-      rethrow;
-    }
-  }
-
-  Future<bool> verifyFileIntegrity(String filePath, String expectedHash) async {
-    try {
-      final actualHash = generateFileHash(filePath);
-      final isValid = actualHash == expectedHash;
-
-      if (!isValid) {
-        _logger.w('File integrity check failed for: $filePath');
-      } else {
-        _logger.i('File integrity verified for: $filePath');
-      }
-
-      return isValid;
-    } catch (e) {
-      _logger.e('Failed to verify file integrity: $e');
-      return false;
-    }
-  }
-
+  @override
   Future<void> changeEncryptionKey() async {
     try {
       // Generate new key
@@ -293,13 +306,17 @@ class EncryptionService {
       _encrypter = Encrypter(AES(_key!));
       _iv = IV.fromSecureRandom(16);
 
-      _logger.i('Encryption key changed successfully');
+      logInfo('Encryption key changed successfully');
     } catch (e) {
-      _logger.e('Failed to change encryption key: $e');
-      rethrow;
+      logError('Failed to change encryption key', e);
+      throw EncryptionException(
+        'Failed to change encryption key: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
+  @override
   Future<void> clearEncryptionKey() async {
     try {
       await _secureStorage.delete(key: 'encryption_key');
@@ -307,13 +324,17 @@ class EncryptionService {
       _encrypter = null;
       _iv = null;
       _isInitialized = false;
-      _logger.i('Encryption key cleared');
+      logInfo('Encryption key cleared');
     } catch (e) {
-      _logger.e('Failed to clear encryption key: $e');
-      rethrow;
+      logError('Failed to clear encryption key', e);
+      throw EncryptionException(
+        'Failed to clear encryption key: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 
+  @override
   Future<Map<String, dynamic>> getEncryptionInfo() async {
     try {
       final biometricAvailable = await isBiometricAvailable();
@@ -327,8 +348,63 @@ class EncryptionService {
         'keySize': 256,
       };
     } catch (e) {
-      _logger.e('Failed to get encryption info: $e');
+      logError('Failed to get encryption info', e);
       return {};
+    }
+  }
+
+  // Additional utility methods (not in interface but used internally)
+  String generateHash(String data) {
+    try {
+      final bytes = utf8.encode(data);
+      final digest = sha256.convert(bytes);
+      return digest.toString();
+    } catch (e) {
+      logError('Failed to generate hash', e);
+      throw EncryptionException(
+        'Failed to generate hash: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  String generateFileHash(String filePath) {
+    try {
+      final file = File(filePath);
+      if (!file.existsSync()) {
+        throw EncryptionException('File does not exist: $filePath');
+      }
+
+      final bytes = file.readAsBytesSync();
+      final digest = sha256.convert(bytes);
+      return digest.toString();
+    } catch (e) {
+      logError('Failed to generate file hash', e);
+      if (e is EncryptionException) {
+        rethrow;
+      }
+      throw EncryptionException(
+        'Failed to generate file hash: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  Future<bool> verifyFileIntegrity(String filePath, String expectedHash) async {
+    try {
+      final actualHash = generateFileHash(filePath);
+      final isValid = actualHash == expectedHash;
+
+      if (!isValid) {
+        logWarning('File integrity check failed for: $filePath');
+      } else {
+        logInfo('File integrity verified for: $filePath');
+      }
+
+      return isValid;
+    } catch (e) {
+      logError('Failed to verify file integrity', e);
+      return false;
     }
   }
 }

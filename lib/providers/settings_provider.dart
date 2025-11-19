@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import '../models/user_settings.dart';
-import '../services/database_service.dart';
-import '../services/encryption_service.dart';
+import '../core/interfaces/database_service_interface.dart';
+import '../core/interfaces/encryption_service_interface.dart';
 import 'document_provider.dart';
 
 final settingsNotifierProvider =
@@ -12,13 +12,9 @@ final settingsNotifierProvider =
   return SettingsNotifier(databaseService, encryptionService);
 });
 
-final encryptionServiceProvider = Provider<EncryptionService>((ref) {
-  return EncryptionService();
-});
-
 class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
-  final DatabaseService _databaseService;
-  final EncryptionService _encryptionService;
+  final IDatabaseService _databaseService;
+  final IEncryptionService _encryptionService;
   final Logger _logger = Logger();
 
   SettingsNotifier(this._databaseService, this._encryptionService)
@@ -232,7 +228,7 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
 }
 
 class EncryptionNotifier extends StateNotifier<EncryptionState> {
-  final EncryptionService _encryptionService;
+  final IEncryptionService _encryptionService;
   final Logger _logger = Logger();
 
   EncryptionNotifier(this._encryptionService)
@@ -354,17 +350,9 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
     }
   }
 
-  String generateHash(String data) {
-    return _encryptionService.generateHash(data);
-  }
-
-  String generateFileHash(String filePath) {
-    return _encryptionService.generateFileHash(filePath);
-  }
-
-  Future<bool> verifyFileIntegrity(String filePath, String expectedHash) async {
-    return await _encryptionService.verifyFileIntegrity(filePath, expectedHash);
-  }
+  // Note: generateHash, generateFileHash, and verifyFileIntegrity are not in the interface
+  // They are utility methods in EncryptionService. These would need to be added to the interface
+  // or accessed through a different mechanism if needed.
 }
 
 final encryptionNotifierProvider =

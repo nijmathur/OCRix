@@ -1,0 +1,103 @@
+name: Test and Coverage
+
+on:
+    push:
+        branches: [main, develop]
+    pull_request:
+        branches: [main, develop]
+
+jobs:
+    test:
+        name: Run Tests with Coverage
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: write
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Java
+              uses: actions/setup-java@v4
+              with:
+                  distribution: "temurin"
+                  java-version: "17"
+
+            - name: Setup Flutter
+              uses: subosito/flutter-action@v2
+              with:
+                  flutter-version: "3.35.7"
+                  channel: "stable"
+                  cache: true
+
+            - name: Install dependencies
+              run: flutter pub get
+
+            - name: Verify setup
+              run: flutter doctor -v
+
+            - name: Run tests with coverage
+              run: flutter test --coverage
+
+            - name: Generate coverage report
+              run: |
+                  # Install lcov if not available
+                  sudo apt-get update
+                  sudo apt-get install -y lcov
+
+                  # Generate HTML coverage report
+                  genhtml coverage/lcov.info -o coverage/html --no-function-coverage --no-branch-coverage
+
+                  # Print coverage summary
+                  lcov --summary coverage/lcov.info
+
+            - name: Upload coverage to Codecov
+              uses: codecov/codecov-action@v4
+              with:
+                  file: ./coverage/lcov.info
+                  flags: unittests
+                  name: codecov-umbrella
+                  fail_ci_if_error: false
+                  token: ${{ secrets.CODECOV_TOKEN }}
+
+            - name: Upload coverage reports as artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: coverage-report
+                  path: |
+                      coverage/lcov.info
+                      coverage/html/
+                  retention-days: 30
+
+            - name: Comment PR with coverage summary
+              if: github.event_name == 'pull_request'
+              uses: actions/github-script@v7
+              with:
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
+                  script: |
+                      const fs = require('fs');
+                      const { execSync } = require('child_process');
+
+                      try {
+                          // Get coverage summary using lcov
+                          const summary = execSync('lcov --summary coverage/lcov.info 2>&1 | grep -A 3 "lines\|functions\|branches" || echo "Coverage summary not available"', { encoding: 'utf-8' });
+                          
+                          const comment = `## 📊 Test Coverage Summary
+                          
+                          \`\`\`
+                          ${summary}
+                          \`\`\`
+                          
+                          📦 Coverage reports are available as artifacts in this workflow run.
+                          `;
+                          
+                          github.rest.issues.createComment({
+                              issue_number: context.issue.number,
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              body: comment
+                          });
+                      } catch (error) {
+                          console.log('Could not generate coverage comment:', error.message);
+                      }

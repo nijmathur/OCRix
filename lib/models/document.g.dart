@@ -9,7 +9,13 @@ part of 'document.dart';
 Document _$DocumentFromJson(Map<String, dynamic> json) => Document(
       id: json['id'] as String,
       title: json['title'] as String,
-      imagePath: json['imagePath'] as String,
+      imageData:
+          const Uint8ListConverter().fromJson(json['imageData'] as String?),
+      imageFormat: json['imageFormat'] as String? ?? 'jpeg',
+      imageSize: (json['imageSize'] as num?)?.toInt(),
+      imageWidth: (json['imageWidth'] as num?)?.toInt(),
+      imageHeight: (json['imageHeight'] as num?)?.toInt(),
+      imagePath: json['imagePath'] as String?,
       extractedText: json['extractedText'] as String,
       type: $enumDecode(_$DocumentTypeEnumMap, json['type']),
       scanDate: DateTime.parse(json['scanDate'] as String),
@@ -34,6 +40,11 @@ Document _$DocumentFromJson(Map<String, dynamic> json) => Document(
 Map<String, dynamic> _$DocumentToJson(Document instance) => <String, dynamic>{
       'id': instance.id,
       'title': instance.title,
+      'imageData': const Uint8ListConverter().toJson(instance.imageData),
+      'imageFormat': instance.imageFormat,
+      'imageSize': instance.imageSize,
+      'imageWidth': instance.imageWidth,
+      'imageHeight': instance.imageHeight,
       'imagePath': instance.imagePath,
       'extractedText': instance.extractedText,
       'type': _$DocumentTypeEnumMap[instance.type]!,
