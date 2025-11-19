@@ -12,6 +12,7 @@ abstract class IDatabaseService {
     int? limit,
     int? offset,
     DocumentType? type,
+    String? searchQuery,
   });
 
   /// Insert a new document

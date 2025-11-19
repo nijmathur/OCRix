@@ -473,6 +473,7 @@ class StorageProviderService extends BaseService
       final downloadedPath = await provider.downloadFile(remotePath, localPath);
 
       // Decrypt if needed
+      // ignore: dead_code
       if (isEncrypted) {
         final decryptedPath =
             await encryptionService.decryptFile(downloadedPath);

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/biometric_auth_provider.dart';
 import '../../models/user_settings.dart';
 import '../widgets/settings_tile.dart';
 
@@ -11,6 +13,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settingsAsync = ref.watch(settingsNotifierProvider);
     final encryptionState = ref.watch(encryptionNotifierProvider);
+    final biometricState = ref.watch(biometricAuthNotifierProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -20,8 +23,8 @@ class SettingsScreen extends ConsumerWidget {
         elevation: 0,
       ),
       body: settingsAsync.when(
-        data: (settings) =>
-            _buildSettingsContent(context, ref, settings, encryptionState),
+        data: (settings) => _buildSettingsContent(
+            context, ref, settings, encryptionState, biometricState),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
           child: Column(
@@ -49,15 +52,18 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     UserSettings settings,
     EncryptionState encryptionState,
+    BiometricAuthState biometricState,
   ) {
     return ListView(
       children: [
         _buildStorageSection(context, ref, settings),
-        _buildSecuritySection(context, ref, settings, encryptionState),
+        _buildSecuritySection(
+            context, ref, settings, encryptionState, biometricState),
         _buildPrivacySection(context, ref, settings),
         _buildAppearanceSection(context, ref, settings),
         _buildScanningSection(context, ref, settings),
         _buildBackupSection(context, ref, settings),
+        _buildAccountSection(context, ref),
         _buildAboutSection(context, ref),
       ],
     );
@@ -110,6 +116,7 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     UserSettings settings,
     EncryptionState encryptionState,
+    BiometricAuthState biometricState,
   ) {
     return _buildSection(
       context,
@@ -128,27 +135,119 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
         if (settings.encryptionEnabled) ...[
-          SettingsTile(
-            title: 'Biometric Authentication',
-            subtitle: settings.biometricAuth ? 'Enabled' : 'Disabled',
-            icon: Icons.fingerprint,
-            trailing: Switch(
-              value: settings.biometricAuth,
-              onChanged: encryptionState.isBiometricAvailable
-                  ? (value) {
-                      ref
-                          .read(settingsNotifierProvider.notifier)
-                          .toggleBiometricAuth();
-                    }
-                  : null,
-            ),
-          ),
           if (encryptionState.isInitialized)
             SettingsTile(
               title: 'Change Encryption Key',
               subtitle: 'Generate new encryption key',
               icon: Icons.key,
               onTap: () => _showChangeKeyDialog(context, ref),
+            ),
+        ],
+        // Biometric Sign-In for App
+        if (biometricState.isAvailable) ...[
+          const Divider(),
+          SettingsTile(
+            title: 'Biometric Sign-In',
+            subtitle: biometricState.isEnabled
+                ? 'Use biometrics to sign in to app'
+                : 'Enable biometric sign-in for faster access',
+            icon: Icons.fingerprint,
+            trailing: Switch(
+              value: biometricState.isEnabled,
+              onChanged: biometricState.isLoading
+                  ? null
+                  : (value) async {
+                      if (value) {
+                        // Log attempt to enable
+                        final notifier =
+                            ref.read(biometricAuthNotifierProvider.notifier);
+                        final service = ref.read(biometricAuthServiceProvider);
+                        service.logInfo(
+                            'User attempting to enable biometric sign-in from settings');
+
+                        try {
+                          final success = await notifier.enableBiometricAuth();
+
+                          // Wait a bit for state to update
+                          await Future.delayed(
+                              const Duration(milliseconds: 100));
+
+                          if (!success && context.mounted) {
+                            final errorState =
+                                ref.read(biometricAuthNotifierProvider);
+                            final errorMessage = errorState.error ??
+                                'Failed to enable biometric sign-in';
+
+                            service.logError(
+                                'Biometric enable failed in UI: $errorMessage');
+                            service.logError(
+                                'Current state: isEnabled=${errorState.isEnabled}, isLoading=${errorState.isLoading}, error=${errorState.error}');
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(errorMessage),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                          } else if (success && context.mounted) {
+                            service.logInfo(
+                                'Biometric sign-in enabled successfully from settings');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Biometric sign-in enabled successfully'),
+                                backgroundColor: Colors.green,
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        } catch (e, stackTrace) {
+                          service.logError(
+                              'Exception caught in settings toggle handler',
+                              e,
+                              stackTrace);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: ${e.toString()}'),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                          }
+                        }
+                      } else {
+                        final service = ref.read(biometricAuthServiceProvider);
+                        service.logInfo(
+                            'User disabling biometric sign-in from settings');
+                        await ref
+                            .read(biometricAuthNotifierProvider.notifier)
+                            .disableBiometricAuth();
+                      }
+                    },
+            ),
+          ),
+          if (biometricState.isEnabled)
+            SettingsTile(
+              title: 'Test Biometric',
+              subtitle: 'Test your biometric authentication',
+              icon: Icons.verified_user,
+              onTap: () async {
+                final success = await ref
+                    .read(biometricAuthNotifierProvider.notifier)
+                    .authenticate(reason: 'Test biometric authentication');
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(success
+                          ? 'Biometric authentication successful!'
+                          : 'Biometric authentication failed'),
+                      backgroundColor: success ? Colors.green : Colors.orange,
+                    ),
+                  );
+                }
+              },
             ),
         ],
         SettingsTile(
@@ -304,6 +403,134 @@ class SettingsScreen extends ConsumerWidget {
           onTap: () => _importDocuments(context),
         ),
       ],
+    );
+  }
+
+  Widget _buildAccountSection(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authNotifierProvider);
+    final user = authState.valueOrNull;
+
+    return Card(
+      margin: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Profile Header with Picture
+          if (user != null) ...[
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .primaryContainer
+                    .withOpacity(0.3),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+              ),
+              child: Column(
+                children: [
+                  // Profile Picture
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundImage: user.photoUrl != null
+                        ? NetworkImage(user.photoUrl!)
+                        : null,
+                    child: user.photoUrl == null
+                        ? Icon(
+                            Icons.person,
+                            size: 50,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  // Display Name
+                  if (user.displayName != null) ...[
+                    Text(
+                      user.displayName!,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                  // Email
+                  Text(
+                    user.email,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+          ],
+          // Account Details
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              children: [
+                if (user != null) ...[
+                  SettingsTile(
+                    title: 'Email',
+                    subtitle: user.email,
+                    icon: Icons.email,
+                  ),
+                  if (user.displayName != null)
+                    SettingsTile(
+                      title: 'Display Name',
+                      subtitle: user.displayName!,
+                      icon: Icons.badge,
+                    ),
+                  SettingsTile(
+                    title: 'Account ID',
+                    subtitle: user.id,
+                    icon: Icons.perm_identity,
+                  ),
+                  const Divider(height: 1),
+                ],
+                SettingsTile(
+                  title: 'Sign Out',
+                  subtitle: 'Sign out of your Google account',
+                  icon: Icons.logout,
+                  onTap: () => _showSignOutDialog(context, ref),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSignOutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text(
+          'Are you sure you want to sign out? You will need to sign in again to access the app.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await ref.read(authNotifierProvider.notifier).signOut();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
     );
   }
 

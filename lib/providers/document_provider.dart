@@ -17,6 +17,7 @@ import '../core/interfaces/encryption_service_interface.dart';
 import '../core/interfaces/storage_provider_service_interface.dart';
 import '../core/interfaces/image_processing_service_interface.dart';
 import '../core/models/ocr_result.dart';
+import '../core/config/app_config.dart';
 
 // Service providers - using interfaces for dependency inversion
 final databaseServiceProvider = Provider<IDatabaseService>((ref) {
@@ -74,6 +75,11 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
   final IImageProcessingService _imageProcessingService;
   final Logger _logger = Logger();
 
+  int _currentPage = 0;
+  bool _hasMore = true;
+  DocumentType? _currentTypeFilter;
+  String? _currentSearchQuery;
+
   DocumentNotifier(
     this._databaseService,
     this._ocrService,
@@ -86,11 +92,46 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
     _loadDocuments();
   }
 
-  Future<void> _loadDocuments() async {
+  Future<void> _loadDocuments({
+    int? page,
+    DocumentType? type,
+    String? searchQuery,
+    bool append = false,
+  }) async {
     try {
-      state = const AsyncValue.loading();
-      final documents = await _databaseService.getAllDocuments();
-      state = AsyncValue.data(documents);
+      if (!append) {
+        state = const AsyncValue.loading();
+        _currentPage = page ?? 0;
+        _currentTypeFilter = type;
+        _currentSearchQuery = searchQuery;
+      } else {
+        _currentPage = page ?? _currentPage;
+        _currentTypeFilter = type ?? _currentTypeFilter;
+        _currentSearchQuery = searchQuery ?? _currentSearchQuery;
+      }
+
+      final limit = AppConfig.documentsPerPage;
+      final offset = _currentPage * limit;
+
+      final documents = await _databaseService.getAllDocuments(
+        limit: limit,
+        offset: offset,
+        type: _currentTypeFilter,
+        searchQuery: _currentSearchQuery,
+      );
+
+      if (documents.length < limit) {
+        _hasMore = false;
+      } else {
+        _hasMore = true;
+      }
+
+      if (append && state.hasValue) {
+        final currentDocs = state.value ?? [];
+        state = AsyncValue.data([...currentDocs, ...documents]);
+      } else {
+        state = AsyncValue.data(documents);
+      }
     } catch (e, stackTrace) {
       _logger.e('Failed to load documents: $e');
       state = AsyncValue.error(e, stackTrace);
@@ -98,8 +139,33 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
   }
 
   Future<void> refreshDocuments() async {
-    await _loadDocuments();
+    _currentPage = 0;
+    _hasMore = true;
+    await _loadDocuments(append: false);
   }
+
+  Future<void> loadMoreDocuments() async {
+    if (!_hasMore || state.isLoading) return;
+
+    _currentPage++;
+    await _loadDocuments(page: _currentPage, append: true);
+  }
+
+  Future<void> filterDocuments({
+    DocumentType? type,
+    String? searchQuery,
+  }) async {
+    _currentPage = 0;
+    _hasMore = true;
+    await _loadDocuments(
+      page: 0,
+      type: type,
+      searchQuery: searchQuery?.isEmpty == true ? null : searchQuery,
+      append: false,
+    );
+  }
+
+  bool get hasMore => _hasMore;
 
   Future<String> scanDocument({
     required String imagePath,
@@ -157,7 +223,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       final documentId = await _databaseService.insertDocument(document);
 
       // Reload documents
-      await _loadDocuments();
+      await refreshDocuments();
 
       _logger.i('Document scanned and saved: $documentId');
       return documentId;
@@ -175,7 +241,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       );
 
       await _databaseService.updateDocument(updatedDocument);
-      await _loadDocuments();
+      await refreshDocuments();
 
       _logger.i('Document updated: ${document.id}');
     } catch (e, stackTrace) {
@@ -187,7 +253,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
   Future<void> deleteDocument(String documentId) async {
     try {
       await _databaseService.deleteDocument(documentId);
-      await _loadDocuments();
+      await refreshDocuments();
 
       _logger.i('Document deleted: $documentId');
     } catch (e, stackTrace) {
@@ -198,10 +264,8 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
 
   Future<List<Document>> searchDocuments(String query) async {
     try {
-      if (query.isEmpty) {
-        return await _databaseService.getAllDocuments();
-      }
-      return await _databaseService.searchDocuments(query);
+      await filterDocuments(searchQuery: query);
+      return state.value ?? [];
     } catch (e) {
       _logger.e('Failed to search documents: $e');
       return [];
@@ -210,7 +274,8 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
 
   Future<List<Document>> getDocumentsByType(DocumentType type) async {
     try {
-      return await _databaseService.getAllDocuments(type: type);
+      await filterDocuments(type: type);
+      return state.value ?? [];
     } catch (e) {
       _logger.e('Failed to get documents by type: $e');
       return [];

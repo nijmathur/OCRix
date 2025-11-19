@@ -8,17 +8,14 @@ import 'document_provider.dart';
 final settingsNotifierProvider =
     StateNotifierProvider<SettingsNotifier, AsyncValue<UserSettings>>((ref) {
   final databaseService = ref.read(databaseServiceProvider);
-  final encryptionService = ref.read(encryptionServiceProvider);
-  return SettingsNotifier(databaseService, encryptionService);
+  return SettingsNotifier(databaseService);
 });
 
 class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
   final IDatabaseService _databaseService;
-  final IEncryptionService _encryptionService;
   final Logger _logger = Logger();
 
-  SettingsNotifier(this._databaseService, this._encryptionService)
-      : super(const AsyncValue.loading()) {
+  SettingsNotifier(this._databaseService) : super(const AsyncValue.loading()) {
     _loadSettings();
   }
 

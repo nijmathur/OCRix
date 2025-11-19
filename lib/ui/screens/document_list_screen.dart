@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/document_provider.dart';
 import '../../models/document.dart';
+import '../../core/config/app_config.dart';
 import '../widgets/document_grid.dart';
 import '../widgets/document_list_item.dart';
 import 'document_detail_screen.dart';
@@ -17,22 +18,54 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String _searchQuery = '';
   bool _isGridView = true;
   DocumentType? _selectedType;
+  bool _isLoadingMore = false;
 
   @override
   void initState() {
     super.initState();
     _tabController =
         TabController(length: DocumentType.values.length + 1, vsync: this);
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent * 0.8 &&
+        !_isLoadingMore) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    final notifier = ref.read(documentNotifierProvider.notifier);
+    if (!notifier.hasMore) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      await notifier.loadMoreDocuments();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
+    }
   }
 
   @override
@@ -136,6 +169,17 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
                     setState(() {
                       _searchQuery = value;
                     });
+                    // Debounce search - filter after user stops typing
+                    Future.delayed(AppConfig.debounceDelay, () {
+                      if (mounted && _searchQuery == value) {
+                        ref
+                            .read(documentNotifierProvider.notifier)
+                            .filterDocuments(
+                              type: _selectedType,
+                              searchQuery: value.isEmpty ? null : value,
+                            );
+                      }
+                    });
                   },
                 ),
               ),
@@ -146,10 +190,16 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.white.withOpacity(0.7),
                 onTap: (index) {
+                  final newType =
+                      index == 0 ? null : DocumentType.values[index - 1];
                   setState(() {
-                    _selectedType =
-                        index == 0 ? null : DocumentType.values[index - 1];
+                    _selectedType = newType;
                   });
+                  // Filter documents by type
+                  ref.read(documentNotifierProvider.notifier).filterDocuments(
+                        type: newType,
+                        searchQuery: _searchQuery.isEmpty ? null : _searchQuery,
+                      );
                 },
                 tabs: [
                   const Tab(text: 'All'),
@@ -183,36 +233,46 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
   }
 
   Widget _buildDocumentList(List<Document> documents) {
-    // Filter documents based on search query and selected type
-    List<Document> filteredDocuments = documents.where((doc) {
-      final matchesSearch = _searchQuery.isEmpty ||
-          doc.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          doc.extractedText
-              .toLowerCase()
-              .contains(_searchQuery.toLowerCase()) ||
-          doc.tags.any(
-              (tag) => tag.toLowerCase().contains(_searchQuery.toLowerCase()));
-
-      final matchesType = _selectedType == null || doc.type == _selectedType;
-
-      return matchesSearch && matchesType;
-    }).toList();
-
-    if (filteredDocuments.isEmpty) {
+    // Documents are already filtered by database query
+    if (documents.isEmpty) {
       return _buildEmptyState();
     }
 
+    final notifier = ref.read(documentNotifierProvider.notifier);
+    final hasMore = notifier.hasMore;
+
     if (_isGridView) {
-      return DocumentGrid(
-        documents: filteredDocuments,
-        onDocumentTap: _navigateToDocumentDetail,
+      return NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (notification.metrics.pixels >=
+                  notification.metrics.maxScrollExtent * 0.8 &&
+              !_isLoadingMore &&
+              hasMore) {
+            _loadMore();
+          }
+          return false;
+        },
+        child: DocumentGrid(
+          documents: documents,
+          onDocumentTap: _navigateToDocumentDetail,
+        ),
       );
     } else {
       return ListView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.all(16),
-        itemCount: filteredDocuments.length,
+        itemCount: documents.length + (hasMore ? 1 : 0),
         itemBuilder: (context, index) {
-          final document = filteredDocuments[index];
+          if (index >= documents.length) {
+            // Loading more indicator
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+          final document = documents[index];
           return DocumentListItem(
             document: document,
             onTap: () => _navigateToDocumentDetail(document),

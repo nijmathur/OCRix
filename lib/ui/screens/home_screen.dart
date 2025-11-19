@@ -6,6 +6,7 @@ import 'scanner_screen.dart';
 import 'settings_screen.dart';
 import 'document_list_screen.dart';
 import '../../providers/document_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../models/document.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -34,6 +35,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final documentsAsync = ref.watch(documentNotifierProvider);
+    final authState = ref.watch(authNotifierProvider);
+    final user = authState.valueOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -41,6 +44,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         elevation: 0,
+        leading: user != null
+            ? Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: GestureDetector(
+                  onTap: () => _showUserMenu(context, ref, user),
+                  child: CircleAvatar(
+                    radius: 18,
+                    backgroundImage: user.photoUrl != null
+                        ? NetworkImage(user.photoUrl!)
+                        : null,
+                    child: user.photoUrl == null
+                        ? const Icon(Icons.person, size: 20)
+                        : null,
+                  ),
+                ),
+              )
+            : null,
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -593,6 +613,100 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       case DocumentType.other:
         return Icons.insert_drive_file;
     }
+  }
+
+  void _showUserMenu(BuildContext context, WidgetRef ref, user) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // User Profile
+            CircleAvatar(
+              radius: 40,
+              backgroundImage:
+                  user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
+              child: user.photoUrl == null
+                  ? Icon(
+                      Icons.person,
+                      size: 40,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    )
+                  : null,
+            ),
+            const SizedBox(height: 16),
+            if (user.displayName != null) ...[
+              Text(
+                user.displayName!,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const SizedBox(height: 4),
+            ],
+            Text(
+              user.email,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 24),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Settings'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title:
+                  const Text('Sign Out', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _showSignOutDialog(context, ref);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSignOutDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text(
+          'Are you sure you want to sign out? You will need to sign in again to access the app.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await ref.read(authNotifierProvider.notifier).signOut();
+            },
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
