@@ -84,7 +84,8 @@ class UserSettings extends Equatable {
     Map<String, dynamic>? customSettings,
   }) {
     return UserSettings(
-      metadataStorageProvider: metadataStorageProvider ?? this.metadataStorageProvider,
+      metadataStorageProvider:
+          metadataStorageProvider ?? this.metadataStorageProvider,
       fileStorageProvider: fileStorageProvider ?? this.fileStorageProvider,
       autoSync: autoSync ?? this.autoSync,
       syncIntervalMinutes: syncIntervalMinutes ?? this.syncIntervalMinutes,
@@ -97,14 +98,16 @@ class UserSettings extends Equatable {
       theme: theme ?? this.theme,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       autoCategorization: autoCategorization ?? this.autoCategorization,
-      ocrConfidenceThreshold: ocrConfidenceThreshold ?? this.ocrConfidenceThreshold,
+      ocrConfidenceThreshold:
+          ocrConfidenceThreshold ?? this.ocrConfidenceThreshold,
       backupEnabled: backupEnabled ?? this.backupEnabled,
       lastBackupAt: lastBackupAt ?? this.lastBackupAt,
       customSettings: customSettings ?? this.customSettings,
     );
   }
 
-  factory UserSettings.fromJson(Map<String, dynamic> json) => _$UserSettingsFromJson(json);
+  factory UserSettings.fromJson(Map<String, dynamic> json) =>
+      _$UserSettingsFromJson(json);
   Map<String, dynamic> toJson() => _$UserSettingsToJson(this);
 
   @override

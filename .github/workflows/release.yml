@@ -1,0 +1,143 @@
+name: Release Build
+
+on:
+    push:
+        tags:
+            - 'v*.*.*'
+    workflow_dispatch:
+        inputs:
+            version:
+                description: 'Version number (e.g., 1.0.1)'
+                required: true
+                type: string
+
+jobs:
+    create-release:
+        name: Create Release Build
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Setup Java
+              uses: actions/setup-java@v4
+              with:
+                  distribution: "temurin"
+                  java-version: "17"
+
+            - name: Setup Flutter
+              uses: subosito/flutter-action@v2
+              with:
+                  flutter-version: "3.35.7"
+                  channel: "stable"
+                  cache: true
+
+            - name: Cache Gradle packages
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.gradle/caches
+                      ~/.gradle/wrapper
+                  key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+                  restore-keys: |
+                      ${{ runner.os }}-gradle-
+
+            - name: Cache Flutter dependencies
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      ~/.pub-cache
+                      ${{ github.workspace }}/.dart_tool
+                  key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-pub-
+
+            - name: Install dependencies
+              run: flutter pub get
+
+            - name: Run tests
+              run: flutter test
+
+            - name: Build Android APK
+              run: flutter build apk --release
+
+            - name: Build Android App Bundle
+              run: flutter build appbundle --release
+
+            - name: Get version
+              id: version
+              run: |
+                  if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+                      echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+                  else
+                      echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Rename APK
+              run: |
+                  VERSION="${{ steps.version.outputs.version }}"
+                  mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/OCRix-v${VERSION}.apk
+
+            - name: Rename App Bundle
+              run: |
+                  VERSION="${{ steps.version.outputs.version }}"
+                  mv build/app/outputs/bundle/release/app-release.aab build/app/outputs/bundle/release/OCRix-v${VERSION}.aab
+
+            - name: Generate changelog
+              id: changelog
+              run: |
+                  # Get the last tag
+                  LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+                  if [ -z "$LAST_TAG" ]; then
+                      echo "changelog=Initial release" >> $GITHUB_OUTPUT
+                  else
+                      CHANGELOG=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s" --no-merges)
+                      echo "changelog<<EOF" >> $GITHUB_OUTPUT
+                      echo "$CHANGELOG" >> $GITHUB_OUTPUT
+                      echo "EOF" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Create Release
+              uses: softprops/action-gh-release@v1
+              if: startsWith(github.ref, 'refs/tags/')
+              with:
+                  name: OCRix v${{ steps.version.outputs.version }}
+                  body: |
+                      ## What's Changed
+
+                      ${{ steps.changelog.outputs.changelog }}
+
+                      ## Build Information
+                      - Flutter: 3.35.7
+                      - Android Gradle Plugin: 8.7.3
+                      - Kotlin: 2.1.0
+                      - compileSdk: 36
+
+                      ## Downloads
+                      - **APK**: OCRix-v${{ steps.version.outputs.version }}.apk
+                      - **App Bundle**: OCRix-v${{ steps.version.outputs.version }}.aab
+                  files: |
+                      build/app/outputs/flutter-apk/OCRix-v${{ steps.version.outputs.version }}.apk
+                      build/app/outputs/bundle/release/OCRix-v${{ steps.version.outputs.version }}.aab
+                  draft: false
+                  prerelease: false
+
+            - name: Upload APK artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: release-apk
+                  path: build/app/outputs/flutter-apk/OCRix-v${{ steps.version.outputs.version }}.apk
+                  retention-days: 90
+
+            - name: Upload App Bundle artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: release-aab
+                  path: build/app/outputs/bundle/release/OCRix-v${{ steps.version.outputs.version }}.aab
+                  retention-days: 90

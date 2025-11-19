@@ -43,4 +43,3 @@ abstract class IDatabaseService {
   /// Initialize the database
   Future<void> initialize();
 }
-

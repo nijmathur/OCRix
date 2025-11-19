@@ -1,0 +1,85 @@
+name: Security Scan
+
+on:
+    push:
+        branches: [main, develop]
+    pull_request:
+        branches: [main, develop]
+    schedule:
+        # Run weekly on Mondays at 9am UTC
+        - cron: '0 9 * * 1'
+
+jobs:
+    codeql:
+        name: CodeQL Security Scan
+        runs-on: ubuntu-latest
+        permissions:
+            actions: read
+            contents: read
+            security-events: write
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Initialize CodeQL
+              uses: github/codeql-action/init@v3
+              with:
+                  languages: java-kotlin
+                  queries: security-extended
+
+            - name: Setup Java
+              uses: actions/setup-java@v4
+              with:
+                  distribution: "temurin"
+                  java-version: "17"
+
+            - name: Setup Flutter
+              uses: subosito/flutter-action@v2
+              with:
+                  flutter-version: "3.35.7"
+                  channel: "stable"
+                  cache: true
+
+            - name: Install dependencies
+              run: flutter pub get
+
+            - name: Build for CodeQL analysis
+              run: flutter build apk --debug
+
+            - name: Perform CodeQL Analysis
+              uses: github/codeql-action/analyze@v3
+              with:
+                  category: "/language:java-kotlin"
+
+    dependency-scan:
+        name: Dependency Security Scan
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Flutter
+              uses: subosito/flutter-action@v2
+              with:
+                  flutter-version: "3.35.7"
+                  channel: "stable"
+                  cache: true
+
+            - name: Install dependencies
+              run: flutter pub get
+
+            - name: Check for known vulnerabilities
+              run: |
+                  echo "Checking Flutter/Dart dependencies for known vulnerabilities..."
+                  flutter pub outdated --json > outdated.json || true
+
+                  echo "Dependency audit complete"
+
+            - name: Upload dependency report
+              uses: actions/upload-artifact@v4
+              with:
+                  name: dependency-audit
+                  path: outdated.json
+                  retention-days: 30

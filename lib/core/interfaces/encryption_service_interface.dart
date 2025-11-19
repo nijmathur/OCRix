@@ -39,4 +39,3 @@ abstract class IEncryptionService {
   /// Get encryption information
   Future<Map<String, dynamic>> getEncryptionInfo();
 }
-

@@ -55,4 +55,3 @@ abstract class ICameraService {
   /// Dispose resources
   Future<void> dispose();
 }
-

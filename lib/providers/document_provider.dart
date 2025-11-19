@@ -80,7 +80,8 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
     ICameraService cameraService,
     IStorageProviderService storageService, {
     IImageProcessingService? imageProcessingService,
-  }) : _imageProcessingService = imageProcessingService ?? ImageProcessingService(),
+  })  : _imageProcessingService =
+            imageProcessingService ?? ImageProcessingService(),
         super(const AsyncValue.loading()) {
     _loadDocuments();
   }
@@ -122,7 +123,8 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       }
 
       // Process image for optimal storage using ImageProcessingService
-      final processedResult = await _imageProcessingService.processImageForStorage(
+      final processedResult =
+          await _imageProcessingService.processImageForStorage(
         imageBytes.toList(),
       );
 
@@ -229,7 +231,6 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         ? firstLine
         : '${type.displayName} - ${DateTime.now().toString().split(' ')[0]}';
   }
-
 }
 
 final imageProcessingServiceProvider = Provider<IImageProcessingService>((ref) {

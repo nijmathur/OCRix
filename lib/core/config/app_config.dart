@@ -46,4 +46,3 @@ class AppConfig {
   static String get scansPath => scansDirectory;
   static String get documentsPath => localStorageBasePath;
 }
-

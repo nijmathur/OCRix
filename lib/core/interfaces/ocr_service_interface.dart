@@ -21,4 +21,3 @@ abstract class IOCRService {
   /// Dispose resources
   Future<void> dispose();
 }
-

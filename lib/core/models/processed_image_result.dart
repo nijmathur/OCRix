@@ -25,4 +25,3 @@ class ImageDimensions {
     required this.height,
   });
 }
-
