@@ -45,9 +45,7 @@ jobs:
               run: flutter pub get
 
             - name: Build for CodeQL analysis
-              run: |
-                  cd android
-                  ./gradlew assembleDebug --no-daemon
+              run: flutter build apk --debug
 
             - name: Perform CodeQL Analysis
               uses: github/codeql-action/analyze@v3

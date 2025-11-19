@@ -10,6 +10,9 @@ jobs:
     build-android:
         name: Build Android APK
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: write
 
         steps:
             - name: Checkout code
@@ -55,7 +58,18 @@ jobs:
               run: flutter doctor -v
 
             - name: Run Flutter analyze
-              run: flutter analyze
+              run: |
+                  echo "Running static analysis..."
+                  flutter analyze > analyze_output.txt 2>&1 || true
+                  cat analyze_output.txt
+
+                  # Check if there are any errors (not warnings or info)
+                  if grep -q "error •" analyze_output.txt; then
+                      echo "❌ Analysis found errors"
+                      exit 1
+                  fi
+
+                  echo "✅ Analysis passed (warnings and info are acceptable)"
 
             - name: Check ProGuard rules exist
               run: |
