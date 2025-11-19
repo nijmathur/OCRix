@@ -131,9 +131,9 @@ OCRix requires Google Sign-In for user authentication and Google Drive access. T
 
 ### Prerequisites
 
-- A Google Cloud Platform account
-- Access to [Google Cloud Console](https://console.cloud.google.com/)
-- Your app's package name: `com.ocrix.app`
+-   A Google Cloud Platform account
+-   Access to [Google Cloud Console](https://console.cloud.google.com/)
+-   Your app's package name: `com.ocrix.app`
 
 ### Step 1: Create a Project
 
@@ -147,8 +147,8 @@ OCRix requires Google Sign-In for user authentication and Google Drive access. T
 
 1. In the Google Cloud Console, navigate to **APIs & Services** → **Library**
 2. Search for and enable the following APIs:
-   - **Google Sign-In API** (or "Google Identity Toolkit API")
-   - **Google Drive API**
+    - **Google Sign-In API** (or "Google Identity Toolkit API")
+    - **Google Drive API**
 3. Wait for the APIs to be enabled (may take a few moments)
 
 ### Step 3: Configure OAuth Consent Screen
@@ -156,14 +156,14 @@ OCRix requires Google Sign-In for user authentication and Google Drive access. T
 1. Navigate to **APIs & Services** → **OAuth consent screen**
 2. Choose **External** (unless you have a Google Workspace account)
 3. Fill in the required information:
-   - **App name**: OCRix (or your preferred name)
-   - **User support email**: Your email address
-   - **Developer contact information**: Your email address
+    - **App name**: OCRix (or your preferred name)
+    - **User support email**: Your email address
+    - **Developer contact information**: Your email address
 4. Click **Save and Continue**
 5. On the **Scopes** page, add the following scopes:
-   - `.../auth/userinfo.email`
-   - `.../auth/userinfo.profile`
-   - `https://www.googleapis.com/auth/drive.file`
+    - `.../auth/userinfo.email`
+    - `.../auth/userinfo.profile`
+    - `https://www.googleapis.com/auth/drive.file`
 6. Click **Save and Continue** through the remaining steps
 7. On the **Test users** page (if in testing mode), add test user emails if needed
 8. Click **Save and Continue** → **Back to Dashboard**
@@ -175,11 +175,13 @@ The SHA-1 fingerprint is required to link your app to the OAuth credentials. You
 #### For Debug Builds (Development/Testing):
 
 **On macOS/Linux:**
+
 ```bash
 keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
 ```
 
 **On Windows:**
+
 ```bash
 keytool -list -v -keystore %USERPROFILE%\.android\debug.keystore -alias androiddebugkey -storepass android -keypass android
 ```
@@ -192,9 +194,10 @@ keytool -list -v -keystore /path/to/your/release.keystore -alias your-key-alias
 ```
 
 **Extracting the SHA-1:**
-- Look for the line that says `SHA1:` in the output
-- Copy the entire SHA-1 value (format: `AA:BB:CC:DD:EE:FF:...`)
-- Example: `A1:B2:C3:D4:E5:F6:12:34:56:78:90:AB:CD:EF:12:34:56:78:90:AB`
+
+-   Look for the line that says `SHA1:` in the output
+-   Copy the entire SHA-1 value (format: `AA:BB:CC:DD:EE:FF:...`)
+-   Example: `A1:B2:C3:D4:E5:F6:12:34:56:78:90:AB:CD:EF:12:34:56:78:90:AB`
 
 ### Step 5: Create OAuth 2.0 Client ID
 
@@ -202,9 +205,9 @@ keytool -list -v -keystore /path/to/your/release.keystore -alias your-key-alias
 2. Click **+ CREATE CREDENTIALS** → **OAuth client ID**
 3. Select **Android** as the application type
 4. Fill in the form:
-   - **Name**: "OCRix Android" (or any descriptive name)
-   - **Package name**: `com.ocrix.app` (must match exactly)
-   - **SHA-1 certificate fingerprint**: Paste the SHA-1 value from Step 4
+    - **Name**: "OCRix Android" (or any descriptive name)
+    - **Package name**: `com.ocrix.app` (must match exactly)
+    - **SHA-1 certificate fingerprint**: Paste the SHA-1 value from Step 4
 5. Click **Create**
 6. **Important**: You'll see a dialog with your Client ID - **you don't need to copy or hardcode this**. The app will automatically use it.
 
@@ -219,58 +222,65 @@ If you have multiple developers or need to support both debug and release builds
 5. Click **Save**
 
 **Note**: You can add multiple SHA-1 fingerprints to the same OAuth client ID. This is useful when:
-- Different developers use different debug keystores
-- You need both debug and release SHA-1 fingerprints
-- CI/CD builds use different signing keys
+
+-   Different developers use different debug keystores
+-   You need both debug and release SHA-1 fingerprints
+-   CI/CD builds use different signing keys
 
 ### Step 7: Verify Configuration
 
 1. **No Code Changes Required**: The `google_sign_in` package automatically detects and uses the OAuth credentials based on:
-   - Your app's package name (`com.ocrix.app`)
-   - The SHA-1 certificate fingerprint
-   - The OAuth client ID configured in Google Cloud Console
+
+    - Your app's package name (`com.ocrix.app`)
+    - The SHA-1 certificate fingerprint
+    - The OAuth client ID configured in Google Cloud Console
 
 2. **How It Works**:
-   - When you build and run the app, the `google_sign_in` package queries Google's servers
-   - Google matches your app's package name and SHA-1 fingerprint to the OAuth client ID
-   - The correct Client ID is automatically used - no hardcoding needed
+
+    - When you build and run the app, the `google_sign_in` package queries Google's servers
+    - Google matches your app's package name and SHA-1 fingerprint to the OAuth client ID
+    - The correct Client ID is automatically used - no hardcoding needed
 
 3. **Test the Configuration**:
-   ```bash
-   # Build and run the app
-   flutter run
-   # Try signing in with Google - it should work automatically
-   ```
+    ```bash
+    # Build and run the app
+    flutter run
+    # Try signing in with Google - it should work automatically
+    ```
 
 ### Important Notes
 
-- **No Hardcoding Required**: The Client ID does **NOT** need to be hardcoded in the app code. The `google_sign_in` package handles this automatically.
-- **Package Name Must Match**: Ensure your `android/app/build.gradle` has `applicationId = "com.ocrix.app"` (or update the OAuth client ID to match your actual package name).
-- **SHA-1 Must Match Exactly**: The SHA-1 fingerprint must match exactly, including all colons (`:`).
-- **Debug vs Release**: If you test with debug builds and deploy release builds, add both SHA-1 fingerprints to the same OAuth client ID.
+-   **No Hardcoding Required**: The Client ID does **NOT** need to be hardcoded in the app code. The `google_sign_in` package handles this automatically.
+-   **Package Name Must Match**: Ensure your `android/app/build.gradle` has `applicationId = "com.ocrix.app"` (or update the OAuth client ID to match your actual package name).
+-   **SHA-1 Must Match Exactly**: The SHA-1 fingerprint must match exactly, including all colons (`:`).
+-   **Debug vs Release**: If you test with debug builds and deploy release builds, add both SHA-1 fingerprints to the same OAuth client ID.
 
 ### Troubleshooting
 
 #### "Sign in failed" or "OAuth client not found"
-- Verify the SHA-1 fingerprint matches exactly (copy-paste to avoid typos)
-- Ensure the package name matches exactly: `com.ocrix.app`
-- Check that the OAuth client ID is created for Android (not Web or iOS)
-- Wait a few minutes after creating credentials - Google's servers may need time to propagate
+
+-   Verify the SHA-1 fingerprint matches exactly (copy-paste to avoid typos)
+-   Ensure the package name matches exactly: `com.ocrix.app`
+-   Check that the OAuth client ID is created for Android (not Web or iOS)
+-   Wait a few minutes after creating credentials - Google's servers may need time to propagate
 
 #### "API not enabled"
-- Go to **APIs & Services** → **Library**
-- Verify both "Google Sign-In API" and "Google Drive API" are enabled
-- If not enabled, click "Enable" and wait for activation
+
+-   Go to **APIs & Services** → **Library**
+-   Verify both "Google Sign-In API" and "Google Drive API" are enabled
+-   If not enabled, click "Enable" and wait for activation
 
 #### "Invalid client" error
-- Check that you're using the correct SHA-1 fingerprint for your build type (debug vs release)
-- Verify the OAuth consent screen is properly configured
-- Ensure you've added test users if the app is in testing mode
+
+-   Check that you're using the correct SHA-1 fingerprint for your build type (debug vs release)
+-   Verify the OAuth consent screen is properly configured
+-   Ensure you've added test users if the app is in testing mode
 
 #### Multiple SHA-1 Fingerprints
-- You can add multiple SHA-1 fingerprints to the same OAuth client ID
-- This is the recommended approach for teams with multiple developers
-- Each developer's debug keystore will have a different SHA-1
+
+-   You can add multiple SHA-1 fingerprints to the same OAuth client ID
+-   This is the recommended approach for teams with multiple developers
+-   Each developer's debug keystore will have a different SHA-1
 
 ## Platform-Specific Configuration
 

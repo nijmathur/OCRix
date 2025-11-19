@@ -42,14 +42,54 @@ class DocumentCard extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // Document image or placeholder
-            if (document.imageData != null)
+            // Document image or placeholder - prefer thumbnail for performance
+            if (document.thumbnailData != null)
+              Center(
+                child: Image.memory(
+                  document.thumbnailData!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  cacheWidth: 300, // Limit cache size for thumbnails
+                  cacheHeight: 300,
+                  errorBuilder: (context, error, stackTrace) {
+                    // Fallback to full image if thumbnail fails
+                    if (document.imageData != null) {
+                      return Image.memory(
+                        document.imageData!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Center(
+                            child: Icon(
+                              _getDocumentTypeIcon(document.type),
+                              size: 48,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          );
+                        },
+                      );
+                    }
+                    return Center(
+                      child: Icon(
+                        _getDocumentTypeIcon(document.type),
+                        size: 48,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    );
+                  },
+                ),
+              )
+            else if (document.imageData != null)
               Center(
                 child: Image.memory(
                   document.imageData!,
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: double.infinity,
+                  cacheWidth: 300, // Limit cache size
+                  cacheHeight: 300,
                   errorBuilder: (context, error, stackTrace) {
                     return Center(
                       child: Icon(

@@ -1,6 +1,8 @@
 import '../../models/document.dart';
+import '../../models/document_summary.dart';
 import '../../models/user_settings.dart';
 import '../../models/audit_log.dart';
+import 'dart:typed_data';
 
 /// Interface for database operations
 abstract class IDatabaseService {
@@ -14,6 +16,17 @@ abstract class IDatabaseService {
     DocumentType? type,
     String? searchQuery,
   });
+
+  /// Get document summaries (without full image data) for list views
+  Future<List<DocumentSummary>> getDocumentSummaries({
+    int? limit,
+    int? offset,
+    DocumentType? type,
+    String? searchQuery,
+  });
+
+  /// Lazy load full image data for a document
+  Future<Uint8List?> getDocumentImageData(String documentId);
 
   /// Insert a new document
   Future<String> insertDocument(Document document);

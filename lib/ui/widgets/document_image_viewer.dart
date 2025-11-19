@@ -132,6 +132,7 @@ class _DocumentImageViewerState extends State<DocumentImageViewer> {
           child: Image.memory(
             _imageData!,
             fit: BoxFit.contain,
+            // Don't limit cache for detail view - user wants full quality
             errorBuilder: (context, error, stackTrace) {
               return Column(
                 mainAxisAlignment: MainAxisAlignment.center,

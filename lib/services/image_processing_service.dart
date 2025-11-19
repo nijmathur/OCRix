@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import '../core/interfaces/image_processing_service_interface.dart';
 import '../core/models/processed_image_result.dart';
@@ -18,55 +19,80 @@ class ImageProcessingService extends BaseService
     try {
       logInfo('Processing image for storage: ${imageBytes.length} bytes');
 
-      // Decode image
-      final image = img.decodeImage(Uint8List.fromList(imageBytes));
-      if (image == null) {
-        throw ImageProcessingException('Failed to decode image');
-      }
-
-      // Resize if too large
-      img.Image processedImage = image;
-      if (image.width > AppConfig.maxImageWidth ||
-          image.height > AppConfig.maxImageHeight) {
-        final scale = image.width > image.height
-            ? AppConfig.maxImageWidth / image.width
-            : AppConfig.maxImageHeight / image.height;
-
-        processedImage = img.copyResize(
-          image,
-          width: (image.width * scale).round(),
-          height: (image.height * scale).round(),
-        );
-
-        logInfo(
-            'Image resized from ${image.width}x${image.height} to ${processedImage.width}x${processedImage.height}');
-      }
-
-      // Convert to JPEG with configured quality
-      final processedBytes =
-          img.encodeJpg(processedImage, quality: AppConfig.jpegQuality);
-      final processedUint8List = Uint8List.fromList(processedBytes);
+      // Use isolate for CPU-intensive image processing
+      final result = await compute(_processImageInIsolate, imageBytes);
 
       logInfo(
-          'Image processed: ${processedUint8List.length} bytes, ${processedImage.width}x${processedImage.height}');
+          'Image processed: ${result.size} bytes (thumbnail: ${result.thumbnailSize} bytes), ${result.width}x${result.height}');
 
-      return ProcessedImageResult(
-        imageBytes: processedBytes,
-        width: processedImage.width,
-        height: processedImage.height,
-        size: processedUint8List.length,
-        format: 'jpeg',
-      );
-    } catch (e) {
+      return result;
+    } catch (e, stackTrace) {
       logError('Failed to process image for storage', e);
-      if (e is ImageProcessingException) {
-        rethrow;
+      // compute() may throw the exception from isolate, but we need to wrap it
+      if (e.toString().contains('Failed to decode image') ||
+          e.toString().contains('ImageProcessingException')) {
+        throw ImageProcessingException(
+          e.toString(),
+          originalError: e,
+          stackTrace: stackTrace,
+        );
       }
       throw ImageProcessingException(
         'Failed to process image: ${e.toString()}',
         originalError: e,
+        stackTrace: stackTrace,
       );
     }
+  }
+
+  /// Static function for isolate processing
+  /// Note: Exceptions thrown here will be caught by compute() and rethrown
+  static ProcessedImageResult _processImageInIsolate(List<int> imageBytes) {
+    // Decode image
+    final image = img.decodeImage(Uint8List.fromList(imageBytes));
+    if (image == null) {
+      throw Exception('Failed to decode image');
+    }
+
+    // Resize if too large
+    img.Image processedImage = image;
+    if (image.width > AppConfig.maxImageWidth ||
+        image.height > AppConfig.maxImageHeight) {
+      final scale = image.width > image.height
+          ? AppConfig.maxImageWidth / image.width
+          : AppConfig.maxImageHeight / image.height;
+
+      processedImage = img.copyResize(
+        image,
+        width: (image.width * scale).round(),
+        height: (image.height * scale).round(),
+      );
+    }
+
+    // Convert to JPEG with configured quality
+    final processedBytes =
+        img.encodeJpg(processedImage, quality: AppConfig.storageQuality);
+    final processedUint8List = Uint8List.fromList(processedBytes);
+
+    // Generate thumbnail
+    final thumbnail = img.copyResize(
+      processedImage,
+      width: AppConfig.thumbnailWidth,
+      height: AppConfig.thumbnailHeight,
+    );
+    final thumbnailBytes =
+        img.encodeJpg(thumbnail, quality: AppConfig.thumbnailQuality);
+    final thumbnailUint8List = Uint8List.fromList(thumbnailBytes);
+
+    return ProcessedImageResult(
+      imageBytes: processedBytes,
+      thumbnailBytes: thumbnailBytes,
+      width: processedImage.width,
+      height: processedImage.height,
+      size: processedUint8List.length,
+      thumbnailSize: thumbnailUint8List.length,
+      format: 'jpeg',
+    );
   }
 
   @override
@@ -95,7 +121,7 @@ class ImageProcessingService extends BaseService
         height: (image.height * scale).round(),
       );
 
-      return img.encodeJpg(resized, quality: AppConfig.jpegQuality);
+      return img.encodeJpg(resized, quality: AppConfig.storageQuality);
     } catch (e) {
       logError('Failed to resize image', e);
       throw ImageProcessingException(

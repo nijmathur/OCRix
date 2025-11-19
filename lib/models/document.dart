@@ -28,6 +28,8 @@ class Document extends Equatable {
   final String title;
   @Uint8ListConverter()
   final Uint8List? imageData;
+  @Uint8ListConverter()
+  final Uint8List? thumbnailData;
   final String imageFormat;
   final int? imageSize;
   final int? imageWidth;
@@ -55,6 +57,7 @@ class Document extends Equatable {
     required this.id,
     required this.title,
     this.imageData,
+    this.thumbnailData,
     this.imageFormat = 'jpeg',
     this.imageSize,
     this.imageWidth,
@@ -83,6 +86,7 @@ class Document extends Equatable {
     required String title,
     String? imagePath,
     Uint8List? imageData,
+    Uint8List? thumbnailData,
     String imageFormat = 'jpeg',
     int? imageSize,
     int? imageWidth,
@@ -104,6 +108,7 @@ class Document extends Equatable {
       id: const Uuid().v4(),
       title: title,
       imageData: imageData,
+      thumbnailData: thumbnailData,
       imageFormat: imageFormat,
       imageSize: imageSize,
       imageWidth: imageWidth,
@@ -131,6 +136,7 @@ class Document extends Equatable {
     String? id,
     String? title,
     Uint8List? imageData,
+    Uint8List? thumbnailData,
     String? imageFormat,
     int? imageSize,
     int? imageWidth,
@@ -158,6 +164,7 @@ class Document extends Equatable {
       id: id ?? this.id,
       title: title ?? this.title,
       imageData: imageData ?? this.imageData,
+      thumbnailData: thumbnailData ?? this.thumbnailData,
       imageFormat: imageFormat ?? this.imageFormat,
       imageSize: imageSize ?? this.imageSize,
       imageWidth: imageWidth ?? this.imageWidth,
@@ -192,6 +199,7 @@ class Document extends Equatable {
         id,
         title,
         imageData,
+        thumbnailData,
         imageFormat,
         imageSize,
         imageWidth,

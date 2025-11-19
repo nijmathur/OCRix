@@ -200,10 +200,13 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       // Categorize document
       final documentType = await _ocrService.categorizeDocument(ocrResult.text);
 
-      // Create document with image data
+      // Create document with image data and thumbnail
       final document = Document.create(
         title: title ?? _generateTitle(ocrResult.text, documentType),
         imageData: Uint8List.fromList(processedResult.imageBytes),
+        thumbnailData: processedResult.thumbnailBytes != null
+            ? Uint8List.fromList(processedResult.thumbnailBytes!)
+            : null,
         imageFormat: processedResult.format,
         imageSize: processedResult.size,
         imageWidth: processedResult.width,
@@ -222,8 +225,25 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       // Save to database
       final documentId = await _databaseService.insertDocument(document);
 
-      // Reload documents
-      await refreshDocuments();
+      // Clean up file system image after storing in database
+      // Since we store processed images and thumbnails in DB, we don't need the file
+      try {
+        if (await imageFile.exists()) {
+          await imageFile.delete();
+          _logger.i('Cleaned up temporary image file: $imagePath');
+        }
+      } catch (e) {
+        // Log but don't fail if cleanup fails
+        _logger.w('Failed to cleanup image file: $e');
+      }
+
+      // Optimistic update: add new document to state without full reload
+      if (state.hasValue) {
+        final currentDocs = state.value ?? [];
+        state = AsyncValue.data([document, ...currentDocs]);
+      } else {
+        await refreshDocuments();
+      }
 
       _logger.i('Document scanned and saved: $documentId');
       return documentId;
@@ -241,7 +261,24 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       );
 
       await _databaseService.updateDocument(updatedDocument);
-      await refreshDocuments();
+
+      // Optimistic update: update document in state directly
+      if (state.hasValue) {
+        final docs = state.value ?? [];
+        final index = docs.indexWhere((d) => d.id == document.id);
+        if (index != -1) {
+          state = AsyncValue.data([
+            ...docs.sublist(0, index),
+            updatedDocument,
+            ...docs.sublist(index + 1),
+          ]);
+        } else {
+          // If not found, refresh
+          await refreshDocuments();
+        }
+      } else {
+        await refreshDocuments();
+      }
 
       _logger.i('Document updated: ${document.id}');
     } catch (e, stackTrace) {
@@ -253,7 +290,16 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
   Future<void> deleteDocument(String documentId) async {
     try {
       await _databaseService.deleteDocument(documentId);
-      await refreshDocuments();
+
+      // Optimistic update: remove document from state directly
+      if (state.hasValue) {
+        final docs = state.value ?? [];
+        state = AsyncValue.data(
+          docs.where((d) => d.id != documentId).toList(),
+        );
+      } else {
+        await refreshDocuments();
+      }
 
       _logger.i('Document deleted: $documentId');
     } catch (e, stackTrace) {

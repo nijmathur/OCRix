@@ -4,6 +4,7 @@ import 'package:sqflite/sqflite.dart' hide DatabaseException;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/document.dart';
+import '../models/document_summary.dart';
 import '../models/user_settings.dart';
 import '../models/audit_log.dart';
 import '../core/interfaces/database_service_interface.dart';
@@ -100,6 +101,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
           id TEXT PRIMARY KEY,
           title TEXT NOT NULL,
           image_data BLOB,
+          thumbnail_data BLOB,
           image_format TEXT DEFAULT 'jpeg',
           image_size INTEGER,
           image_width INTEGER,
@@ -255,6 +257,16 @@ class DatabaseService extends BaseService implements IDatabaseService {
         logInfo('Added image BLOB columns to documents table');
       } catch (e) {
         logError('Error adding image BLOB columns', e);
+      }
+    }
+
+    if (oldVersion < 5) {
+      // Add thumbnail_data column for performance optimization
+      try {
+        await db.execute('ALTER TABLE documents ADD COLUMN thumbnail_data BLOB');
+        logInfo('Added thumbnail_data column to documents table');
+      } catch (e) {
+        logError('Error adding thumbnail_data column', e);
       }
     }
   }
@@ -650,12 +662,144 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
+  Future<List<DocumentSummary>> getDocumentSummaries({
+    int? limit,
+    int? offset,
+    DocumentType? type,
+    String? searchQuery,
+  }) async {
+    final db = await database;
+    try {
+      // Query only metadata and thumbnails, not full image data
+      String query = '''
+        SELECT 
+          id, title, thumbnail_data, image_format, type, scan_date, 
+          tags, confidence_score, detected_language, created_at, 
+          updated_at, is_encrypted
+        FROM documents
+      ''';
+      List<dynamic> queryArgs = [];
+
+      // Handle search query
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        try {
+          // Try FTS5 search with JOIN
+          query = '''
+            SELECT DISTINCT 
+              d.id, d.title, d.thumbnail_data, d.image_format, d.type, 
+              d.scan_date, d.tags, d.confidence_score, d.detected_language, 
+              d.created_at, d.updated_at, d.is_encrypted
+            FROM documents d
+            JOIN search_index s ON d.id = s.doc_id
+            WHERE search_index MATCH ?
+          ''';
+          queryArgs = [searchQuery];
+
+          if (type != null) {
+            query += ' AND d.type = ?';
+            queryArgs.add(type.name);
+          }
+        } catch (e) {
+          logWarning('FTS5 search failed, using fallback: $e');
+          // Fallback to LIKE search
+          query = '''
+            SELECT DISTINCT 
+              d.id, d.title, d.thumbnail_data, d.image_format, d.type, 
+              d.scan_date, d.tags, d.confidence_score, d.detected_language, 
+              d.created_at, d.updated_at, d.is_encrypted
+            FROM documents d
+            JOIN search_index s ON d.id = s.doc_id
+            WHERE (s.title LIKE ? OR s.extracted_text LIKE ? OR s.tags LIKE ? OR s.notes LIKE ?)
+          ''';
+          final searchTerm = '%$searchQuery%';
+          queryArgs = [searchTerm, searchTerm, searchTerm, searchTerm];
+
+          if (type != null) {
+            query += ' AND d.type = ?';
+            queryArgs.add(type.name);
+          }
+        }
+      } else if (type != null) {
+        query += ' WHERE type = ?';
+        queryArgs.add(type.name);
+      }
+
+      query += ' ORDER BY created_at DESC';
+
+      if (limit != null) {
+        query += ' LIMIT ?';
+        queryArgs.add(limit);
+      }
+
+      if (offset != null) {
+        query += ' OFFSET ?';
+        queryArgs.add(offset);
+      }
+
+      final maps = await db.rawQuery(query, queryArgs);
+      return maps.map((map) => _mapToDocumentSummary(map)).toList();
+    } catch (e) {
+      logError('Failed to get document summaries', e);
+      throw DatabaseException(
+        'Failed to get document summaries: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  @override
+  Future<Uint8List?> getDocumentImageData(String documentId) async {
+    final db = await database;
+    try {
+      final maps = await db.query(
+        'documents',
+        columns: ['image_data'],
+        where: 'id = ?',
+        whereArgs: [documentId],
+        limit: 1,
+      );
+
+      if (maps.isNotEmpty) {
+        return maps.first['image_data'] as Uint8List?;
+      }
+      return null;
+    } catch (e) {
+      logError('Failed to get document image data', e);
+      throw DatabaseException(
+        'Failed to get document image data: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  DocumentSummary _mapToDocumentSummary(Map<String, dynamic> map) {
+    return DocumentSummary(
+      id: map['id'],
+      title: map['title'],
+      thumbnailData: map['thumbnail_data'] as Uint8List?,
+      imageFormat: map['image_format'] ?? 'jpeg',
+      type: DocumentType.values.firstWhere(
+        (e) => e.name == map['type'],
+        orElse: () => DocumentType.other,
+      ),
+      scanDate: DateTime.fromMillisecondsSinceEpoch(map['scan_date']),
+      tags: (map['tags'] as String?)?.split(',') ?? [],
+      confidenceScore: map['confidence_score'],
+      detectedLanguage: map['detected_language'],
+      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at']),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at']),
+      isEncrypted: map['is_encrypted'] == 1,
+    );
+  }
+
   // Helper methods
   Map<String, dynamic> _documentToMap(Document document) {
     return {
       'id': document.id,
       'title': document.title,
       'image_data': document.imageData,
+      'thumbnail_data': document.thumbnailData,
       'image_format': document.imageFormat,
       'image_size': document.imageSize,
       'image_width': document.imageWidth,
@@ -686,6 +830,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
       id: map['id'],
       title: map['title'],
       imageData: map['image_data'] as Uint8List?,
+      thumbnailData: map['thumbnail_data'] as Uint8List?,
       imageFormat: map['image_format'] ?? 'jpeg',
       imageSize: map['image_size'] as int?,
       imageWidth: map['image_width'] as int?,
