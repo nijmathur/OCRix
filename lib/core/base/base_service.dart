@@ -28,4 +28,3 @@ abstract class BaseService {
     logger.d('[$serviceName] $message');
   }
 }
-

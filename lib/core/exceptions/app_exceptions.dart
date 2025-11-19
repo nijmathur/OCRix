@@ -76,4 +76,3 @@ class ValidationException extends AppException {
     super.stackTrace,
   });
 }
-

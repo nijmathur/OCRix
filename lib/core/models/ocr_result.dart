@@ -27,4 +27,3 @@ class TextBlock {
     required this.boundingBox,
   });
 }
-

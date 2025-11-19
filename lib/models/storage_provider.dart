@@ -23,11 +23,13 @@ class StorageProvider extends Equatable {
     required this.updatedAt,
   });
 
-  factory StorageProvider.fromJson(Map<String, dynamic> json) => _$StorageProviderFromJson(json);
+  factory StorageProvider.fromJson(Map<String, dynamic> json) =>
+      _$StorageProviderFromJson(json);
   Map<String, dynamic> toJson() => _$StorageProviderToJson(this);
 
   @override
-  List<Object?> get props => [id, name, type, isEnabled, configuration, createdAt, updatedAt];
+  List<Object?> get props =>
+      [id, name, type, isEnabled, configuration, createdAt, updatedAt];
 }
 
 enum StorageProviderType {

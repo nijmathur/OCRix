@@ -22,4 +22,3 @@ abstract class IImageProcessingService {
     int quality = 85,
   });
 }
-

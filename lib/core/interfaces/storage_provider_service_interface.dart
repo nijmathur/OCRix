@@ -39,4 +39,3 @@ abstract class IStorageProviderService {
   /// Sync cloud documents to local
   Future<void> syncFromCloud();
 }
-

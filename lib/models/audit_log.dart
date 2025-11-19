@@ -58,7 +58,8 @@ class AuditLog extends Equatable {
     );
   }
 
-  factory AuditLog.fromJson(Map<String, dynamic> json) => _$AuditLogFromJson(json);
+  factory AuditLog.fromJson(Map<String, dynamic> json) =>
+      _$AuditLogFromJson(json);
   Map<String, dynamic> toJson() => _$AuditLogToJson(this);
 
   @override

@@ -336,7 +336,8 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
   }
 }
 
-class StorageProviderService extends BaseService implements IStorageProviderService {
+class StorageProviderService extends BaseService
+    implements IStorageProviderService {
   final Map<StorageProviderType, StorageProviderInterface> _providers = {};
   IEncryptionService? _encryptionService;
   StorageProviderType? _currentProvider;
@@ -466,14 +467,15 @@ class StorageProviderService extends BaseService implements IStorageProviderServ
     final providerType = await getCurrentProvider();
     final remotePath = 'documents/$documentId'; // Simplified
     final isEncrypted = false; // Would need to fetch from document
-    
+
     try {
       final provider = await getProvider(providerType);
       final downloadedPath = await provider.downloadFile(remotePath, localPath);
 
       // Decrypt if needed
       if (isEncrypted) {
-        final decryptedPath = await encryptionService.decryptFile(downloadedPath);
+        final decryptedPath =
+            await encryptionService.decryptFile(downloadedPath);
         logInfo('Document downloaded and decrypted: $documentId');
         return decryptedPath;
       }
@@ -496,7 +498,7 @@ class StorageProviderService extends BaseService implements IStorageProviderServ
   Future<void> deleteDocument(String documentId) async {
     final providerType = await getCurrentProvider();
     final remotePath = 'documents/$documentId'; // Simplified
-    
+
     try {
       final provider = await getProvider(providerType);
       await provider.deleteFile(remotePath);

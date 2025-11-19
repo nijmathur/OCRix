@@ -215,7 +215,8 @@ class EncryptionService extends BaseService implements IEncryptionService {
     try {
       final encryptedFile = File(encryptedFilePath);
       if (!await encryptedFile.exists()) {
-        throw EncryptionException('Encrypted file does not exist: $encryptedFilePath');
+        throw EncryptionException(
+            'Encrypted file does not exist: $encryptedFilePath');
       }
 
       final encryptedBytes = await encryptedFile.readAsBytes();
