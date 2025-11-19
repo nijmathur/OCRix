@@ -101,10 +101,109 @@ class AppInitializer extends ConsumerStatefulWidget {
   ConsumerState<AppInitializer> createState() => _AppInitializerState();
 }
 
-class _AppInitializerState extends ConsumerState<AppInitializer> {
+class _AppInitializerState extends ConsumerState<AppInitializer>
+    with WidgetsBindingObserver {
   bool _isInitialized = false;
   bool _isInitializing = false;
   String? _error;
+  bool _isAuthenticated = false;
+  bool _isCheckingBiometric = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // When app comes back to foreground, check if biometric auth is needed
+    if (state == AppLifecycleState.resumed) {
+      _checkBiometricOnResume();
+    }
+
+    // When app goes to background, mark as not authenticated
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _isAuthenticated = false;
+    }
+  }
+
+  Future<void> _checkBiometricOnResume() async {
+    // Only check if user is signed in and app is initialized
+    final authState = ref.read(authNotifierProvider);
+    if (authState.valueOrNull == null || !_isInitialized) {
+      return;
+    }
+
+    // Check if biometric is enabled and available
+    final biometricState = ref.read(biometricAuthNotifierProvider);
+    if (!biometricState.isEnabled || !biometricState.isAvailable) {
+      return;
+    }
+
+    // If already authenticated in this session, skip
+    if (_isAuthenticated) {
+      return;
+    }
+
+    // Don't check multiple times simultaneously
+    if (_isCheckingBiometric) {
+      return;
+    }
+
+    setState(() {
+      _isCheckingBiometric = true;
+    });
+
+    try {
+      final biometricNotifier =
+          ref.read(biometricAuthNotifierProvider.notifier);
+      final biometricService = ref.read(biometricAuthServiceProvider);
+
+      biometricService
+          .logInfo('App resumed - requesting biometric authentication');
+      final authenticated = await biometricNotifier.authenticate(
+        reason: 'Use your fingerprint to continue',
+      );
+
+      if (authenticated) {
+        biometricService
+            .logInfo('Biometric authentication successful on app resume');
+        setState(() {
+          _isAuthenticated = true;
+          _isCheckingBiometric = false;
+        });
+      } else {
+        // Biometric failed or cancelled - show login screen with Google Sign-In as backup
+        biometricService.logWarning(
+            'Biometric authentication failed or cancelled on app resume - showing login screen');
+        setState(() {
+          _isAuthenticated = false;
+          _isCheckingBiometric = false;
+        });
+        // Login screen will be shown automatically by build method
+      }
+    } catch (e, stackTrace) {
+      // On error, show login screen with Google Sign-In as backup
+      final biometricService = ref.read(biometricAuthServiceProvider);
+      biometricService.logError(
+          'Error during biometric check on app resume', e, stackTrace);
+      setState(() {
+        _isAuthenticated = false;
+        _isCheckingBiometric = false;
+      });
+      // Login screen will be shown automatically by build method
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -138,7 +237,7 @@ class _AppInitializerState extends ConsumerState<AppInitializer> {
       } catch (e) {
         // Log but don't fail app initialization if camera is unavailable
         // Camera features will be disabled, but app can still function
-        print('Warning: Camera service initialization failed: $e');
+        debugPrint('Warning: Camera service initialization failed: $e');
       }
 
       if (mounted) {
@@ -146,6 +245,9 @@ class _AppInitializerState extends ConsumerState<AppInitializer> {
           _isInitialized = true;
           _isInitializing = false;
         });
+
+        // After initialization, check if biometric auth is needed
+        _checkBiometricOnResume();
       }
     } catch (e) {
       if (mounted) {
@@ -212,10 +314,27 @@ class _AppInitializerState extends ConsumerState<AppInitializer> {
 
     // Show login screen if not signed in
     if (!isSignedIn) {
+      // Reset authentication state when signed out
+      _isAuthenticated = false;
       return const LoginScreen();
     }
 
     if (!_isInitialized) {
+      return const SplashScreen();
+    }
+
+    // If biometric is enabled and user hasn't authenticated yet, show login
+    if (biometricState.isEnabled &&
+        biometricState.isAvailable &&
+        !_isAuthenticated &&
+        !_isCheckingBiometric) {
+      // This will trigger the biometric prompt via _checkBiometricOnResume
+      // Show login screen as fallback
+      return const LoginScreen();
+    }
+
+    // Show loading while checking biometric
+    if (_isCheckingBiometric) {
       return const SplashScreen();
     }
 

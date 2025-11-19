@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:logger/logger.dart';
 import '../services/biometric_auth_service.dart';
+import '../core/exceptions/app_exceptions.dart';
 
 final biometricAuthServiceProvider = Provider<BiometricAuthService>((ref) {
   return BiometricAuthService();
@@ -40,6 +42,7 @@ class BiometricAuthState {
 
 class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
   final BiometricAuthService _biometricAuthService;
+  final Logger _logger = Logger();
 
   BiometricAuthNotifier(this._biometricAuthService)
       : super(const BiometricAuthState(isLoading: true)) {
@@ -71,18 +74,44 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
 
   Future<bool> enableBiometricAuth() async {
     try {
+      _logger.i(
+          '[BiometricAuthNotifier] Starting enable biometric authentication');
       state = state.copyWith(isLoading: true, error: null);
+
+      // enableBiometricAuth() already handles authentication internally
       await _biometricAuthService.enableBiometricAuth();
 
+      _logger.i(
+          '[BiometricAuthNotifier] Biometric authentication enabled successfully');
       state = state.copyWith(
         isEnabled: true,
         isLoading: false,
+        error: null,
       );
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      _logger.e(
+          '[BiometricAuthNotifier] Failed to enable biometric authentication',
+          error: e,
+          stackTrace: stackTrace);
+      _logger.e(
+          '[BiometricAuthNotifier] Error details: type=${e.runtimeType}, message=${e.toString()}');
+
+      String errorMessage;
+      if (e is AuthException) {
+        errorMessage = e.message;
+        _logger
+            .e('[BiometricAuthNotifier] AuthException message: $errorMessage');
+      } else {
+        errorMessage = 'Failed to enable biometric sign-in: ${e.toString()}';
+        _logger.e(
+            '[BiometricAuthNotifier] Non-AuthException error: $errorMessage');
+      }
+
       state = state.copyWith(
+        isEnabled: false, // Ensure it's false on failure
         isLoading: false,
-        error: e.toString(),
+        error: errorMessage,
       );
       return false;
     }

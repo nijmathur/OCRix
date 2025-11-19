@@ -135,21 +135,6 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
         if (settings.encryptionEnabled) ...[
-          SettingsTile(
-            title: 'Biometric Authentication',
-            subtitle: settings.biometricAuth ? 'Enabled' : 'Disabled',
-            icon: Icons.fingerprint,
-            trailing: Switch(
-              value: settings.biometricAuth,
-              onChanged: encryptionState.isBiometricAvailable
-                  ? (value) {
-                      ref
-                          .read(settingsNotifierProvider.notifier)
-                          .toggleBiometricAuth();
-                    }
-                  : null,
-            ),
-          ),
           if (encryptionState.isInitialized)
             SettingsTile(
               title: 'Change Encryption Key',
@@ -173,19 +158,69 @@ class SettingsScreen extends ConsumerWidget {
                   ? null
                   : (value) async {
                       if (value) {
-                        final success = await ref
-                            .read(biometricAuthNotifierProvider.notifier)
-                            .enableBiometricAuth();
-                        if (!success && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'Failed to enable biometric sign-in. Please try again.'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
+                        // Log attempt to enable
+                        final notifier =
+                            ref.read(biometricAuthNotifierProvider.notifier);
+                        final service = ref.read(biometricAuthServiceProvider);
+                        service.logInfo(
+                            'User attempting to enable biometric sign-in from settings');
+
+                        try {
+                          final success = await notifier.enableBiometricAuth();
+
+                          // Wait a bit for state to update
+                          await Future.delayed(
+                              const Duration(milliseconds: 100));
+
+                          if (!success && context.mounted) {
+                            final errorState =
+                                ref.read(biometricAuthNotifierProvider);
+                            final errorMessage = errorState.error ??
+                                'Failed to enable biometric sign-in';
+
+                            service.logError(
+                                'Biometric enable failed in UI: $errorMessage');
+                            service.logError(
+                                'Current state: isEnabled=${errorState.isEnabled}, isLoading=${errorState.isLoading}, error=${errorState.error}');
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(errorMessage),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                          } else if (success && context.mounted) {
+                            service.logInfo(
+                                'Biometric sign-in enabled successfully from settings');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Biometric sign-in enabled successfully'),
+                                backgroundColor: Colors.green,
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        } catch (e, stackTrace) {
+                          service.logError(
+                              'Exception caught in settings toggle handler',
+                              e,
+                              stackTrace);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: ${e.toString()}'),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                          }
                         }
                       } else {
+                        final service = ref.read(biometricAuthServiceProvider);
+                        service.logInfo(
+                            'User disabling biometric sign-in from settings');
                         await ref
                             .read(biometricAuthNotifierProvider.notifier)
                             .disableBiometricAuth();

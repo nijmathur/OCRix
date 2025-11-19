@@ -362,7 +362,12 @@ class DatabaseService extends BaseService implements IDatabaseService {
             WHERE (s.title LIKE ? OR s.extracted_text LIKE ? OR s.tags LIKE ? OR s.notes LIKE ?)
           ''';
           final searchTerm = '%$searchQuery%';
-          List<dynamic> queryArgs = [searchTerm, searchTerm, searchTerm, searchTerm];
+          List<dynamic> queryArgs = [
+            searchTerm,
+            searchTerm,
+            searchTerm,
+            searchTerm
+          ];
 
           if (type != null) {
             query += ' AND d.type = ?';
