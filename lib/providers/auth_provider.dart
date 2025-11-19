@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../services/auth_service.dart';
@@ -33,13 +34,28 @@ class AuthNotifier extends StateNotifier<AsyncValue<GoogleSignInAccount?>> {
     }
   }
 
+  /// Public method to refresh auth state (used after restoring session)
+  Future<void> refreshAuthState() async {
+    await _checkAuthState();
+  }
+
   Future<bool> signIn() async {
     try {
       state = const AsyncValue.loading();
       final account = await _authService.signIn();
+
+      // Update state with the account (even if null, to indicate sign-in attempt completed)
       state = AsyncValue.data(account);
-      return account != null;
+
+      // If account is null, user cancelled - don't treat as error
+      if (account == null) {
+        return false;
+      }
+
+      return true;
     } catch (e, stackTrace) {
+      // Log the error for debugging
+      debugPrint('Google Sign-In error: $e');
       state = AsyncValue.error(e, stackTrace);
       return false;
     }

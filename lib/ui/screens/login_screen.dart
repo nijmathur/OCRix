@@ -115,16 +115,28 @@ class LoginScreen extends ConsumerWidget {
                 else
                   ElevatedButton.icon(
                     onPressed: () async {
-                      final success = await ref
-                          .read(authNotifierProvider.notifier)
-                          .signIn();
-                      if (!success && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Sign in cancelled or failed'),
-                            backgroundColor: Colors.orange,
-                          ),
-                        );
+                      try {
+                        final success = await ref
+                            .read(authNotifierProvider.notifier)
+                            .signIn();
+                        if (!success && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Sign in cancelled or failed'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        }
+                        // If success, the auth state will update and the app will navigate automatically
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Sign in error: ${e.toString()}'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
                       }
                     },
                     icon: const Icon(Icons.login),
@@ -190,18 +202,48 @@ class LoginScreen extends ConsumerWidget {
     if (isAuthenticated && context.mounted) {
       // Biometric auth successful - check if user is already signed in with Google
       final authState = ref.read(authNotifierProvider);
+
+      // First, try to restore any existing Google session
       if (authState.valueOrNull == null) {
-        // Not signed in with Google yet, still need Google Sign-In
-        // But biometric auth passed, so we can proceed to Google Sign-In
-        final success = await ref.read(authNotifierProvider.notifier).signIn();
-        if (!success && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Google Sign-In required after biometric authentication'),
-              backgroundColor: Colors.orange,
-            ),
-          );
+        // Try to restore previous session silently
+        try {
+          final authService = ref.read(authServiceProvider);
+          await authService.initialize();
+
+          // Refresh the auth state after initialization
+          await ref.read(authNotifierProvider.notifier).refreshAuthState();
+
+          // Check again after refresh
+          final updatedAuthState = ref.read(authNotifierProvider);
+          if (updatedAuthState.valueOrNull == null) {
+            // Still not signed in, need to sign in with Google
+            final success =
+                await ref.read(authNotifierProvider.notifier).signIn();
+            if (!success && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      'Google Sign-In required after biometric authentication'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          }
+          // If we got here, user is now signed in (either restored or just signed in)
+        } catch (e) {
+          // If restore fails, prompt for Google Sign-In
+          if (context.mounted) {
+            final success =
+                await ref.read(authNotifierProvider.notifier).signIn();
+            if (!success && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Google Sign-In required: ${e.toString()}'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          }
         }
       }
       // If already signed in with Google, biometric auth is enough - app will proceed

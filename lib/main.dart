@@ -108,6 +108,7 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
   String? _error;
   bool _isAuthenticated = false;
   bool _isCheckingBiometric = false;
+  DateTime? _lastBackgroundTime; // Track when app was actually backgrounded
 
   @override
   void initState() {
@@ -125,15 +126,27 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
-    // When app comes back to foreground, check if biometric auth is needed
-    if (state == AppLifecycleState.resumed) {
-      _checkBiometricOnResume();
+    // Only mark as not authenticated when app is actually paused (backgrounded)
+    // Don't reset on inactive state (which happens during navigation)
+    if (state == AppLifecycleState.paused) {
+      _isAuthenticated = false;
+      _lastBackgroundTime = DateTime.now();
     }
 
-    // When app goes to background, mark as not authenticated
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      _isAuthenticated = false;
+    // When app comes back to foreground, check if biometric auth is needed
+    // Only check if app was actually backgrounded (paused) and not just navigating
+    if (state == AppLifecycleState.resumed) {
+      // Only check if we have a background time recorded (app was actually backgrounded)
+      // and it was more than 1 second ago (to avoid checking on quick navigation)
+      if (_lastBackgroundTime != null) {
+        final timeSinceBackground =
+            DateTime.now().difference(_lastBackgroundTime!);
+        if (timeSinceBackground.inSeconds >= 1) {
+          _checkBiometricOnResume();
+        }
+        // Clear background time after checking
+        _lastBackgroundTime = null;
+      }
     }
   }
 
