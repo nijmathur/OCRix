@@ -23,8 +23,8 @@ class SettingsScreen extends ConsumerWidget {
         elevation: 0,
       ),
       body: settingsAsync.when(
-        data: (settings) =>
-            _buildSettingsContent(context, ref, settings, encryptionState, biometricState),
+        data: (settings) => _buildSettingsContent(
+            context, ref, settings, encryptionState, biometricState),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
           child: Column(
@@ -57,7 +57,8 @@ class SettingsScreen extends ConsumerWidget {
     return ListView(
       children: [
         _buildStorageSection(context, ref, settings),
-        _buildSecuritySection(context, ref, settings, encryptionState, biometricState),
+        _buildSecuritySection(
+            context, ref, settings, encryptionState, biometricState),
         _buildPrivacySection(context, ref, settings),
         _buildAppearanceSection(context, ref, settings),
         _buildScanningSection(context, ref, settings),
@@ -207,8 +208,7 @@ class SettingsScreen extends ConsumerWidget {
                       content: Text(success
                           ? 'Biometric authentication successful!'
                           : 'Biometric authentication failed'),
-                      backgroundColor:
-                          success ? Colors.green : Colors.orange,
+                      backgroundColor: success ? Colors.green : Colors.orange,
                     ),
                   );
                 }
@@ -384,7 +384,10 @@ class SettingsScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                color: Theme.of(context)
+                    .colorScheme
+                    .primaryContainer
+                    .withOpacity(0.3),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(12),
                   topRight: Radius.circular(12),
@@ -402,7 +405,8 @@ class SettingsScreen extends ConsumerWidget {
                         ? Icon(
                             Icons.person,
                             size: 50,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           )
                         : null,
                   ),

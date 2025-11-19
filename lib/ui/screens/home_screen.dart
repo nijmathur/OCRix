@@ -626,9 +626,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             // User Profile
             CircleAvatar(
               radius: 40,
-              backgroundImage: user.photoUrl != null
-                  ? NetworkImage(user.photoUrl!)
-                  : null,
+              backgroundImage:
+                  user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
               child: user.photoUrl == null
                   ? Icon(
                       Icons.person,
@@ -669,7 +668,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+              title:
+                  const Text('Sign Out', style: TextStyle(color: Colors.red)),
               onTap: () {
                 Navigator.pop(context);
                 _showSignOutDialog(context, ref);

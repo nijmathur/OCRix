@@ -12,9 +12,9 @@ class LoginScreen extends ConsumerWidget {
     final biometricState = ref.watch(biometricAuthNotifierProvider);
 
     // Check if biometric sign-in should be attempted
-    if (!authState.isLoading && 
-        authState.valueOrNull == null && 
-        biometricState.isEnabled && 
+    if (!authState.isLoading &&
+        authState.valueOrNull == null &&
+        biometricState.isEnabled &&
         biometricState.isAvailable) {
       // Attempt biometric authentication
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -45,7 +45,7 @@ class LoginScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 32),
-                
+
                 // App Title
                 Text(
                   'OCRix',
@@ -65,7 +65,9 @@ class LoginScreen extends ConsumerWidget {
                 const SizedBox(height: 48),
 
                 // Biometric Sign-In Button (if available and enabled)
-                if (biometricState.isAvailable && biometricState.isEnabled && !authState.isLoading)
+                if (biometricState.isAvailable &&
+                    biometricState.isEnabled &&
+                    !authState.isLoading)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: OutlinedButton.icon(
@@ -97,7 +99,8 @@ class LoginScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton.icon(
-                        onPressed: () => ref.read(authNotifierProvider.notifier).signIn(),
+                        onPressed: () =>
+                            ref.read(authNotifierProvider.notifier).signIn(),
                         icon: const Icon(Icons.refresh),
                         label: const Text('Retry Sign In'),
                         style: ElevatedButton.styleFrom(
@@ -112,7 +115,9 @@ class LoginScreen extends ConsumerWidget {
                 else
                   ElevatedButton.icon(
                     onPressed: () async {
-                      final success = await ref.read(authNotifierProvider.notifier).signIn();
+                      final success = await ref
+                          .read(authNotifierProvider.notifier)
+                          .signIn();
                       if (!success && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -139,7 +144,10 @@ class LoginScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceVariant
+                        .withOpacity(0.5),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -153,9 +161,12 @@ class LoginScreen extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           'Your documents are encrypted and stored securely. Google Sign-In is required to access your data.',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
                         ),
                       ),
                     ],
@@ -169,7 +180,8 @@ class LoginScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _attemptBiometricSignIn(BuildContext context, WidgetRef ref) async {
+  Future<void> _attemptBiometricSignIn(
+      BuildContext context, WidgetRef ref) async {
     final biometricNotifier = ref.read(biometricAuthNotifierProvider.notifier);
     final isAuthenticated = await biometricNotifier.authenticate(
       reason: 'Use biometrics to sign in to OCRix',
@@ -185,7 +197,8 @@ class LoginScreen extends ConsumerWidget {
         if (!success && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Google Sign-In required after biometric authentication'),
+              content: Text(
+                  'Google Sign-In required after biometric authentication'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -195,11 +208,11 @@ class LoginScreen extends ConsumerWidget {
     } else if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Biometric authentication failed. Please sign in with Google.'),
+          content: Text(
+              'Biometric authentication failed. Please sign in with Google.'),
           backgroundColor: Colors.orange,
         ),
       );
     }
   }
 }
-

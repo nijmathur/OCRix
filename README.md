@@ -71,7 +71,14 @@ A privacy-first, cross-platform document scanner and organizer app built with Fl
     dart run build_runner build
     ```
 
-4. **Run the app**
+4. **Configure Google Sign-In** (Required)
+
+    The app requires Google Sign-In for authentication. Follow these steps:
+
+    - See [Google Cloud Console Setup](#-google-cloud-console-setup) section below for detailed instructions
+    - No need to hardcode the Client ID in the app - it's automatically configured based on your package name and SHA-1 fingerprint
+
+5. **Run the app**
     ```bash
     flutter run
     ```
@@ -94,6 +101,90 @@ flutter build windows --release
 flutter build macos --release
 flutter build linux --release
 ```
+
+## 🔐 Google Cloud Console Setup
+
+OCRix requires Google Sign-In for user authentication and Google Drive access. Follow these steps to configure it:
+
+### Prerequisites
+
+- A Google Cloud Platform account
+- Access to Google Cloud Console
+- Your app's package name: `com.ocrix.app`
+
+### Step 1: Create a Project in Google Cloud Console
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Click "Select a project" → "New Project"
+3. Enter project name (e.g., "OCRix")
+4. Click "Create"
+
+### Step 2: Enable Required APIs
+
+1. In the Google Cloud Console, navigate to **APIs & Services** → **Library**
+2. Enable the following APIs:
+   - **Google Sign-In API**
+   - **Google Drive API**
+
+### Step 3: Create OAuth 2.0 Credentials
+
+1. Navigate to **APIs & Services** → **Credentials**
+2. Click **+ CREATE CREDENTIALS** → **OAuth client ID**
+3. If prompted, configure the OAuth consent screen:
+   - Choose **External** (unless you have a Google Workspace account)
+   - Fill in required fields (App name, User support email, Developer contact)
+   - Add scopes: `.../auth/userinfo.email`, `.../auth/userinfo.profile`, `https://www.googleapis.com/auth/drive.file`
+   - Save and continue through the steps
+4. Create OAuth client ID:
+   - Application type: **Android**
+   - Name: "OCRix Android" (or any name)
+   - Package name: `com.ocrix.app`
+   - SHA-1 certificate fingerprint: See [Getting SHA-1 Key](#getting-sha-1-key) below
+   - Click **Create**
+
+### Step 4: Getting SHA-1 Key
+
+The SHA-1 fingerprint is required to link your app to the OAuth credentials. Get it using one of these methods:
+
+#### For Debug Builds:
+
+```bash
+# On macOS/Linux
+keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android
+
+# On Windows
+keytool -list -v -keystore %USERPROFILE%\.android\debug.keystore -alias androiddebugkey -storepass android -keypass android
+```
+
+#### For Release Builds:
+
+```bash
+# Replace with your keystore path and alias
+keytool -list -v -keystore /path/to/your/keystore.jks -alias your-key-alias
+```
+
+Look for the **SHA1** value in the output (it will look like: `AA:BB:CC:DD:...`)
+
+**Important**: You need to add **both** debug and release SHA-1 fingerprints if you plan to test with debug builds and deploy release builds.
+
+### Step 5: Verify Configuration
+
+1. After creating the OAuth client ID, you'll see a dialog with your Client ID
+2. **Note**: You don't need to hardcode this Client ID in the app
+3. The `google_sign_in` package automatically uses the OAuth client ID configured in Google Cloud Console based on your app's package name and SHA-1 fingerprint
+
+
+### Important Notes
+
+- **No Hardcoding Required**: The Client ID doesn't need to be hardcoded in the app. The `google_sign_in` package automatically detects and uses the correct credentials based on your app's package name and SHA-1 fingerprint.
+- **Multiple SHA-1 Keys**: If you have multiple developers or CI/CD builds, add all their SHA-1 fingerprints to the same OAuth client ID in Google Cloud Console.
+- **Debug vs Release**: Make sure to add both debug and release SHA-1 fingerprints if you test with both build types.
+
+### Troubleshooting
+
+- **"Sign in failed"**: Verify your SHA-1 fingerprint matches exactly (including colons)
+- **"OAuth client not found"**: Ensure the package name matches exactly: `com.ocrix.app`
+- **"API not enabled"**: Verify Google Sign-In API and Google Drive API are enabled in Google Cloud Console
 
 ## 📱 Supported Platforms
 

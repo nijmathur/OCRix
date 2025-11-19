@@ -6,7 +6,7 @@ import '../core/exceptions/app_exceptions.dart';
 class BiometricAuthService extends BaseService {
   final LocalAuthentication _localAuth = LocalAuthentication();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  
+
   static const String _biometricEnabledKey = 'biometric_auth_enabled';
   static const String _biometricRegisteredKey = 'biometric_registered';
 
@@ -53,7 +53,7 @@ class BiometricAuthService extends BaseService {
       final isAuthenticated = await authenticate(
         reason: 'Enable biometric sign-in for faster access',
       );
-      
+
       if (!isAuthenticated) {
         throw AuthException('Biometric authentication failed');
       }
@@ -61,7 +61,7 @@ class BiometricAuthService extends BaseService {
       // Mark as enabled
       await _secureStorage.write(key: _biometricEnabledKey, value: 'true');
       await _secureStorage.write(key: _biometricRegisteredKey, value: 'true');
-      
+
       logInfo('Biometric authentication enabled for app sign-in');
     } catch (e) {
       logError('Failed to enable biometric auth', e);
@@ -128,4 +128,3 @@ class BiometricAuthService extends BaseService {
     return isAvailable && isEnabled;
   }
 }
-

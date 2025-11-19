@@ -49,10 +49,11 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
   Future<void> _initialize() async {
     try {
       state = state.copyWith(isLoading: true);
-      
+
       final isAvailable = await _biometricAuthService.isBiometricAvailable();
       final isEnabled = await _biometricAuthService.isBiometricEnabled();
-      final availableTypes = await _biometricAuthService.getAvailableBiometrics();
+      final availableTypes =
+          await _biometricAuthService.getAvailableBiometrics();
 
       state = state.copyWith(
         isAvailable: isAvailable,
@@ -72,7 +73,7 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
     try {
       state = state.copyWith(isLoading: true, error: null);
       await _biometricAuthService.enableBiometricAuth();
-      
+
       state = state.copyWith(
         isEnabled: true,
         isLoading: false,
@@ -91,7 +92,7 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
     try {
       state = state.copyWith(isLoading: true, error: null);
       await _biometricAuthService.disableBiometricAuth();
-      
+
       state = state.copyWith(
         isEnabled: false,
         isLoading: false,
@@ -118,4 +119,3 @@ final biometricAuthNotifierProvider =
   final service = ref.read(biometricAuthServiceProvider);
   return BiometricAuthNotifier(service);
 });
-

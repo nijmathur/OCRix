@@ -57,8 +57,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<GoogleSignInAccount?>> {
 }
 
 final authNotifierProvider =
-    StateNotifierProvider<AuthNotifier, AsyncValue<GoogleSignInAccount?>>((ref) {
+    StateNotifierProvider<AuthNotifier, AsyncValue<GoogleSignInAccount?>>(
+        (ref) {
   final authService = ref.read(authServiceProvider);
   return AuthNotifier(authService);
 });
-
