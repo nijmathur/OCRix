@@ -11,6 +11,12 @@ void main() {
     databaseFactory = databaseFactoryFfi;
   });
 
+  // Cleanup FFI after all tests
+  tearDownAll(() async {
+    // Close any remaining database connections
+    // FFI cleanup is handled automatically
+  });
+
   group('Database Image Storage Integration Tests', () {
     late Database testDatabase;
 

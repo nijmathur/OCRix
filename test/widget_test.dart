@@ -25,10 +25,16 @@ void main() {
 
     // Allow time for async initialization (services may fail in CI, that's OK)
     // Camera service will fail in CI but app should still start
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pump();
+    // Pump frames with a reasonable limit to prevent hanging
+    for (int i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      // If the app has settled (no more frames), break early
+      if (!tester.binding.hasScheduledFrame) {
+        break;
+      }
+    }
 
     // App should still be present (either initialized or showing error screen)
     expect(find.byType(OCRixApp), findsOneWidget);
-  });
+  }, timeout: const Timeout(Duration(seconds: 30)));
 }
