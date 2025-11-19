@@ -323,19 +323,76 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }) async {
     final db = await database;
     try {
+      // If there's a search query, use JOIN with search_index (FTS5)
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        try {
+          // Try FTS5 search with JOIN
+          String query = '''
+            SELECT DISTINCT d.* FROM documents d
+            JOIN search_index s ON d.id = s.doc_id
+            WHERE search_index MATCH ?
+          ''';
+          List<dynamic> queryArgs = [searchQuery];
+
+          if (type != null) {
+            query += ' AND d.type = ?';
+            queryArgs.add(type.name);
+          }
+
+          query += ' ORDER BY d.created_at DESC';
+
+          if (limit != null) {
+            query += ' LIMIT ?';
+            queryArgs.add(limit);
+          }
+
+          if (offset != null) {
+            query += ' OFFSET ?';
+            queryArgs.add(offset);
+          }
+
+          final maps = await db.rawQuery(query, queryArgs);
+          return maps.map((map) => _mapToDocument(map)).toList();
+        } catch (e) {
+          logWarning('FTS5 search failed, using fallback: $e');
+          // Fallback to LIKE search
+          String query = '''
+            SELECT DISTINCT d.* FROM documents d
+            JOIN search_index s ON d.id = s.doc_id
+            WHERE (s.title LIKE ? OR s.extracted_text LIKE ? OR s.tags LIKE ? OR s.notes LIKE ?)
+          ''';
+          final searchTerm = '%$searchQuery%';
+          List<dynamic> queryArgs = [searchTerm, searchTerm, searchTerm, searchTerm];
+
+          if (type != null) {
+            query += ' AND d.type = ?';
+            queryArgs.add(type.name);
+          }
+
+          query += ' ORDER BY d.created_at DESC';
+
+          if (limit != null) {
+            query += ' LIMIT ?';
+            queryArgs.add(limit);
+          }
+
+          if (offset != null) {
+            query += ' OFFSET ?';
+            queryArgs.add(offset);
+          }
+
+          final maps = await db.rawQuery(query, queryArgs);
+          return maps.map((map) => _mapToDocument(map)).toList();
+        }
+      }
+
+      // No search query - use regular query
       String whereClause = '';
       List<dynamic> whereArgs = [];
 
       if (type != null) {
         whereClause += 'type = ?';
         whereArgs.add(type.name);
-      }
-
-      if (searchQuery != null && searchQuery.isNotEmpty) {
-        if (whereClause.isNotEmpty) whereClause += ' AND ';
-        whereClause +=
-            'id IN (SELECT doc_id FROM search_index WHERE search_index MATCH ?)';
-        whereArgs.add(searchQuery);
       }
 
       final maps = await db.query(
