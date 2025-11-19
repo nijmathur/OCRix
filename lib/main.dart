@@ -100,37 +100,57 @@ class AppInitializer extends ConsumerStatefulWidget {
 
 class _AppInitializerState extends ConsumerState<AppInitializer> {
   bool _isInitialized = false;
+  bool _isInitializing = false;
   String? _error;
 
   @override
-  void initState() {
-    super.initState();
-    _initializeApp();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Initialize on first build when ref is available
+    if (!_isInitialized && !_isInitializing && _error == null) {
+      _isInitializing = true;
+      _initializeApp();
+    }
   }
 
   Future<void> _initializeApp() async {
     try {
-      // Initialize services using providers
-      final container = ProviderContainer();
-      final databaseService = container.read(databaseServiceProvider);
-      final encryptionService = container.read(encryptionServiceProvider);
-      final ocrService = container.read(ocrServiceProvider);
-      final cameraService = container.read(cameraServiceProvider);
-      final storageService = container.read(storageProviderServiceProvider);
+      // Initialize services using providers from widget tree
+      // ref is available in ConsumerState after didChangeDependencies
+      final databaseService = ref.read(databaseServiceProvider);
+      final encryptionService = ref.read(encryptionServiceProvider);
+      final ocrService = ref.read(ocrServiceProvider);
+      final cameraService = ref.read(cameraServiceProvider);
+      final storageService = ref.read(storageProviderServiceProvider);
 
+      // Initialize critical services (must succeed)
       await databaseService.initialize();
       await encryptionService.initialize();
       await ocrService.initialize();
-      await cameraService.initialize();
       await storageService.initialize();
 
-      setState(() {
-        _isInitialized = true;
-      });
+      // Camera service is optional (may fail in CI/test environments)
+      try {
+        await cameraService.initialize();
+      } catch (e) {
+        // Log but don't fail app initialization if camera is unavailable
+        // Camera features will be disabled, but app can still function
+        print('Warning: Camera service initialization failed: $e');
+      }
+
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+          _isInitializing = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isInitializing = false;
+        });
+      }
     }
   }
 
@@ -164,6 +184,7 @@ class _AppInitializerState extends ConsumerState<AppInitializer> {
                   setState(() {
                     _error = null;
                     _isInitialized = false;
+                    _isInitializing = true;
                   });
                   _initializeApp();
                 },

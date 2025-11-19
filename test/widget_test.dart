@@ -13,9 +13,22 @@ import 'package:ocrix/main.dart';
 void main() {
   testWidgets('App starts without crashing', (WidgetTester tester) async {
     // Build our app and trigger a frame.
+    // The app will show splash screen while initializing services
     await tester.pumpWidget(const ProviderScope(child: OCRixApp()));
 
-    // Verify that the app starts
+    // Wait for initial frame
+    await tester.pump();
+
+    // Verify that the app widget is present
+    // It might be showing splash screen or error screen, but the app should render
+    expect(find.byType(OCRixApp), findsOneWidget);
+
+    // Allow time for async initialization (services may fail in CI, that's OK)
+    // Camera service will fail in CI but app should still start
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+
+    // App should still be present (either initialized or showing error screen)
     expect(find.byType(OCRixApp), findsOneWidget);
   });
 }
