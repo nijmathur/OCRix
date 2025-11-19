@@ -76,3 +76,12 @@ class ValidationException extends AppException {
     super.stackTrace,
   });
 }
+
+/// Authentication-related exceptions
+class AuthException extends AppException {
+  const AuthException(
+    super.message, {
+    super.originalError,
+    super.stackTrace,
+  });
+}

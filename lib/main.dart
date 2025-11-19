@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'providers/document_provider.dart';
+import 'providers/auth_provider.dart';
+import 'providers/biometric_auth_provider.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/splash_screen.dart';
+import 'ui/screens/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -156,6 +159,17 @@ class _AppInitializerState extends ConsumerState<AppInitializer> {
 
   @override
   Widget build(BuildContext context) {
+    // Check authentication state
+    final authState = ref.watch(authNotifierProvider);
+    final biometricState = ref.watch(biometricAuthNotifierProvider);
+    final isSignedIn = authState.valueOrNull != null;
+    final isLoadingAuth = authState.isLoading;
+
+    // Show splash while checking auth
+    if (isLoadingAuth || biometricState.isLoading) {
+      return const SplashScreen();
+    }
+
     if (_error != null) {
       return Scaffold(
         body: Center(
@@ -194,6 +208,11 @@ class _AppInitializerState extends ConsumerState<AppInitializer> {
           ),
         ),
       );
+    }
+
+    // Show login screen if not signed in
+    if (!isSignedIn) {
+      return const LoginScreen();
     }
 
     if (!_isInitialized) {
