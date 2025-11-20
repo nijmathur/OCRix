@@ -1,8 +1,18 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'providers/document_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/biometric_auth_provider.dart';
+import 'providers/audit_provider.dart';
+import 'providers/troubleshooting_logger_provider.dart';
+import 'services/database_service.dart';
+import 'services/encryption_service.dart';
+import 'services/ocr_service.dart';
+import 'services/camera_service.dart';
+import 'services/storage_provider_service.dart';
+import 'utils/navigation_observer.dart';
+import 'utils/error_handler.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/splash_screen.dart';
 import 'ui/screens/login_screen.dart';
@@ -10,10 +20,19 @@ import 'ui/screens/login_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize logger
-  // Logger configuration will be handled by individual services
-
-  runApp(const ProviderScope(child: OCRixApp()));
+  // Run app in error zone to catch async errors
+  runZonedGuarded(
+    () {
+      runApp(const ProviderScope(child: OCRixApp()));
+    },
+    (error, stackTrace) {
+      // This will be handled by ErrorHandler once initialized
+      // For now, just print to console as fallback
+      debugPrint('Uncaught error: $error');
+      debugPrint('Stack trace: $stackTrace');
+      // Note: ErrorHandler will log this once app is initialized
+    },
+  );
 }
 
 class OCRixApp extends ConsumerWidget {
@@ -21,9 +40,13 @@ class OCRixApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final auditLoggingService = ref.read(auditLoggingServiceProvider);
+    final navigationObserver = AuditNavigationObserver(auditLoggingService);
+
     return MaterialApp(
       title: 'OCRix',
       debugShowCheckedModeBanner: false,
+      navigatorObservers: [navigationObserver],
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor:
@@ -230,6 +253,10 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
 
   Future<void> _initializeApp() async {
     try {
+      // Initialize troubleshooting logger first (needed for all service logging)
+      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+      await troubleshootingLogger.initialize();
+
       // Initialize services using providers from widget tree
       // ref is available in ConsumerState after didChangeDependencies
       final databaseService = ref.read(databaseServiceProvider);
@@ -237,21 +264,104 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
       final ocrService = ref.read(ocrServiceProvider);
       final cameraService = ref.read(cameraServiceProvider);
       final storageService = ref.read(storageProviderServiceProvider);
+      final auditLoggingService = ref.read(auditLoggingServiceProvider);
+
+      // Inject troubleshooting logger into all services
+      if (databaseService is DatabaseService) {
+        (databaseService as DatabaseService)
+            .setTroubleshootingLogger(troubleshootingLogger);
+      }
+
+      if (encryptionService is EncryptionService) {
+        (encryptionService as EncryptionService)
+            .setTroubleshootingLogger(troubleshootingLogger);
+      }
+
+      if (ocrService is OCRService) {
+        (ocrService as OCRService)
+            .setTroubleshootingLogger(troubleshootingLogger);
+      }
+
+      if (cameraService is CameraService) {
+        (cameraService as CameraService)
+            .setTroubleshootingLogger(troubleshootingLogger);
+      }
+
+      if (storageService is StorageProviderService) {
+        (storageService as StorageProviderService)
+            .setTroubleshootingLogger(troubleshootingLogger);
+      }
+
+      // Initialize error handler
+      ErrorHandler.initialize(troubleshootingLogger);
+
+      // Log app initialization start
+      troubleshootingLogger.info('App initialization started',
+          tag: 'AppInitializer');
+
+      // Initialize audit logging service (needed for DB logging)
+      await auditLoggingService.initialize();
+
+      // Set audit logging service in database service for COMPULSORY logging
+      // Cast to concrete type to access setAuditLoggingService
+      if (databaseService is DatabaseService) {
+        (databaseService as DatabaseService)
+            .setAuditLoggingService(auditLoggingService);
+      }
+
+      // Get current user ID for audit logging
+      final authState = ref.read(authNotifierProvider);
+      final user = authState.valueOrNull;
+      if (user != null) {
+        // Use email or id as user identifier
+        final userId = user.email.isNotEmpty ? user.email : user.id;
+        auditLoggingService.setUserId(userId);
+
+        // Set user ID in database for SQLite triggers
+        if (databaseService is DatabaseService) {
+          await (databaseService as DatabaseService)
+              .setCurrentUserIdForTriggers(userId);
+        }
+      }
+
+      // No staging processing needed - audit is in main database
 
       // Initialize critical services (must succeed)
       await databaseService.initialize();
+      troubleshootingLogger.info('Database service initialized',
+          tag: 'AppInitializer');
+
       await encryptionService.initialize();
+      troubleshootingLogger.info('Encryption service initialized',
+          tag: 'AppInitializer');
+
       await ocrService.initialize();
+      troubleshootingLogger.info('OCR service initialized',
+          tag: 'AppInitializer');
+
       await storageService.initialize();
+      troubleshootingLogger.info('Storage service initialized',
+          tag: 'AppInitializer');
 
       // Camera service is optional (may fail in CI/test environments)
       try {
         await cameraService.initialize();
+        troubleshootingLogger.info('Camera service initialized',
+            tag: 'AppInitializer');
       } catch (e) {
         // Log but don't fail app initialization if camera is unavailable
         // Camera features will be disabled, but app can still function
+        troubleshootingLogger.warning(
+          'Camera service initialization failed',
+          tag: 'AppInitializer',
+          error: e,
+          metadata: {'note': 'Camera features will be disabled'},
+        );
         debugPrint('Warning: Camera service initialization failed: $e');
       }
+
+      troubleshootingLogger.info('App initialization completed successfully',
+          tag: 'AppInitializer');
 
       if (mounted) {
         setState(() {
@@ -262,7 +372,16 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
         // After initialization, check if biometric auth is needed
         _checkBiometricOnResume();
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // Log critical error
+      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+      troubleshootingLogger.critical(
+        'App initialization failed',
+        tag: 'AppInitializer',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       if (mounted) {
         setState(() {
           _error = e.toString();

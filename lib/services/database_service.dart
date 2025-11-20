@@ -12,6 +12,7 @@ import '../core/interfaces/encryption_service_interface.dart';
 import '../core/base/base_service.dart';
 import '../core/config/app_config.dart';
 import '../core/exceptions/app_exceptions.dart';
+import '../services/audit_logging_service.dart';
 import 'encryption_service.dart';
 
 class DatabaseService extends BaseService implements IDatabaseService {
@@ -25,6 +26,11 @@ class DatabaseService extends BaseService implements IDatabaseService {
 
   // Dependency injection - can be set for testing
   IEncryptionService? _encryptionService;
+
+  // Audit logging service (optional - for COMPULSORY level logging)
+  AuditLoggingService? _auditLoggingService;
+
+  String? _databasePathOverride;
 
   // For backward compatibility, allow setting encryption service
   // In production, this will be injected via Riverpod
@@ -40,6 +46,36 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
     // Temporary: use concrete class until EncryptionService implements interface
     return _EncryptionServiceAdapter(_encryptionServiceInstance);
+  }
+
+  // Set audit logging service for COMPULSORY level logging
+  void setAuditLoggingService(AuditLoggingService? auditLoggingService) {
+    _auditLoggingService = auditLoggingService;
+  }
+
+  /// Set custom database path (useful for testing environments without path_provider)
+  void setDatabasePathOverride(String path) {
+    _databasePathOverride = path;
+  }
+
+  /// Set current user ID for SQLite triggers
+  /// Triggers use this to identify the user performing database operations
+  Future<void> setCurrentUserIdForTriggers(String userId) async {
+    try {
+      final db = await database;
+      await db.insert(
+        'user_settings',
+        {
+          'key': 'current_user_id',
+          'value': userId,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (e) {
+      logError('Failed to set current user ID for triggers', e);
+      // Don't throw - this is not critical
+    }
   }
 
   static Database? _database;
@@ -72,8 +108,9 @@ class DatabaseService extends BaseService implements IDatabaseService {
       }
 
       // Mobile/Desktop platforms
-      final documentsDir = await getApplicationDocumentsDirectory();
-      final path = join(documentsDir.path, AppConfig.databaseName);
+      final documentsPath = _databasePathOverride ??
+          (await getApplicationDocumentsDirectory()).path;
+      final path = join(documentsPath, AppConfig.databaseName);
 
       _database = await openDatabase(
         path,
@@ -198,11 +235,55 @@ class DatabaseService extends BaseService implements IDatabaseService {
         )
       ''');
 
+      // Create audit_entries table with tamper-proof fields (checksums, chaining)
+      await db.execute('''
+        CREATE TABLE audit_entries (
+          id TEXT PRIMARY KEY,
+          level TEXT NOT NULL,
+          action TEXT NOT NULL,
+          resource_type TEXT NOT NULL,
+          resource_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          details TEXT,
+          location TEXT,
+          device_info TEXT,
+          is_success INTEGER NOT NULL DEFAULT 1,
+          error_message TEXT,
+          checksum TEXT NOT NULL,
+          previous_entry_id TEXT,
+          previous_checksum TEXT,
+          created_at INTEGER NOT NULL
+        )
+      ''');
+
+      // Create indexes for performance
+      await db.execute('''
+        CREATE INDEX idx_audit_timestamp ON audit_entries(timestamp DESC)
+      ''');
+      await db.execute('''
+        CREATE INDEX idx_audit_level ON audit_entries(level)
+      ''');
+      await db.execute('''
+        CREATE INDEX idx_audit_action ON audit_entries(action)
+      ''');
+      await db.execute('''
+        CREATE INDEX idx_audit_resource ON audit_entries(resource_type, resource_id)
+      ''');
+      await db.execute('''
+        CREATE INDEX idx_audit_chain ON audit_entries(previous_entry_id)
+      ''');
+
+      // Audit entries are written via application code to ensure proper
+      // checksum calculation and chain linking for tamper-proofing
+      // Note: SQLite triggers can't easily calculate checksums or maintain chains,
+      // so we use application-level logging which is more reliable
+
       // Insert default settings
       final defaultSettings = UserSettings.defaultSettings();
       await _insertUserSettings(db, defaultSettings);
 
-      logInfo('Database created successfully');
+      logInfo('Database created successfully with audit_entries table');
     } catch (e) {
       logError('Failed to create database', e);
       throw DatabaseException(
@@ -263,11 +344,86 @@ class DatabaseService extends BaseService implements IDatabaseService {
     if (oldVersion < 5) {
       // Add thumbnail_data column for performance optimization
       try {
-        await db.execute('ALTER TABLE documents ADD COLUMN thumbnail_data BLOB');
+        await db
+            .execute('ALTER TABLE documents ADD COLUMN thumbnail_data BLOB');
         logInfo('Added thumbnail_data column to documents table');
       } catch (e) {
         logError('Error adding thumbnail_data column', e);
       }
+    }
+
+    if (oldVersion < 6) {
+      // Add audit_entries table for tamper-proof audit logging
+      try {
+        // Create audit_entries table with tamper-proof fields
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS audit_entries (
+            id TEXT PRIMARY KEY,
+            level TEXT NOT NULL,
+            action TEXT NOT NULL,
+            resource_type TEXT NOT NULL,
+            resource_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            timestamp INTEGER NOT NULL,
+            details TEXT,
+            location TEXT,
+            device_info TEXT,
+            is_success INTEGER NOT NULL DEFAULT 1,
+            error_message TEXT,
+            checksum TEXT NOT NULL,
+            previous_entry_id TEXT,
+            previous_checksum TEXT,
+            created_at INTEGER NOT NULL
+          )
+        ''');
+
+        // Create indexes
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_entries(timestamp DESC)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_audit_level ON audit_entries(level)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_entries(action)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_audit_resource ON audit_entries(resource_type, resource_id)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_audit_chain ON audit_entries(previous_entry_id)
+        ''');
+
+        logInfo('Added audit_entries table to main database');
+      } catch (e) {
+        logError('Error adding audit_entries table', e);
+      }
+    }
+  }
+
+  /// Create SQLite triggers for automatic audit logging
+  /// Note: Triggers write basic audit info, but checksums are calculated in app code
+  /// This ensures tamper-proofing while keeping it simple
+  Future<void> _createAuditTriggers(Database db) async {
+    try {
+      // Drop existing triggers if they exist (for migrations)
+      await db.execute('DROP TRIGGER IF EXISTS audit_documents_insert');
+      await db.execute('DROP TRIGGER IF EXISTS audit_documents_update');
+      await db.execute('DROP TRIGGER IF EXISTS audit_documents_delete');
+
+      // Note: We're not using triggers for now because:
+      // 1. Checksums need to be calculated in app code (requires crypto)
+      // 2. Chain linking requires reading last entry
+      // 3. SQLite triggers can't easily do this
+      //
+      // Instead, we rely on application-level logging which is more reliable
+      // and can properly implement tamper-proofing with checksums and chaining
+
+      logInfo(
+          'Audit triggers skipped - using application-level logging for tamper-proofing');
+    } catch (e) {
+      logError('Failed to create audit triggers', e);
+      // Don't throw - triggers are nice-to-have, not critical
     }
   }
 
@@ -289,9 +445,17 @@ class DatabaseService extends BaseService implements IDatabaseService {
         });
       });
 
-      // Log audit
+      // Log audit (old system - keep for backward compatibility)
       await _logAudit(
           AuditAction.create, 'document', document.id, 'Document created');
+
+      // Log to audit database (COMPULSORY level)
+      await _auditLoggingService?.logDatabaseWrite(
+        action: AuditAction.create,
+        resourceType: 'document',
+        resourceId: document.id,
+        details: 'Document created: ${document.title}',
+      );
 
       logInfo('Document inserted: ${document.id}');
       return document.id;
@@ -307,6 +471,13 @@ class DatabaseService extends BaseService implements IDatabaseService {
   Future<Document?> getDocument(String id) async {
     final db = await database;
     try {
+      // Log database read (COMPULSORY level)
+      await _auditLoggingService?.logDatabaseRead(
+        resourceType: 'document',
+        resourceId: id,
+        details: 'Read document by ID',
+      );
+
       final maps = await db.query(
         'documents',
         where: 'id = ?',
@@ -335,6 +506,13 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }) async {
     final db = await database;
     try {
+      // Log database read (COMPULSORY level)
+      await _auditLoggingService?.logDatabaseRead(
+        resourceType: 'documents',
+        resourceId: 'list',
+        details:
+            'Read documents list (type: ${type?.name ?? 'all'}, limit: $limit)',
+      );
       // If there's a search query, use JOIN with search_index (FTS5)
       if (searchQuery != null && searchQuery.isNotEmpty) {
         try {
@@ -457,9 +635,17 @@ class DatabaseService extends BaseService implements IDatabaseService {
         );
       });
 
-      // Log audit
+      // Log audit (old system)
       await _logAudit(
           AuditAction.update, 'document', document.id, 'Document updated');
+
+      // Log to audit database (COMPULSORY level)
+      await _auditLoggingService?.logDatabaseWrite(
+        action: AuditAction.update,
+        resourceType: 'document',
+        resourceId: document.id,
+        details: 'Document updated: ${document.title}',
+      );
 
       logInfo('Document updated: ${document.id}');
     } catch (e) {
@@ -482,8 +668,16 @@ class DatabaseService extends BaseService implements IDatabaseService {
         await txn.delete('documents', where: 'id = ?', whereArgs: [id]);
       });
 
-      // Log audit
+      // Log audit (old system)
       await _logAudit(AuditAction.delete, 'document', id, 'Document deleted');
+
+      // Log to audit database (COMPULSORY level)
+      await _auditLoggingService?.logDatabaseWrite(
+        action: AuditAction.delete,
+        resourceType: 'document',
+        resourceId: id,
+        details: 'Document deleted',
+      );
 
       logInfo('Document deleted: $id');
     } catch (e) {

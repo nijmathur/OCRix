@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logger/logger.dart';
 import 'package:camera/camera.dart';
 import '../models/document.dart';
 import '../services/database_service.dart';
@@ -18,6 +17,11 @@ import '../core/interfaces/storage_provider_service_interface.dart';
 import '../core/interfaces/image_processing_service_interface.dart';
 import '../core/models/ocr_result.dart';
 import '../core/config/app_config.dart';
+import '../services/audit_logging_service.dart';
+import '../models/audit_log.dart';
+import 'audit_provider.dart';
+import 'troubleshooting_logger_provider.dart';
+import '../core/interfaces/troubleshooting_logger_interface.dart';
 
 // Service providers - using interfaces for dependency inversion
 final databaseServiceProvider = Provider<IDatabaseService>((ref) {
@@ -73,7 +77,8 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
   final IDatabaseService _databaseService;
   final IOCRService _ocrService;
   final IImageProcessingService _imageProcessingService;
-  final Logger _logger = Logger();
+  final AuditLoggingService? _auditLoggingService;
+  final ITroubleshootingLogger? _troubleshootingLogger;
 
   int _currentPage = 0;
   bool _hasMore = true;
@@ -86,8 +91,12 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
     ICameraService cameraService,
     IStorageProviderService storageService, {
     IImageProcessingService? imageProcessingService,
+    AuditLoggingService? auditLoggingService,
+    ITroubleshootingLogger? troubleshootingLogger,
   })  : _imageProcessingService =
             imageProcessingService ?? ImageProcessingService(),
+        _auditLoggingService = auditLoggingService,
+        _troubleshootingLogger = troubleshootingLogger,
         super(const AsyncValue.loading()) {
     _loadDocuments();
   }
@@ -133,7 +142,12 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         state = AsyncValue.data(documents);
       }
     } catch (e, stackTrace) {
-      _logger.e('Failed to load documents: $e');
+      _troubleshootingLogger?.error(
+        'Failed to load documents',
+        tag: 'DocumentNotifier',
+        error: e,
+        stackTrace: stackTrace,
+      );
       state = AsyncValue.error(e, stackTrace);
     }
   }
@@ -230,12 +244,27 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       try {
         if (await imageFile.exists()) {
           await imageFile.delete();
-          _logger.i('Cleaned up temporary image file: $imagePath');
+          _troubleshootingLogger?.info(
+            'Cleaned up temporary image file: $imagePath',
+            tag: 'DocumentNotifier',
+          );
         }
       } catch (e) {
         // Log but don't fail if cleanup fails
-        _logger.w('Failed to cleanup image file: $e');
+        _troubleshootingLogger?.warning(
+          'Failed to cleanup image file',
+          tag: 'DocumentNotifier',
+          error: e,
+        );
       }
+
+      // Log user action (INFO level)
+      await _auditLoggingService?.logInfoAction(
+        action: AuditAction.create,
+        resourceType: 'document',
+        resourceId: documentId,
+        details: 'User scanned and created document: ${document.title}',
+      );
 
       // Optimistic update: add new document to state without full reload
       if (state.hasValue) {
@@ -245,10 +274,18 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         await refreshDocuments();
       }
 
-      _logger.i('Document scanned and saved: $documentId');
+      _troubleshootingLogger?.info(
+        'Document scanned and saved: $documentId',
+        tag: 'DocumentNotifier',
+      );
       return documentId;
     } catch (e, stackTrace) {
-      _logger.e('Failed to scan document: $e');
+      _troubleshootingLogger?.error(
+        'Failed to scan document',
+        tag: 'DocumentNotifier',
+        error: e,
+        stackTrace: stackTrace,
+      );
       state = AsyncValue.error(e, stackTrace);
       rethrow;
     }
@@ -261,6 +298,14 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       );
 
       await _databaseService.updateDocument(updatedDocument);
+
+      // Log user action (INFO level)
+      await _auditLoggingService?.logInfoAction(
+        action: AuditAction.update,
+        resourceType: 'document',
+        resourceId: document.id,
+        details: 'User updated document: ${document.title}',
+      );
 
       // Optimistic update: update document in state directly
       if (state.hasValue) {
@@ -280,9 +325,17 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         await refreshDocuments();
       }
 
-      _logger.i('Document updated: ${document.id}');
+      _troubleshootingLogger?.info(
+        'Document updated: ${document.id}',
+        tag: 'DocumentNotifier',
+      );
     } catch (e, stackTrace) {
-      _logger.e('Failed to update document: $e');
+      _troubleshootingLogger?.error(
+        'Failed to update document',
+        tag: 'DocumentNotifier',
+        error: e,
+        stackTrace: stackTrace,
+      );
       state = AsyncValue.error(e, stackTrace);
     }
   }
@@ -290,6 +343,14 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
   Future<void> deleteDocument(String documentId) async {
     try {
       await _databaseService.deleteDocument(documentId);
+
+      // Log user action (INFO level)
+      await _auditLoggingService?.logInfoAction(
+        action: AuditAction.delete,
+        resourceType: 'document',
+        resourceId: documentId,
+        details: 'User deleted document',
+      );
 
       // Optimistic update: remove document from state directly
       if (state.hasValue) {
@@ -301,9 +362,17 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         await refreshDocuments();
       }
 
-      _logger.i('Document deleted: $documentId');
+      _troubleshootingLogger?.info(
+        'Document deleted: $documentId',
+        tag: 'DocumentNotifier',
+      );
     } catch (e, stackTrace) {
-      _logger.e('Failed to delete document: $e');
+      _troubleshootingLogger?.error(
+        'Failed to delete document',
+        tag: 'DocumentNotifier',
+        error: e,
+        stackTrace: stackTrace,
+      );
       state = AsyncValue.error(e, stackTrace);
     }
   }
@@ -313,7 +382,11 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       await filterDocuments(searchQuery: query);
       return state.value ?? [];
     } catch (e) {
-      _logger.e('Failed to search documents: $e');
+      _troubleshootingLogger?.error(
+        'Failed to search documents',
+        tag: 'DocumentNotifier',
+        error: e,
+      );
       return [];
     }
   }
@@ -323,7 +396,11 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       await filterDocuments(type: type);
       return state.value ?? [];
     } catch (e) {
-      _logger.e('Failed to get documents by type: $e');
+      _troubleshootingLogger?.error(
+        'Failed to get documents by type',
+        tag: 'DocumentNotifier',
+        error: e,
+      );
       return [];
     }
   }
@@ -355,6 +432,9 @@ final documentNotifierProvider =
   final cameraService = ref.read(cameraServiceProvider);
   final storageService = ref.read(storageProviderServiceProvider);
   final imageProcessingService = ref.read(imageProcessingServiceProvider);
+  final auditLoggingService = ref.read(auditLoggingServiceProvider);
+
+  final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
 
   return DocumentNotifier(
     databaseService,
@@ -362,15 +442,20 @@ final documentNotifierProvider =
     cameraService,
     storageService,
     imageProcessingService: imageProcessingService,
+    auditLoggingService: auditLoggingService,
+    troubleshootingLogger: troubleshootingLogger,
   );
 });
 
 class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
   final IDatabaseService _databaseService;
-  final Logger _logger = Logger();
+  final ITroubleshootingLogger? _troubleshootingLogger;
 
-  DocumentDetailNotifier(this._databaseService)
-      : super(const AsyncValue.loading());
+  DocumentDetailNotifier(
+    this._databaseService, {
+    ITroubleshootingLogger? troubleshootingLogger,
+  })  : _troubleshootingLogger = troubleshootingLogger,
+        super(const AsyncValue.loading());
 
   Future<void> loadDocument(String documentId) async {
     try {
@@ -378,7 +463,12 @@ class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
       final document = await _databaseService.getDocument(documentId);
       state = AsyncValue.data(document);
     } catch (e, stackTrace) {
-      _logger.e('Failed to load document: $e');
+      _troubleshootingLogger?.error(
+        'Failed to load document',
+        tag: 'DocumentDetailNotifier',
+        error: e,
+        stackTrace: stackTrace,
+      );
       state = AsyncValue.error(e, stackTrace);
     }
   }
@@ -392,9 +482,17 @@ class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
       await _databaseService.updateDocument(updatedDocument);
       state = AsyncValue.data(updatedDocument);
 
-      _logger.i('Document updated: ${document.id}');
+      _troubleshootingLogger?.info(
+        'Document updated: ${document.id}',
+        tag: 'DocumentDetailNotifier',
+      );
     } catch (e, stackTrace) {
-      _logger.e('Failed to update document: $e');
+      _troubleshootingLogger?.error(
+        'Failed to update document',
+        tag: 'DocumentDetailNotifier',
+        error: e,
+        stackTrace: stackTrace,
+      );
       state = AsyncValue.error(e, stackTrace);
     }
   }
@@ -404,9 +502,17 @@ class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
       await _databaseService.deleteDocument(documentId);
       state = const AsyncValue.data(null);
 
-      _logger.i('Document deleted: $documentId');
+      _troubleshootingLogger?.info(
+        'Document deleted: $documentId',
+        tag: 'DocumentDetailNotifier',
+      );
     } catch (e, stackTrace) {
-      _logger.e('Failed to delete document: $e');
+      _troubleshootingLogger?.error(
+        'Failed to delete document',
+        tag: 'DocumentDetailNotifier',
+        error: e,
+        stackTrace: stackTrace,
+      );
       state = AsyncValue.error(e, stackTrace);
     }
   }
@@ -415,16 +521,24 @@ class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
 final documentDetailNotifierProvider = StateNotifierProvider.family<
     DocumentDetailNotifier, AsyncValue<Document?>, String>((ref, documentId) {
   final databaseService = ref.read(databaseServiceProvider);
-  return DocumentDetailNotifier(databaseService);
+  final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+  return DocumentDetailNotifier(
+    databaseService,
+    troubleshootingLogger: troubleshootingLogger,
+  );
 });
 
 class ScannerNotifier extends StateNotifier<ScannerState> {
   final ICameraService _cameraService;
   final IOCRService _ocrService;
-  final Logger _logger = Logger();
+  final ITroubleshootingLogger? _troubleshootingLogger;
 
-  ScannerNotifier(this._cameraService, this._ocrService)
-      : super(const ScannerState.initial());
+  ScannerNotifier(
+    this._cameraService,
+    this._ocrService, {
+    ITroubleshootingLogger? troubleshootingLogger,
+  })  : _troubleshootingLogger = troubleshootingLogger,
+        super(const ScannerState.initial());
 
   Future<void> initializeCamera() async {
     try {
@@ -439,9 +553,16 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
         error: null,
       );
 
-      _logger.i('Camera initialized successfully');
+      _troubleshootingLogger?.info(
+        'Camera initialized successfully',
+        tag: 'ScannerNotifier',
+      );
     } catch (e) {
-      _logger.e('Failed to initialize camera: $e');
+      _troubleshootingLogger?.error(
+        'Failed to initialize camera',
+        tag: 'ScannerNotifier',
+        error: e,
+      );
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -461,10 +582,17 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
         error: null,
       );
 
-      _logger.i('Image captured: $imagePath');
+      _troubleshootingLogger?.info(
+        'Image captured: $imagePath',
+        tag: 'ScannerNotifier',
+      );
       return imagePath;
     } catch (e) {
-      _logger.e('Failed to capture image: $e');
+      _troubleshootingLogger?.error(
+        'Failed to capture image',
+        tag: 'ScannerNotifier',
+        error: e,
+      );
       state = state.copyWith(
         isCapturing: false,
         error: e.toString(),
@@ -485,10 +613,17 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
         error: null,
       );
 
-      _logger.i('Text extracted: ${ocrResult.text.length} characters');
+      _troubleshootingLogger?.info(
+        'Text extracted: ${ocrResult.text.length} characters',
+        tag: 'ScannerNotifier',
+      );
       return ocrResult;
     } catch (e) {
-      _logger.e('Failed to extract text: $e');
+      _troubleshootingLogger?.error(
+        'Failed to extract text',
+        tag: 'ScannerNotifier',
+        error: e,
+      );
       state = state.copyWith(
         isProcessing: false,
         error: e.toString(),
@@ -514,7 +649,12 @@ final scannerNotifierProvider =
     StateNotifierProvider<ScannerNotifier, ScannerState>((ref) {
   final cameraService = ref.read(cameraServiceProvider);
   final ocrService = ref.read(ocrServiceProvider);
-  return ScannerNotifier(cameraService, ocrService);
+  final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+  return ScannerNotifier(
+    cameraService,
+    ocrService,
+    troubleshootingLogger: troubleshootingLogger,
+  );
 });
 
 class ScannerState {

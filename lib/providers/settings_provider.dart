@@ -1,21 +1,30 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logger/logger.dart';
 import '../models/user_settings.dart';
 import '../core/interfaces/database_service_interface.dart';
 import '../core/interfaces/encryption_service_interface.dart';
 import 'document_provider.dart';
+import 'troubleshooting_logger_provider.dart';
+import '../core/interfaces/troubleshooting_logger_interface.dart';
 
 final settingsNotifierProvider =
     StateNotifierProvider<SettingsNotifier, AsyncValue<UserSettings>>((ref) {
   final databaseService = ref.read(databaseServiceProvider);
-  return SettingsNotifier(databaseService);
+  final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+  return SettingsNotifier(
+    databaseService,
+    troubleshootingLogger: troubleshootingLogger,
+  );
 });
 
 class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
   final IDatabaseService _databaseService;
-  final Logger _logger = Logger();
+  final ITroubleshootingLogger? _troubleshootingLogger;
 
-  SettingsNotifier(this._databaseService) : super(const AsyncValue.loading()) {
+  SettingsNotifier(
+    this._databaseService, {
+    ITroubleshootingLogger? troubleshootingLogger,
+  })  : _troubleshootingLogger = troubleshootingLogger,
+        super(const AsyncValue.loading()) {
     _loadSettings();
   }
 
@@ -25,7 +34,12 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
       final settings = await _databaseService.getUserSettings();
       state = AsyncValue.data(settings);
     } catch (e, stackTrace) {
-      _logger.e('Failed to load settings: $e');
+      _troubleshootingLogger?.error(
+        'Failed to load settings',
+        tag: 'SettingsNotifier',
+        error: e,
+        stackTrace: stackTrace,
+      );
       state = AsyncValue.error(e, stackTrace);
     }
   }
@@ -35,9 +49,17 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
       state = const AsyncValue.loading();
       await _databaseService.updateUserSettings(newSettings);
       state = AsyncValue.data(newSettings);
-      _logger.i('Settings updated successfully');
+      _troubleshootingLogger?.info(
+        'Settings updated successfully',
+        tag: 'SettingsNotifier',
+      );
     } catch (e, stackTrace) {
-      _logger.e('Failed to update settings: $e');
+      _troubleshootingLogger?.error(
+        'Failed to update settings',
+        tag: 'SettingsNotifier',
+        error: e,
+        stackTrace: stackTrace,
+      );
       state = AsyncValue.error(e, stackTrace);
     }
   }
@@ -212,9 +234,17 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
       final defaultSettings = UserSettings.defaultSettings();
       await _databaseService.updateUserSettings(defaultSettings);
       state = AsyncValue.data(defaultSettings);
-      _logger.i('Settings reset to defaults');
+      _troubleshootingLogger?.info(
+        'Settings reset to defaults',
+        tag: 'SettingsNotifier',
+      );
     } catch (e, stackTrace) {
-      _logger.e('Failed to reset settings: $e');
+      _troubleshootingLogger?.error(
+        'Failed to reset settings',
+        tag: 'SettingsNotifier',
+        error: e,
+        stackTrace: stackTrace,
+      );
       state = AsyncValue.error(e, stackTrace);
     }
   }
@@ -226,10 +256,13 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
 
 class EncryptionNotifier extends StateNotifier<EncryptionState> {
   final IEncryptionService _encryptionService;
-  final Logger _logger = Logger();
+  final ITroubleshootingLogger? _troubleshootingLogger;
 
-  EncryptionNotifier(this._encryptionService)
-      : super(const EncryptionState.initial()) {
+  EncryptionNotifier(
+    this._encryptionService, {
+    ITroubleshootingLogger? troubleshootingLogger,
+  })  : _troubleshootingLogger = troubleshootingLogger,
+        super(const EncryptionState.initial()) {
     _initialize();
   }
 
@@ -249,9 +282,16 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
         encryptionInfo: encryptionInfo,
       );
 
-      _logger.i('Encryption service initialized');
+      _troubleshootingLogger?.info(
+        'Encryption service initialized',
+        tag: 'EncryptionNotifier',
+      );
     } catch (e) {
-      _logger.e('Failed to initialize encryption service: $e');
+      _troubleshootingLogger?.error(
+        'Failed to initialize encryption service',
+        tag: 'EncryptionNotifier',
+        error: e,
+      );
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -274,7 +314,11 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
 
       return isAuthenticated;
     } catch (e) {
-      _logger.e('Biometric authentication failed: $e');
+      _troubleshootingLogger?.error(
+        'Biometric authentication failed',
+        tag: 'EncryptionNotifier',
+        error: e,
+      );
       state = state.copyWith(
         isAuthenticating: false,
         error: e.toString(),
@@ -296,9 +340,16 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
         encryptionInfo: encryptionInfo,
       );
 
-      _logger.i('Encryption key changed successfully');
+      _troubleshootingLogger?.info(
+        'Encryption key changed successfully',
+        tag: 'EncryptionNotifier',
+      );
     } catch (e) {
-      _logger.e('Failed to change encryption key: $e');
+      _troubleshootingLogger?.error(
+        'Failed to change encryption key',
+        tag: 'EncryptionNotifier',
+        error: e,
+      );
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -319,9 +370,16 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
         encryptionInfo: {},
       );
 
-      _logger.i('Encryption key cleared');
+      _troubleshootingLogger?.info(
+        'Encryption key cleared',
+        tag: 'EncryptionNotifier',
+      );
     } catch (e) {
-      _logger.e('Failed to clear encryption key: $e');
+      _troubleshootingLogger?.error(
+        'Failed to clear encryption key',
+        tag: 'EncryptionNotifier',
+        error: e,
+      );
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
@@ -333,7 +391,11 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
     try {
       return await _encryptionService.encryptText(text);
     } catch (e) {
-      _logger.e('Failed to encrypt text: $e');
+      _troubleshootingLogger?.error(
+        'Failed to encrypt text',
+        tag: 'EncryptionNotifier',
+        error: e,
+      );
       rethrow;
     }
   }
@@ -342,7 +404,11 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
     try {
       return await _encryptionService.decryptText(encryptedText);
     } catch (e) {
-      _logger.e('Failed to decrypt text: $e');
+      _troubleshootingLogger?.error(
+        'Failed to decrypt text',
+        tag: 'EncryptionNotifier',
+        error: e,
+      );
       rethrow;
     }
   }
@@ -355,7 +421,11 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
 final encryptionNotifierProvider =
     StateNotifierProvider<EncryptionNotifier, EncryptionState>((ref) {
   final encryptionService = ref.read(encryptionServiceProvider);
-  return EncryptionNotifier(encryptionService);
+  final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+  return EncryptionNotifier(
+    encryptionService,
+    troubleshootingLogger: troubleshootingLogger,
+  );
 });
 
 class EncryptionState {
