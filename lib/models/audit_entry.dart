@@ -62,7 +62,10 @@ class AuditEntry extends Equatable {
     String? previousChecksum,
   }) {
     final id = const Uuid().v4();
-    final timestamp = DateTime.now();
+    // Normalize timestamp to milliseconds precision (database stores only milliseconds)
+    final timestamp = DateTime.fromMillisecondsSinceEpoch(
+      DateTime.now().millisecondsSinceEpoch,
+    );
 
     // Create checksum from entry data (excluding checksum itself)
     final entryData = {
@@ -72,7 +75,7 @@ class AuditEntry extends Equatable {
       'resourceType': resourceType,
       'resourceId': resourceId,
       'userId': userId,
-      'timestamp': timestamp.toIso8601String(),
+      'timestamp': _normalizeTimestampForChecksum(timestamp).toIso8601String(),
       'details': details ?? '',
       'location': location ?? '',
       'deviceInfo': deviceInfo ?? '',
@@ -103,6 +106,14 @@ class AuditEntry extends Equatable {
     );
   }
 
+  /// Normalize timestamp to milliseconds precision for checksum calculation
+  /// This ensures consistency with database storage (which stores milliseconds only)
+  static DateTime _normalizeTimestampForChecksum(DateTime timestamp) {
+    return DateTime.fromMillisecondsSinceEpoch(
+      timestamp.millisecondsSinceEpoch,
+    );
+  }
+
   /// Calculate SHA-256 checksum of entry data
   static String _calculateChecksum(Map<String, dynamic> data) {
     final jsonString = jsonEncode(data);
@@ -113,6 +124,9 @@ class AuditEntry extends Equatable {
 
   /// Verify the checksum of this entry
   bool verifyChecksum() {
+    // Normalize timestamp to match database precision (milliseconds only)
+    final normalizedTimestamp = _normalizeTimestampForChecksum(timestamp);
+    
     final entryData = {
       'id': id,
       'level': level.name,
@@ -120,7 +134,7 @@ class AuditEntry extends Equatable {
       'resourceType': resourceType,
       'resourceId': resourceId,
       'userId': userId,
-      'timestamp': timestamp.toIso8601String(),
+      'timestamp': normalizedTimestamp.toIso8601String(),
       'details': details ?? '',
       'location': location ?? '',
       'deviceInfo': deviceInfo ?? '',

@@ -33,9 +33,11 @@ void main() {
     late LogFileService logFileService;
     late LogRotationService rotationService;
     late Directory tempLogsDir;
+    late Directory tempDbDir;
 
     setUp(() async {
       tempLogsDir = await Directory.systemTemp.createTemp('combined_logs_test');
+      tempDbDir = await Directory.systemTemp.createTemp('combined_db_test');
 
       // Initialize all services
       databaseService = DatabaseService();
@@ -53,6 +55,8 @@ void main() {
       await mockEncryptionService.initialize();
       (databaseService as DatabaseService)
           .setEncryptionService(mockEncryptionService);
+      (databaseService as DatabaseService)
+          .setDatabasePathOverride(tempDbDir.path);
 
       // Set up relationships
       auditDatabaseService.setMainDatabaseService(databaseService);
@@ -75,6 +79,9 @@ void main() {
         await troubleshootingLogger.clearLogs();
         if (await tempLogsDir.exists()) {
           await tempLogsDir.delete(recursive: true);
+        }
+        if (await tempDbDir.exists()) {
+          await tempDbDir.delete(recursive: true);
         }
         await databaseService.close();
         await auditDatabaseService.close();
