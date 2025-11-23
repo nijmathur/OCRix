@@ -27,7 +27,7 @@ class DatabaseExportService extends BaseService {
   String get serviceName => 'DatabaseExportService';
 
   /// Export the entire database to Google Drive with encryption
-  /// 
+  ///
   /// Steps:
   /// 1. Close the database connection
   /// 2. Copy the database file to a temporary location
@@ -35,7 +35,7 @@ class DatabaseExportService extends BaseService {
   /// 4. Upload to Google Drive (encryption in transit via HTTPS/TLS)
   /// 5. Reopen the database connection
   /// 6. Log audit entry
-  /// 
+  ///
   /// Returns the Google Drive file ID
   Future<String> exportDatabaseToGoogleDrive({
     String? customFileName,
@@ -79,7 +79,7 @@ class DatabaseExportService extends BaseService {
           tempDbPath,
         );
         final encryptedFile = File(encryptedFilePath);
-        
+
         if (!await encryptedFile.exists()) {
           throw EncryptionException('Encrypted file was not created');
         }
@@ -91,17 +91,17 @@ class DatabaseExportService extends BaseService {
 
         // Step 5: Upload encrypted file to Google Drive (encryption in transit via HTTPS/TLS)
         logInfo('Uploading encrypted database to Google Drive...');
-        
+
         // Generate filename with timestamp
         final fileName = customFileName ??
             'ocrix_database_backup_${DateTime.now().toIso8601String().split('T')[0]}.db.enc';
-        
+
         final remotePath = 'backups/$fileName';
 
         // Get Google Drive provider via storage provider service
         final storageService = StorageProviderService();
         await storageService.initialize();
-        
+
         // Get the Google Drive provider directly
         final provider = await storageService.getProvider(
           StorageProviderType.googleDrive,
@@ -111,13 +111,15 @@ class DatabaseExportService extends BaseService {
         if (!await provider.isConnected()) {
           final initialized = await provider.initialize();
           if (!initialized) {
-            throw StorageException('Failed to initialize Google Drive provider');
+            throw StorageException(
+                'Failed to initialize Google Drive provider');
           }
         }
 
         // Upload encrypted file to Google Drive
         // Note: Google Drive API uses HTTPS/TLS automatically (encryption in transit)
-        final driveFileId = await provider.uploadFile(encryptedFilePath, remotePath);
+        final driveFileId =
+            await provider.uploadFile(encryptedFilePath, remotePath);
 
         logInfo('Database uploaded to Google Drive: $driveFileId');
 
@@ -166,7 +168,7 @@ class DatabaseExportService extends BaseService {
   }
 
   /// Import the entire database from Google Drive with decryption
-  /// 
+  ///
   /// Steps:
   /// 1. Download encrypted database from Google Drive (encryption in transit via HTTPS/TLS)
   /// 2. Decrypt the database file
@@ -175,7 +177,7 @@ class DatabaseExportService extends BaseService {
   /// 5. Replace current database with imported one
   /// 6. Reopen the database connection
   /// 7. Log audit entry
-  /// 
+  ///
   /// [driveFileId] - The Google Drive file ID to import from
   /// [backupCurrent] - Whether to backup the current database before import
   Future<void> importDatabaseFromGoogleDrive({
@@ -194,7 +196,7 @@ class DatabaseExportService extends BaseService {
       // Step 1: Get Google Drive provider
       final storageService = StorageProviderService();
       await storageService.initialize();
-      
+
       final provider = await storageService.getProvider(
         StorageProviderType.googleDrive,
       );
@@ -224,7 +226,8 @@ class DatabaseExportService extends BaseService {
         throw StorageException('Downloaded file does not exist');
       }
 
-      logInfo('Encrypted database downloaded: ${encryptedFile.lengthSync()} bytes');
+      logInfo(
+          'Encrypted database downloaded: ${encryptedFile.lengthSync()} bytes');
 
       // Step 3: Decrypt the database file
       logInfo('Decrypting database file...');
@@ -331,7 +334,7 @@ class DatabaseExportService extends BaseService {
   }
 
   /// List all database backups available in Google Drive
-  /// 
+  ///
   /// Returns a list of file IDs and metadata
   Future<List<Map<String, dynamic>>> listDatabaseBackups() async {
     try {
@@ -339,7 +342,7 @@ class DatabaseExportService extends BaseService {
 
       final storageService = StorageProviderService();
       await storageService.initialize();
-      
+
       final provider = await storageService.getProvider(
         StorageProviderType.googleDrive,
       );
@@ -370,14 +373,15 @@ class DatabaseExportService extends BaseService {
       );
 
       final backups = <Map<String, dynamic>>[];
-      
+
       if (filesResponse.files != null) {
         for (final file in filesResponse.files!) {
           backups.add({
             'fileId': file.id ?? '',
             'fileName': file.name ?? 'unknown.db.enc',
             'path': file.id ?? '',
-            'createdAt': file.createdTime?.toIso8601String() ?? DateTime.now().toIso8601String(),
+            'createdAt': file.createdTime?.toIso8601String() ??
+                DateTime.now().toIso8601String(),
             'modifiedAt': file.modifiedTime?.toIso8601String(),
             'size': file.size,
           });
@@ -439,4 +443,3 @@ class DatabaseExportService extends BaseService {
     }
   }
 }
-

@@ -9,7 +9,7 @@ final databaseExportServiceProvider = Provider<DatabaseExportService>((ref) {
   final databaseService = DatabaseService(); // Get concrete instance
   final encryptionService = ref.read(encryptionServiceProvider);
   final storageProviderService = ref.read(storageProviderServiceProvider);
-  
+
   return DatabaseExportService(
     databaseService: databaseService,
     encryptionService: encryptionService,
@@ -165,4 +165,3 @@ final databaseExportNotifierProvider =
   final exportService = ref.read(databaseExportServiceProvider);
   return DatabaseExportNotifier(exportService);
 });
-

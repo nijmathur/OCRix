@@ -263,7 +263,8 @@ class DatabaseService extends BaseService implements IDatabaseService {
     if (oldVersion < 5) {
       // Add thumbnail_data column for performance optimization
       try {
-        await db.execute('ALTER TABLE documents ADD COLUMN thumbnail_data BLOB');
+        await db
+            .execute('ALTER TABLE documents ADD COLUMN thumbnail_data BLOB');
         logInfo('Added thumbnail_data column to documents table');
       } catch (e) {
         logError('Error adding thumbnail_data column', e);

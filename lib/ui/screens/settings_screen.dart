@@ -853,6 +853,7 @@ class SettingsScreen extends ConsumerWidget {
     if (selectedBackup == null) return;
 
     // Show confirmation dialog
+    if (!context.mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1055,7 +1056,8 @@ class _BackupSelectionDialog extends StatelessWidget {
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Created: ${_formatDate(backup['createdAt'] as String?)}'),
+                  Text(
+                      'Created: ${_formatDate(backup['createdAt'] as String?)}'),
                   if (backup['size'] != null)
                     Text('Size: ${_formatSize(backup['size'] as int?)}'),
                 ],

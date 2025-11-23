@@ -173,7 +173,7 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
 
   drive.DriveApi? _driveApi;
   bool _isInitialized = false;
-  
+
   // Expose driveApi for advanced operations (like getting file metadata)
   drive.DriveApi? get driveApi => _driveApi;
 
