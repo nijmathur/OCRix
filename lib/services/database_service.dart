@@ -1121,7 +1121,18 @@ class DatabaseService extends BaseService implements IDatabaseService {
     if (db != null) {
       await db.close();
       _database = null;
+      _isInitialized = false;
     }
+  }
+
+  /// Public method to log audit entries (for use by other services)
+  Future<void> logAudit(
+    AuditAction action,
+    String resourceType,
+    String resourceId,
+    String? details,
+  ) async {
+    await _logAudit(action, resourceType, resourceId, details);
   }
 }
 

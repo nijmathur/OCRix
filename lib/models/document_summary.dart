@@ -96,4 +96,3 @@ class DocumentSummary extends Equatable {
         isEncrypted,
       ];
 }
-
