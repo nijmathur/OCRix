@@ -26,4 +26,3 @@ abstract class ILogFileService {
   /// Initialize the service
   Future<void> initialize();
 }
-

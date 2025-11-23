@@ -80,7 +80,8 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
       throw EncryptionException('Encryption not initialized');
     }
 
-    final encrypted = _encrypter!.encryptBytes(Uint8List.fromList(bytes), iv: _iv!);
+    final encrypted =
+        _encrypter!.encryptBytes(Uint8List.fromList(bytes), iv: _iv!);
     return encrypted.bytes;
   }
 
@@ -154,4 +155,3 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
     };
   }
 }
-

@@ -69,4 +69,3 @@ extension LogLevelExtension on LogLevel {
     }
   }
 }
-

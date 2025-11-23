@@ -24,7 +24,7 @@ class _LogExportDialogState extends ConsumerState<LogExportDialog> {
     try {
       final logger = ref.read(troubleshootingLoggerProvider);
       final logs = await logger.exportLogs();
-      
+
       setState(() {
         _exportedLogs = logs;
         _isExporting = false;
@@ -198,4 +198,3 @@ class _LogExportDialogState extends ConsumerState<LogExportDialog> {
     );
   }
 }
-

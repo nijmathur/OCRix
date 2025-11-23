@@ -19,4 +19,3 @@ final auditLoggingServiceProvider = Provider<AuditLoggingService>((ref) {
   final auditDatabase = ref.read(auditDatabaseServiceProvider);
   return AuditLoggingService(auditDatabase);
 });
-

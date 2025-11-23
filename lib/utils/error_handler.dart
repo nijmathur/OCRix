@@ -21,7 +21,8 @@ class ErrorHandler {
         metadata: {
           'library': details.library,
           'context': details.context?.toString(),
-          'informationCollector': details.informationCollector?.call().toString(),
+          'informationCollector':
+              details.informationCollector?.call().toString(),
         },
       );
 
@@ -42,4 +43,3 @@ class ErrorHandler {
     );
   }
 }
-

@@ -126,7 +126,7 @@ class AuditEntry extends Equatable {
   bool verifyChecksum() {
     // Normalize timestamp to match database precision (milliseconds only)
     final normalizedTimestamp = _normalizeTimestampForChecksum(timestamp);
-    
+
     final entryData = {
       'id': id,
       'level': level.name,

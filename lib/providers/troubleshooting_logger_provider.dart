@@ -31,4 +31,3 @@ final troubleshootingLoggerProvider = Provider<ITroubleshootingLogger>((ref) {
   final rotationService = ref.read(logRotationServiceProvider);
   return TroubleshootingLoggerService(logFileService, rotationService);
 });
-

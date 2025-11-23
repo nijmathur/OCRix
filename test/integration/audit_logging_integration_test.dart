@@ -390,7 +390,8 @@ void main() {
       // Verify integrity - forks are allowed (multiple entries can link to same previous)
       final failedEntries = await auditDatabaseService.verifyIntegrity();
       expect(failedEntries, isEmpty,
-          reason: 'Concurrent writes should maintain integrity (forks allowed)');
+          reason:
+              'Concurrent writes should maintain integrity (forks allowed)');
     });
 
     test('CRITICAL: Entry count and filtering work correctly', () async {

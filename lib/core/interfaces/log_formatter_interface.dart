@@ -8,4 +8,3 @@ abstract class ILogFormatter {
   /// Format multiple log entries
   String formatMultiple(List<LogEntry> entries);
 }
-

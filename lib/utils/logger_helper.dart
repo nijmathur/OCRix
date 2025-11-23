@@ -32,4 +32,3 @@ class LoggerHelper {
     _logger?.debug(message, tag: tag);
   }
 }
-

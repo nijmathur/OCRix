@@ -104,13 +104,15 @@ class LogRotationService extends BaseService implements ILogRotationService {
 
   Future<void> _cleanupOldArchives(Directory archiveDir) async {
     try {
-      final files = archiveDir.listSync()
+      final files = archiveDir
+          .listSync()
           .whereType<File>()
           .where((f) => f.path.endsWith('.log'))
           .toList();
 
       // Sort by modification time (oldest first)
-      files.sort((a, b) => a.lastModifiedSync().compareTo(b.lastModifiedSync()));
+      files
+          .sort((a, b) => a.lastModifiedSync().compareTo(b.lastModifiedSync()));
 
       // Keep only last 5 archives
       const maxArchives = 5;
@@ -126,4 +128,3 @@ class LogRotationService extends BaseService implements ILogRotationService {
     }
   }
 }
-

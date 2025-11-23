@@ -34,7 +34,8 @@ class AuditNavigationObserver extends RouteObserver<PageRoute<dynamic>> {
     if (auditService == null) return;
 
     final toScreen = _getScreenName(toRoute);
-    final fromScreen = fromRoute != null ? _getScreenName(fromRoute) : 'unknown';
+    final fromScreen =
+        fromRoute != null ? _getScreenName(fromRoute) : 'unknown';
 
     // Log navigation (VERBOSE level)
     auditService.logNavigation(
@@ -46,23 +47,23 @@ class AuditNavigationObserver extends RouteObserver<PageRoute<dynamic>> {
 
   String _getScreenName(Route<dynamic>? route) {
     if (route == null) return 'unknown';
-    
+
     final settings = route.settings;
     if (settings.name != null) {
       return settings.name!;
     }
-    
+
     // Extract screen name from route type
     final routeString = route.toString();
     if (routeString.contains('HomeScreen')) return 'HomeScreen';
     if (routeString.contains('DocumentListScreen')) return 'DocumentListScreen';
-    if (routeString.contains('DocumentDetailScreen')) return 'DocumentDetailScreen';
+    if (routeString.contains('DocumentDetailScreen'))
+      return 'DocumentDetailScreen';
     if (routeString.contains('ScannerScreen')) return 'ScannerScreen';
     if (routeString.contains('SettingsScreen')) return 'SettingsScreen';
     if (routeString.contains('LoginScreen')) return 'LoginScreen';
     if (routeString.contains('SplashScreen')) return 'SplashScreen';
-    
+
     return 'unknown';
   }
 }
-

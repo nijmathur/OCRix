@@ -48,28 +48,42 @@ class TroubleshootingLoggerService extends BaseService
   }
 
   @override
-  Future<void> debug(String message, {String? tag, Map<String, dynamic>? metadata}) async {
+  Future<void> debug(String message,
+      {String? tag, Map<String, dynamic>? metadata}) async {
     await _log(LogLevel.debug, message, tag: tag, metadata: metadata);
   }
 
   @override
-  Future<void> info(String message, {String? tag, Map<String, dynamic>? metadata}) async {
+  Future<void> info(String message,
+      {String? tag, Map<String, dynamic>? metadata}) async {
     await _log(LogLevel.info, message, tag: tag, metadata: metadata);
   }
 
   @override
-  Future<void> warning(String message, {String? tag, Object? error, Map<String, dynamic>? metadata}) async {
-    await _log(LogLevel.warning, message, tag: tag, error: error, metadata: metadata);
+  Future<void> warning(String message,
+      {String? tag, Object? error, Map<String, dynamic>? metadata}) async {
+    await _log(LogLevel.warning, message,
+        tag: tag, error: error, metadata: metadata);
   }
 
   @override
-  Future<void> error(String message, {String? tag, Object? error, StackTrace? stackTrace, Map<String, dynamic>? metadata}) async {
-    await _log(LogLevel.error, message, tag: tag, error: error, stackTrace: stackTrace, metadata: metadata);
+  Future<void> error(String message,
+      {String? tag,
+      Object? error,
+      StackTrace? stackTrace,
+      Map<String, dynamic>? metadata}) async {
+    await _log(LogLevel.error, message,
+        tag: tag, error: error, stackTrace: stackTrace, metadata: metadata);
   }
 
   @override
-  Future<void> critical(String message, {String? tag, Object? error, StackTrace? stackTrace, Map<String, dynamic>? metadata}) async {
-    await _log(LogLevel.critical, message, tag: tag, error: error, stackTrace: stackTrace, metadata: metadata);
+  Future<void> critical(String message,
+      {String? tag,
+      Object? error,
+      StackTrace? stackTrace,
+      Map<String, dynamic>? metadata}) async {
+    await _log(LogLevel.critical, message,
+        tag: tag, error: error, stackTrace: stackTrace, metadata: metadata);
   }
 
   Future<void> _log(
@@ -109,7 +123,8 @@ class TroubleshootingLoggerService extends BaseService
       _logToConsole(entry);
 
       // Check rotation periodically (every 100 entries or on errors)
-      if (level.priority >= LogLevel.error.priority || _inMemoryBuffer.length % 100 == 0) {
+      if (level.priority >= LogLevel.error.priority ||
+          _inMemoryBuffer.length % 100 == 0) {
         await _rotationService.checkAndRotate();
       }
     } catch (e) {
@@ -123,7 +138,8 @@ class TroubleshootingLoggerService extends BaseService
   void _logToConsole(LogEntry entry) {
     // Only log errors and critical to console to avoid spam
     if (entry.level.priority >= LogLevel.error.priority) {
-      debugPrint('[${entry.level.name}] ${entry.tag != null ? "[${entry.tag}] " : ""}${entry.message}');
+      debugPrint(
+          '[${entry.level.name}] ${entry.tag != null ? "[${entry.tag}] " : ""}${entry.message}');
       if (entry.error != null) {
         debugPrint('  Error: ${entry.error}');
       }
@@ -197,4 +213,3 @@ class TroubleshootingLoggerService extends BaseService
     }
   }
 }
-

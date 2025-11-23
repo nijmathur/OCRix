@@ -50,7 +50,9 @@ class LogFormatterService implements ILogFormatter {
     }
 
     // Metadata
-    if (entry.metadata != null && entry.metadata!.isNotEmpty && _includeMetadata) {
+    if (entry.metadata != null &&
+        entry.metadata!.isNotEmpty &&
+        _includeMetadata) {
       buffer.write('\n  Metadata: ${_formatMetadata(entry.metadata!)}');
     }
 
@@ -99,4 +101,3 @@ class LogFormatterService implements ILogFormatter {
     }
   }
 }
-

@@ -51,4 +51,3 @@ class LogEntry extends Equatable {
         metadata,
       ];
 }
-

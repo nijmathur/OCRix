@@ -12,4 +12,3 @@ abstract class ILogRotationService {
   /// Set rotation interval
   void setRotationInterval(Duration interval);
 }
-
