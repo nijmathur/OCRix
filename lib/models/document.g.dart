@@ -11,6 +11,8 @@ Document _$DocumentFromJson(Map<String, dynamic> json) => Document(
       title: json['title'] as String,
       imageData:
           const Uint8ListConverter().fromJson(json['imageData'] as String?),
+      thumbnailData:
+          const Uint8ListConverter().fromJson(json['thumbnailData'] as String?),
       imageFormat: json['imageFormat'] as String? ?? 'jpeg',
       imageSize: (json['imageSize'] as num?)?.toInt(),
       imageWidth: (json['imageWidth'] as num?)?.toInt(),
@@ -41,6 +43,8 @@ Map<String, dynamic> _$DocumentToJson(Document instance) => <String, dynamic>{
       'id': instance.id,
       'title': instance.title,
       'imageData': const Uint8ListConverter().toJson(instance.imageData),
+      'thumbnailData':
+          const Uint8ListConverter().toJson(instance.thumbnailData),
       'imageFormat': instance.imageFormat,
       'imageSize': instance.imageSize,
       'imageWidth': instance.imageWidth,

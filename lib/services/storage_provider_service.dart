@@ -167,11 +167,15 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
       drive.DriveApi.driveFileScope,
+      'https://www.googleapis.com/auth/drive.appdata', // Required for appDataFolder access
     ],
   );
 
   drive.DriveApi? _driveApi;
   bool _isInitialized = false;
+  
+  // Expose driveApi for advanced operations (like getting file metadata)
+  drive.DriveApi? get driveApi => _driveApi;
 
   @override
   Future<bool> initialize() async {
@@ -192,10 +196,11 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
         http.Client(),
         AccessCredentials(
           AccessToken('Bearer', auth.accessToken!,
-              DateTime.now().add(const Duration(hours: 1))),
+              DateTime.now().toUtc().add(const Duration(hours: 1))),
           auth.idToken,
           [
             drive.DriveApi.driveFileScope,
+            'https://www.googleapis.com/auth/drive.appdata', // Required for appDataFolder access
           ],
         ),
       );
