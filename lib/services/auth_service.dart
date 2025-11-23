@@ -7,6 +7,7 @@ class AuthService extends BaseService {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
       drive.DriveApi.driveFileScope,
+      'https://www.googleapis.com/auth/drive.appdata', // Required for appDataFolder access
     ],
   );
 

@@ -263,7 +263,8 @@ class DatabaseService extends BaseService implements IDatabaseService {
     if (oldVersion < 5) {
       // Add thumbnail_data column for performance optimization
       try {
-        await db.execute('ALTER TABLE documents ADD COLUMN thumbnail_data BLOB');
+        await db
+            .execute('ALTER TABLE documents ADD COLUMN thumbnail_data BLOB');
         logInfo('Added thumbnail_data column to documents table');
       } catch (e) {
         logError('Error adding thumbnail_data column', e);
@@ -927,7 +928,18 @@ class DatabaseService extends BaseService implements IDatabaseService {
     if (db != null) {
       await db.close();
       _database = null;
+      _isInitialized = false;
     }
+  }
+
+  /// Public method to log audit entries (for use by other services)
+  Future<void> logAudit(
+    AuditAction action,
+    String resourceType,
+    String resourceId,
+    String? details,
+  ) async {
+    await _logAudit(action, resourceType, resourceId, details);
   }
 }
 

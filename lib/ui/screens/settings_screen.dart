@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/biometric_auth_provider.dart';
+import '../../providers/database_export_provider.dart';
 import '../../models/user_settings.dart';
 import '../widgets/settings_tile.dart';
 
@@ -391,16 +392,16 @@ class SettingsScreen extends ConsumerWidget {
             icon: Icons.schedule,
           ),
         SettingsTile(
-          title: 'Export Documents',
-          subtitle: 'Export all documents',
-          icon: Icons.download,
-          onTap: () => _exportDocuments(context),
+          title: 'Export Database',
+          subtitle: 'Export entire database to Google Drive',
+          icon: Icons.cloud_upload,
+          onTap: () => _exportDatabase(context, ref),
         ),
         SettingsTile(
-          title: 'Import Documents',
-          subtitle: 'Import from backup',
-          icon: Icons.upload,
-          onTap: () => _importDocuments(context),
+          title: 'Import Database',
+          subtitle: 'Import database from Google Drive backup',
+          icon: Icons.cloud_download,
+          onTap: () => _importDatabase(context, ref),
         ),
       ],
     );
@@ -722,12 +723,201 @@ class SettingsScreen extends ConsumerWidget {
     // Implementation for confidence threshold selection
   }
 
-  void _exportDocuments(BuildContext context) {
-    // Implementation for document export
+  void _exportDatabase(BuildContext context, WidgetRef ref) async {
+    // Check if user is signed in
+    final authState = ref.read(authNotifierProvider);
+    if (authState.valueOrNull == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please sign in with Google to export database'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Export Database'),
+        content: const Text(
+          'This will export your entire database to Google Drive. '
+          'The database will be encrypted before upload. Continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Export'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Show progress dialog
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _ExportProgressDialog(),
+    );
+
+    // Perform export
+    final notifier = ref.read(databaseExportNotifierProvider.notifier);
+    final fileId = await notifier.exportDatabase();
+
+    if (!context.mounted) return;
+    Navigator.pop(context); // Close progress dialog
+
+    if (fileId != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Database exported successfully to Google Drive'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      final state = ref.read(databaseExportNotifierProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            state.error ?? 'Failed to export database',
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
   }
 
-  void _importDocuments(BuildContext context) {
-    // Implementation for document import
+  void _importDatabase(BuildContext context, WidgetRef ref) async {
+    // Check if user is signed in
+    final authState = ref.read(authNotifierProvider);
+    if (authState.valueOrNull == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please sign in with Google to import database'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Show loading dialog while fetching backups
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    // Fetch available backups
+    final notifier = ref.read(databaseExportNotifierProvider.notifier);
+    await notifier.refreshBackups();
+
+    if (!context.mounted) return;
+    Navigator.pop(context); // Close loading dialog
+
+    final state = ref.read(databaseExportNotifierProvider);
+    final backups = state.availableBackups;
+
+    if (backups.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No backups found in Google Drive'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Show backup selection dialog
+    if (!context.mounted) return;
+    final selectedBackup = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => _BackupSelectionDialog(backups: backups),
+    );
+
+    if (selectedBackup == null) return;
+
+    // Show confirmation dialog
+    if (!context.mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import Database'),
+        content: Text(
+          'This will replace your current database with the backup from '
+          '${selectedBackup['fileName']}. Your current database will be backed up first. '
+          'Continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Show progress dialog
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _ImportProgressDialog(),
+    );
+
+    // Perform import
+    final success = await notifier.importDatabase(
+      driveFileId: selectedBackup['fileId'] as String,
+      backupCurrent: true,
+    );
+
+    if (!context.mounted) return;
+    Navigator.pop(context); // Close progress dialog
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Database imported successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      final errorState = ref.read(databaseExportNotifierProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            errorState.error ?? 'Failed to import database',
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
   }
 
   void _showPrivacyPolicyDialog(BuildContext context) {
@@ -769,6 +959,121 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Dialog showing export progress
+class _ExportProgressDialog extends ConsumerWidget {
+  const _ExportProgressDialog();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(databaseExportNotifierProvider);
+
+    return AlertDialog(
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (state.isExporting) ...[
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text('Exporting database... ${(state.progress * 100).toInt()}%'),
+          ] else ...[
+            const Icon(Icons.check_circle, color: Colors.green, size: 48),
+            const SizedBox(height: 16),
+            const Text('Export complete!'),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Dialog showing import progress
+class _ImportProgressDialog extends ConsumerWidget {
+  const _ImportProgressDialog();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(databaseExportNotifierProvider);
+
+    return AlertDialog(
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (state.isImporting) ...[
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text('Importing database... ${(state.progress * 100).toInt()}%'),
+          ] else ...[
+            const Icon(Icons.check_circle, color: Colors.green, size: 48),
+            const SizedBox(height: 16),
+            const Text('Import complete!'),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Dialog for selecting a backup to import
+class _BackupSelectionDialog extends StatelessWidget {
+  final List<Map<String, dynamic>> backups;
+
+  const _BackupSelectionDialog({required this.backups});
+
+  String _formatDate(String? dateString) {
+    if (dateString == null) return 'Unknown date';
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  String _formatSize(int? size) {
+    if (size == null) return 'Unknown size';
+    if (size < 1024) return '$size B';
+    if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
+    return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Select Backup to Import'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: backups.length,
+          itemBuilder: (context, index) {
+            final backup = backups[index];
+            return ListTile(
+              title: Text(backup['fileName'] as String? ?? 'Unknown'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                      'Created: ${_formatDate(backup['createdAt'] as String?)}'),
+                  if (backup['size'] != null)
+                    Text('Size: ${_formatSize(backup['size'] as int?)}'),
+                ],
+              ),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.pop(context, backup),
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ],
     );
   }
 }

@@ -11,12 +11,12 @@ class AppConfig {
   static const int maxImageHeight = 1920;
   static const int jpegQuality = 85;
   static const int maxImageSizeForProcessing = 2000; // pixels
-  
+
   // Thumbnail configuration
   static const int thumbnailWidth = 300;
   static const int thumbnailHeight = 300;
   static const int thumbnailQuality = 70;
-  
+
   // Image quality levels for different use cases
   static const int displayQuality = 80;
   static const int storageQuality = 85;
