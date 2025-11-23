@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:logger/logger.dart';
 import '../services/biometric_auth_service.dart';
 import '../core/exceptions/app_exceptions.dart';
+import 'troubleshooting_logger_provider.dart';
+import '../core/interfaces/troubleshooting_logger_interface.dart';
 
 final biometricAuthServiceProvider = Provider<BiometricAuthService>((ref) {
   return BiometricAuthService();
@@ -42,10 +43,13 @@ class BiometricAuthState {
 
 class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
   final BiometricAuthService _biometricAuthService;
-  final Logger _logger = Logger();
+  final ITroubleshootingLogger? _troubleshootingLogger;
 
-  BiometricAuthNotifier(this._biometricAuthService)
-      : super(const BiometricAuthState(isLoading: true)) {
+  BiometricAuthNotifier(
+    this._biometricAuthService, {
+    ITroubleshootingLogger? troubleshootingLogger,
+  })  : _troubleshootingLogger = troubleshootingLogger,
+        super(const BiometricAuthState(isLoading: true)) {
     _initialize();
   }
 
@@ -74,15 +78,19 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
 
   Future<bool> enableBiometricAuth() async {
     try {
-      _logger.i(
-          '[BiometricAuthNotifier] Starting enable biometric authentication');
+      _troubleshootingLogger?.info(
+        'Starting enable biometric authentication',
+        tag: 'BiometricAuthNotifier',
+      );
       state = state.copyWith(isLoading: true, error: null);
 
       // enableBiometricAuth() already handles authentication internally
       await _biometricAuthService.enableBiometricAuth();
 
-      _logger.i(
-          '[BiometricAuthNotifier] Biometric authentication enabled successfully');
+      _troubleshootingLogger?.info(
+        'Biometric authentication enabled successfully',
+        tag: 'BiometricAuthNotifier',
+      );
       state = state.copyWith(
         isEnabled: true,
         isLoading: false,
@@ -90,22 +98,34 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
       );
       return true;
     } catch (e, stackTrace) {
-      _logger.e(
-          '[BiometricAuthNotifier] Failed to enable biometric authentication',
-          error: e,
-          stackTrace: stackTrace);
-      _logger.e(
-          '[BiometricAuthNotifier] Error details: type=${e.runtimeType}, message=${e.toString()}');
+      _troubleshootingLogger?.error(
+        'Failed to enable biometric authentication',
+        tag: 'BiometricAuthNotifier',
+        error: e,
+        stackTrace: stackTrace,
+        metadata: {
+          'errorType': e.runtimeType.toString(),
+          'errorMessage': e.toString(),
+        },
+      );
 
       String errorMessage;
       if (e is AuthException) {
         errorMessage = e.message;
-        _logger
-            .e('[BiometricAuthNotifier] AuthException message: $errorMessage');
+        _troubleshootingLogger?.error(
+          'AuthException during biometric enable',
+          tag: 'BiometricAuthNotifier',
+          error: e,
+          metadata: {'authExceptionMessage': errorMessage},
+        );
       } else {
         errorMessage = 'Failed to enable biometric sign-in: ${e.toString()}';
-        _logger.e(
-            '[BiometricAuthNotifier] Non-AuthException error: $errorMessage');
+        _troubleshootingLogger?.error(
+          'Non-AuthException error during biometric enable',
+          tag: 'BiometricAuthNotifier',
+          error: e,
+          metadata: {'errorMessage': errorMessage},
+        );
       }
 
       state = state.copyWith(
@@ -146,5 +166,9 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
 final biometricAuthNotifierProvider =
     StateNotifierProvider<BiometricAuthNotifier, BiometricAuthState>((ref) {
   final service = ref.read(biometricAuthServiceProvider);
-  return BiometricAuthNotifier(service);
+  final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+  return BiometricAuthNotifier(
+    service,
+    troubleshootingLogger: troubleshootingLogger,
+  );
 });
