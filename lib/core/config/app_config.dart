@@ -1,10 +1,22 @@
 import 'package:camera/camera.dart';
+import '../models/audit_log_level.dart';
+import '../models/log_level.dart';
 
 /// Centralized application configuration
 class AppConfig {
   // Database configuration
   static const String databaseName = 'privacy_documents.db';
-  static const int databaseVersion = 5;
+  static const int databaseVersion = 6; // Incremented for trigger support
+
+  // Audit database configuration (now uses main database)
+  // Kept for backward compatibility, but audit_entries table is in main database
+  @Deprecated('Audit now uses main database')
+  static const String auditDatabaseName = 'audit_log.db';
+  @Deprecated('Audit now uses main database')
+  static const int auditDatabaseVersion = 1;
+
+  // Audit logging configuration
+  static const AuditLogLevel defaultAuditLogLevel = AuditLogLevel.compulsory;
 
   // Image processing configuration
   static const int maxImageWidth = 1920;
@@ -51,7 +63,17 @@ class AppConfig {
   static const int documentsPerPage = 20;
   static const Duration debounceDelay = Duration(milliseconds: 300);
 
+  // Troubleshooting log configuration
+  static const String logDirectory = 'logs';
+  static const String logFileName = 'app.log';
+  static const Duration logRotationInterval =
+      Duration(hours: 24); // Rotate every 24 hours
+  static const int maxLogFileSize = 10 * 1024 * 1024; // 10MB max file size
+  static const LogLevel defaultLogLevel =
+      LogLevel.debug; // Verbose logging by default
+
   // File paths
   static String get scansPath => scansDirectory;
   static String get documentsPath => localStorageBasePath;
+  static String get logsPath => logDirectory;
 }
