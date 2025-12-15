@@ -61,8 +61,11 @@ class DatabaseExportNotifier extends StateNotifier<DatabaseExportState> {
   DatabaseExportNotifier(this._exportService)
       : super(const DatabaseExportState());
 
-  /// Export database to Google Drive
-  Future<String?> exportDatabase({String? customFileName}) async {
+  /// Export database to Google Drive with password
+  Future<String?> exportDatabase({
+    required String password,
+    String? customFileName,
+  }) async {
     try {
       state = state.copyWith(
         isExporting: true,
@@ -71,6 +74,7 @@ class DatabaseExportNotifier extends StateNotifier<DatabaseExportState> {
       );
 
       final fileId = await _exportService.exportDatabaseToGoogleDrive(
+        password: password,
         customFileName: customFileName,
         onProgress: (progress) {
           state = state.copyWith(progress: progress);
@@ -96,9 +100,10 @@ class DatabaseExportNotifier extends StateNotifier<DatabaseExportState> {
     }
   }
 
-  /// Import database from Google Drive
+  /// Import database from Google Drive with password
   Future<bool> importDatabase({
     required String driveFileId,
+    required String password,
     bool backupCurrent = true,
   }) async {
     try {
@@ -110,6 +115,7 @@ class DatabaseExportNotifier extends StateNotifier<DatabaseExportState> {
 
       await _exportService.importDatabaseFromGoogleDrive(
         driveFileId: driveFileId,
+        password: password,
         backupCurrent: backupCurrent,
         onProgress: (progress) {
           state = state.copyWith(progress: progress);

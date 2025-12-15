@@ -363,7 +363,6 @@ class EncryptionService extends BaseService implements IEncryptionService {
       // Update current key
       _key = newKey;
       _encrypter = Encrypter(AES(_key!));
-      _iv = IV.fromSecureRandom(16);
 
       logInfo('Encryption key changed successfully');
     } catch (e) {
@@ -381,7 +380,6 @@ class EncryptionService extends BaseService implements IEncryptionService {
       await _secureStorage.delete(key: 'encryption_key');
       _key = null;
       _encrypter = null;
-      _iv = null;
       _isInitialized = false;
       logInfo('Encryption key cleared');
     } catch (e) {
@@ -409,6 +407,175 @@ class EncryptionService extends BaseService implements IEncryptionService {
     } catch (e) {
       logError('Failed to get encryption info', e);
       return {};
+    }
+  }
+
+  // Password-based encryption methods
+  // These use PBKDF2 to derive keys from passwords, making exports portable across devices
+
+  /// Derive an encryption key from a password using PBKDF2
+  /// Returns: [Key, Salt] - both are needed for encryption/decryption
+  List<Uint8List> _deriveKeyFromPassword(String password, Uint8List? salt) {
+    // Use provided salt or generate new one
+    final keySalt = salt ?? Uint8List.fromList(
+      List<int>.generate(32, (i) => DateTime.now().millisecondsSinceEpoch % 256 + i)
+    );
+
+    // PBKDF2 parameters
+    const iterations = 100000; // High iteration count for security
+    const keyLength = 32; // 256 bits for AES-256
+
+    // Derive key using PBKDF2 (implemented via repeated HMAC-SHA256)
+    final passwordBytes = utf8.encode(password);
+    var derivedKey = Uint8List(keyLength);
+    var block = Uint8List(keySalt.length + 4);
+    block.setRange(0, keySalt.length, keySalt);
+
+    for (var i = 0; i < keyLength; i += 32) {
+      // Block index (1-based)
+      final blockIndex = (i ~/ 32) + 1;
+      block[keySalt.length] = (blockIndex >> 24) & 0xff;
+      block[keySalt.length + 1] = (blockIndex >> 16) & 0xff;
+      block[keySalt.length + 2] = (blockIndex >> 8) & 0xff;
+      block[keySalt.length + 3] = blockIndex & 0xff;
+
+      // First iteration
+      var u = Hmac(sha256, passwordBytes).convert(block).bytes;
+      var result = Uint8List.fromList(u);
+
+      // Remaining iterations
+      for (var j = 1; j < iterations; j++) {
+        u = Hmac(sha256, passwordBytes).convert(u).bytes;
+        for (var k = 0; k < u.length; k++) {
+          result[k] ^= u[k];
+        }
+      }
+
+      // Copy to derived key
+      final bytesToCopy = (i + 32 <= keyLength) ? 32 : keyLength - i;
+      derivedKey.setRange(i, i + bytesToCopy, result);
+    }
+
+    return [derivedKey, keySalt];
+  }
+
+  /// Encrypt file with password
+  /// Format: [Salt (32 bytes)][IV (16 bytes)][Encrypted Data]
+  Future<String> encryptFileWithPassword(
+    String filePath,
+    String password,
+  ) async {
+    try {
+      logInfo('Encrypting file with password: $filePath');
+
+      final file = File(filePath);
+      if (!await file.exists()) {
+        throw EncryptionException('File does not exist: $filePath');
+      }
+
+      // Read file content
+      final fileBytes = await file.readAsBytes();
+
+      // Derive key from password (generates new salt)
+      final keyAndSalt = _deriveKeyFromPassword(password, null);
+      final derivedKey = Key(keyAndSalt[0]);
+      final salt = keyAndSalt[1];
+
+      // Generate unique IV
+      final iv = IV.fromSecureRandom(16);
+
+      // Encrypt data
+      final encrypter = Encrypter(AES(derivedKey));
+      final encrypted = encrypter.encryptBytes(fileBytes, iv: iv);
+
+      // Prepend salt and IV to encrypted data
+      // Format: [Salt (32 bytes)][IV (16 bytes)][Encrypted Data]
+      final result = Uint8List(32 + 16 + encrypted.bytes.length);
+      result.setRange(0, 32, salt);
+      result.setRange(32, 48, iv.bytes);
+      result.setRange(48, result.length, encrypted.bytes);
+
+      // Save encrypted file
+      final encryptedFilePath = '$filePath.enc';
+      final encryptedFile = File(encryptedFilePath);
+      await encryptedFile.writeAsBytes(result);
+
+      logInfo(
+        'File encrypted with password: $filePath -> $encryptedFilePath '
+        '(${fileBytes.length} bytes -> ${result.length} bytes)',
+      );
+      return encryptedFilePath;
+    } catch (e) {
+      logError('Failed to encrypt file with password', e);
+      if (e is EncryptionException) {
+        rethrow;
+      }
+      throw EncryptionException(
+        'Failed to encrypt file with password: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  /// Decrypt file with password
+  Future<String> decryptFileWithPassword(
+    String encryptedFilePath,
+    String password,
+  ) async {
+    try {
+      logInfo('Decrypting file with password: $encryptedFilePath');
+
+      final encryptedFile = File(encryptedFilePath);
+      if (!await encryptedFile.exists()) {
+        throw EncryptionException(
+          'Encrypted file does not exist: $encryptedFilePath',
+        );
+      }
+
+      // Read encrypted file
+      final encryptedBytes = await encryptedFile.readAsBytes();
+
+      // File format: [Salt (32 bytes)][IV (16 bytes)][Encrypted Data]
+      if (encryptedBytes.length < 48) {
+        throw EncryptionException(
+          'Invalid encrypted file: too short (${encryptedBytes.length} bytes)',
+        );
+      }
+
+      // Extract salt, IV, and encrypted data
+      final salt = Uint8List.fromList(encryptedBytes.sublist(0, 32));
+      final ivBytes = Uint8List.fromList(encryptedBytes.sublist(32, 48));
+      final iv = IV(ivBytes);
+      final encryptedData = Uint8List.fromList(encryptedBytes.sublist(48));
+
+      // Derive key from password using extracted salt
+      final keyAndSalt = _deriveKeyFromPassword(password, salt);
+      final derivedKey = Key(keyAndSalt[0]);
+
+      // Decrypt data
+      final encrypter = Encrypter(AES(derivedKey));
+      final encrypted = Encrypted(encryptedData);
+      final decrypted = encrypter.decryptBytes(encrypted, iv: iv);
+
+      // Save decrypted file
+      final decryptedFilePath = encryptedFilePath.replaceAll('.enc', '');
+      final decryptedFile = File(decryptedFilePath);
+      await decryptedFile.writeAsBytes(decrypted);
+
+      logInfo(
+        'File decrypted with password: $encryptedFilePath -> $decryptedFilePath '
+        '(${encryptedBytes.length} bytes -> ${decrypted.length} bytes)',
+      );
+      return decryptedFilePath;
+    } catch (e) {
+      logError('Failed to decrypt file with password', e);
+      if (e is EncryptionException) {
+        rethrow;
+      }
+      throw EncryptionException(
+        'Failed to decrypt file with password: ${e.toString()}',
+        originalError: e,
+      );
     }
   }
 

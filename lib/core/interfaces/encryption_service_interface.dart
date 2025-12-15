@@ -24,6 +24,12 @@ abstract class IEncryptionService {
   /// Decrypt bytes
   Future<List<int>> decryptBytes(List<int> encryptedBytes);
 
+  /// Encrypt file with password (for portable exports)
+  Future<String> encryptFileWithPassword(String filePath, String password);
+
+  /// Decrypt file with password (for portable imports)
+  Future<String> decryptFileWithPassword(String encryptedFilePath, String password);
+
   /// Check if biometric authentication is available
   Future<bool> isBiometricAvailable();
 

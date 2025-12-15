@@ -26,18 +26,26 @@ class DatabaseExportService extends BaseService {
   @override
   String get serviceName => 'DatabaseExportService';
 
-  /// Export the entire database to Google Drive with encryption
+  /// Export the entire database to Google Drive with password-based encryption
   ///
   /// Steps:
   /// 1. Close the database connection
   /// 2. Copy the database file to a temporary location
-  /// 3. Encrypt the database file (encryption at rest)
+  /// 3. Encrypt the database file with user password (PBKDF2 + AES-256)
   /// 4. Upload to Google Drive (encryption in transit via HTTPS/TLS)
   /// 5. Reopen the database connection
   /// 6. Log audit entry
   ///
+  /// [password] - User password for encryption (REQUIRED)
+  /// [customFileName] - Optional custom filename for the backup
+  /// [onProgress] - Optional callback for upload progress
+  ///
   /// Returns the Google Drive file ID
+  ///
+  /// IMPORTANT: User must remember the password to restore the database!
+  /// If password is lost, the backup cannot be recovered.
   Future<String> exportDatabaseToGoogleDrive({
+    required String password,
     String? customFileName,
     Function(double)? onProgress,
   }) async {
@@ -73,10 +81,11 @@ class DatabaseExportService extends BaseService {
         final tempDbFile = await dbFile.copy(tempDbPath);
         logInfo('Database copied to temporary location: $tempDbPath');
 
-        // Step 4: Encrypt the database file (encryption at rest)
-        logInfo('Encrypting database file...');
-        final encryptedFilePath = await _encryptionService.encryptFile(
+        // Step 4: Encrypt the database file with user password
+        logInfo('Encrypting database file with password...');
+        final encryptedFilePath = await _encryptionService.encryptFileWithPassword(
           tempDbPath,
+          password,
         );
         final encryptedFile = File(encryptedFilePath);
 
@@ -167,11 +176,11 @@ class DatabaseExportService extends BaseService {
     }
   }
 
-  /// Import the entire database from Google Drive with decryption
+  /// Import the entire database from Google Drive with password decryption
   ///
   /// Steps:
   /// 1. Download encrypted database from Google Drive (encryption in transit via HTTPS/TLS)
-  /// 2. Decrypt the database file
+  /// 2. Decrypt the database file with user password (PBKDF2 + AES-256)
   /// 3. Close the current database connection
   /// 4. Backup current database (optional)
   /// 5. Replace current database with imported one
@@ -179,9 +188,14 @@ class DatabaseExportService extends BaseService {
   /// 7. Log audit entry
   ///
   /// [driveFileId] - The Google Drive file ID to import from
+  /// [password] - User password for decryption (REQUIRED)
   /// [backupCurrent] - Whether to backup the current database before import
+  /// [onProgress] - Optional callback for download progress
+  ///
+  /// IMPORTANT: Password must match the one used during export!
   Future<void> importDatabaseFromGoogleDrive({
     required String driveFileId,
+    required String password,
     bool backupCurrent = true,
     Function(double)? onProgress,
   }) async {
@@ -229,10 +243,11 @@ class DatabaseExportService extends BaseService {
       logInfo(
           'Encrypted database downloaded: ${encryptedFile.lengthSync()} bytes');
 
-      // Step 3: Decrypt the database file
-      logInfo('Decrypting database file...');
-      final decryptedFilePath = await _encryptionService.decryptFile(
+      // Step 3: Decrypt the database file with user password
+      logInfo('Decrypting database file with password...');
+      final decryptedFilePath = await _encryptionService.decryptFileWithPassword(
         encryptedFilePath,
+        password,
       );
       final decryptedFile = File(decryptedFilePath);
 
