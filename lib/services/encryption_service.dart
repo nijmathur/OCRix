@@ -14,9 +14,13 @@ class EncryptionService extends BaseService implements IEncryptionService {
   final LocalAuthentication _localAuth = LocalAuthentication();
 
   Encrypter? _encrypter;
-  IV? _iv;
   Key? _key;
   bool _isInitialized = false;
+
+  // Note: IV is no longer stored as an instance variable.
+  // Each encryption operation generates a unique IV and prepends it to the
+  // encrypted data. This ensures encrypted files are self-contained and can
+  // be decrypted on any device with the same encryption key.
 
   @override
   String get serviceName => 'EncryptionService';
@@ -61,7 +65,6 @@ class EncryptionService extends BaseService implements IEncryptionService {
       }
 
       _encrypter = Encrypter(AES(_key!));
-      _iv = IV.fromSecureRandom(16);
     } catch (e) {
       logError('Failed to load or create encryption key', e);
       throw EncryptionException(
@@ -78,13 +81,23 @@ class EncryptionService extends BaseService implements IEncryptionService {
         await initialize();
       }
 
-      if (_encrypter == null || _iv == null) {
+      if (_encrypter == null || _key == null) {
         throw EncryptionException('Encryption not initialized');
       }
 
-      final encrypted = _encrypter!.encrypt(text, iv: _iv!);
+      // Generate a unique IV for this encryption operation
+      final uniqueIV = IV.fromSecureRandom(16);
+      final encrypter = Encrypter(AES(_key!));
+
+      final encrypted = encrypter.encrypt(text, iv: uniqueIV);
+
+      // Prepend IV to encrypted data: [IV (16 bytes)][Encrypted Data]
+      final result = Uint8List(16 + encrypted.bytes.length);
+      result.setRange(0, 16, uniqueIV.bytes);
+      result.setRange(16, result.length, encrypted.bytes);
+
       logInfo('Text encrypted successfully');
-      return encrypted.base64;
+      return base64.encode(result);
     } catch (e) {
       logError('Failed to encrypt text', e);
       if (e is EncryptionException) {
@@ -104,12 +117,29 @@ class EncryptionService extends BaseService implements IEncryptionService {
         await initialize();
       }
 
-      if (_encrypter == null || _iv == null) {
+      if (_encrypter == null || _key == null) {
         throw EncryptionException('Encryption not initialized');
       }
 
-      final encrypted = Encrypted.fromBase64(encryptedText);
-      final decrypted = _encrypter!.decrypt(encrypted, iv: _iv!);
+      // Decode base64 to get [IV (16 bytes)][Encrypted Data]
+      final encryptedBytes = base64.decode(encryptedText);
+
+      if (encryptedBytes.length < 16) {
+        throw EncryptionException(
+            'Invalid encrypted text: too short (${encryptedBytes.length} bytes)');
+      }
+
+      // Extract IV from first 16 bytes
+      final ivBytes = Uint8List.fromList(encryptedBytes.sublist(0, 16));
+      final extractedIV = IV(ivBytes);
+
+      // Extract encrypted data (everything after first 16 bytes)
+      final encryptedData = Uint8List.fromList(encryptedBytes.sublist(16));
+
+      final encrypter = Encrypter(AES(_key!));
+      final encrypted = Encrypted(encryptedData);
+      final decrypted = encrypter.decrypt(encrypted, iv: extractedIV);
+
       logInfo('Text decrypted successfully');
       return decrypted;
     } catch (e) {
@@ -131,15 +161,27 @@ class EncryptionService extends BaseService implements IEncryptionService {
         await initialize();
       }
 
-      if (_encrypter == null || _iv == null) {
+      if (_encrypter == null || _key == null) {
         throw EncryptionException('Encryption not initialized');
       }
 
+      // Generate a unique IV for this encryption operation
+      // This ensures each encrypted file can be decrypted independently
+      final uniqueIV = IV.fromSecureRandom(16);
+      final encrypter = Encrypter(AES(_key!));
+
       final data = Uint8List.fromList(bytes);
-      final encrypted = _encrypter!.encryptBytes(data, iv: _iv!);
+      final encrypted = encrypter.encryptBytes(data, iv: uniqueIV);
+
+      // Prepend IV to encrypted data so it can be extracted during decryption
+      // Format: [IV (16 bytes)][Encrypted Data]
+      final result = Uint8List(16 + encrypted.bytes.length);
+      result.setRange(0, 16, uniqueIV.bytes);
+      result.setRange(16, result.length, encrypted.bytes);
+
       logInfo(
-          'Bytes encrypted successfully: ${bytes.length} -> ${encrypted.bytes.length}');
-      return encrypted.bytes.toList();
+          'Bytes encrypted successfully: ${bytes.length} -> ${result.length} (IV: 16 bytes + encrypted: ${encrypted.bytes.length} bytes)');
+      return result.toList();
     } catch (e) {
       logError('Failed to encrypt bytes', e);
       if (e is EncryptionException) {
@@ -159,14 +201,30 @@ class EncryptionService extends BaseService implements IEncryptionService {
         await initialize();
       }
 
-      if (_encrypter == null || _iv == null) {
+      if (_encrypter == null || _key == null) {
         throw EncryptionException('Encryption not initialized');
       }
 
-      final encrypted = Encrypted(Uint8List.fromList(encryptedBytes));
-      final decrypted = _encrypter!.decryptBytes(encrypted, iv: _iv!);
+      // Encrypted data format: [IV (16 bytes)][Encrypted Data]
+      if (encryptedBytes.length < 16) {
+        throw EncryptionException(
+            'Invalid encrypted data: too short (${encryptedBytes.length} bytes)');
+      }
+
+      // Extract IV from first 16 bytes
+      final ivBytes = Uint8List.fromList(encryptedBytes.sublist(0, 16));
+      final extractedIV = IV(ivBytes);
+
+      // Extract encrypted data (everything after first 16 bytes)
+      final encryptedData =
+          Uint8List.fromList(encryptedBytes.sublist(16));
+
+      final encrypter = Encrypter(AES(_key!));
+      final encrypted = Encrypted(encryptedData);
+      final decrypted = encrypter.decryptBytes(encrypted, iv: extractedIV);
+
       logInfo(
-          'Bytes decrypted successfully: ${encryptedBytes.length} -> ${decrypted.length}');
+          'Bytes decrypted successfully: ${encryptedBytes.length} (IV: 16 bytes + encrypted: ${encryptedData.length} bytes) -> ${decrypted.length}');
       return decrypted.toList();
     } catch (e) {
       logError('Failed to decrypt bytes', e);

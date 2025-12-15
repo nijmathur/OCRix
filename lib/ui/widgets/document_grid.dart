@@ -6,12 +6,18 @@ class DocumentGrid extends StatelessWidget {
   final List<Document> documents;
   final Function(Document)? onDocumentTap;
   final bool showEmptyState;
+  final ScrollController? controller;
+  final ScrollPhysics? physics;
+  final bool shrinkWrap;
 
   const DocumentGrid({
     super.key,
     required this.documents,
     this.onDocumentTap,
     this.showEmptyState = true,
+    this.controller,
+    this.physics,
+    this.shrinkWrap = false,
   });
 
   @override
@@ -21,8 +27,9 @@ class DocumentGrid extends StatelessWidget {
     }
 
     return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      controller: controller,
+      shrinkWrap: shrinkWrap,
+      physics: physics ?? const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,

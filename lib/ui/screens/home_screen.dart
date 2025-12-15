@@ -322,7 +322,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             if (recentDocuments.isEmpty) {
               return _buildEmptyState();
             }
-            return DocumentGrid(documents: recentDocuments);
+            return DocumentGrid(
+              documents: recentDocuments,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+            );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stack) => _buildErrorState(error.toString()),
