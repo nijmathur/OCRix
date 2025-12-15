@@ -6,6 +6,7 @@ import '../../providers/biometric_auth_provider.dart';
 import '../../providers/database_export_provider.dart';
 import '../../models/user_settings.dart';
 import '../widgets/settings_tile.dart';
+import '../widgets/password_dialog.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -738,6 +739,11 @@ class SettingsScreen extends ConsumerWidget {
       return;
     }
 
+    // Show password dialog
+    final password = await showExportPasswordDialog(context);
+
+    if (password == null || password.isEmpty) return;
+
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
@@ -745,7 +751,7 @@ class SettingsScreen extends ConsumerWidget {
         title: const Text('Export Database'),
         content: const Text(
           'This will export your entire database to Google Drive. '
-          'The database will be encrypted before upload. Continue?',
+          'The database will be encrypted with your password before upload. Continue?',
         ),
         actions: [
           TextButton(
@@ -770,9 +776,9 @@ class SettingsScreen extends ConsumerWidget {
       builder: (context) => _ExportProgressDialog(),
     );
 
-    // Perform export
+    // Perform export with password
     final notifier = ref.read(databaseExportNotifierProvider.notifier);
-    final fileId = await notifier.exportDatabase();
+    final fileId = await notifier.exportDatabase(password: password);
 
     if (!context.mounted) return;
     Navigator.pop(context); // Close progress dialog
@@ -852,6 +858,12 @@ class SettingsScreen extends ConsumerWidget {
 
     if (selectedBackup == null) return;
 
+    // Show password dialog
+    if (!context.mounted) return;
+    final password = await showImportPasswordDialog(context);
+
+    if (password == null || password.isEmpty) return;
+
     // Show confirmation dialog
     if (!context.mounted) return;
     final confirmed = await showDialog<bool>(
@@ -890,9 +902,10 @@ class SettingsScreen extends ConsumerWidget {
       builder: (context) => _ImportProgressDialog(),
     );
 
-    // Perform import
+    // Perform import with password
     final success = await notifier.importDatabase(
       driveFileId: selectedBackup['fileId'] as String,
+      password: password,
       backupCurrent: true,
     );
 

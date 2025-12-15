@@ -121,6 +121,20 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
   }
 
   @override
+  Future<String> encryptFileWithPassword(
+      String filePath, String password) async {
+    // Mock implementation - just use regular encrypt for testing
+    return encryptFile(filePath);
+  }
+
+  @override
+  Future<String> decryptFileWithPassword(
+      String encryptedFilePath, String password) async {
+    // Mock implementation - just use regular decrypt for testing
+    return decryptFile(encryptedFilePath);
+  }
+
+  @override
   Future<bool> isBiometricAvailable() async {
     return false; // Mock - not available in tests
   }
