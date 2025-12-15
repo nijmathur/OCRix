@@ -1172,6 +1172,15 @@ class _EncryptionServiceAdapter implements IEncryptionService {
       .then((b) => b.toList());
 
   @override
+  Future<String> encryptFileWithPassword(String filePath, String password) =>
+      _service.encryptFileWithPassword(filePath, password);
+
+  @override
+  Future<String> decryptFileWithPassword(
+          String encryptedFilePath, String password) =>
+      _service.decryptFileWithPassword(encryptedFilePath, password);
+
+  @override
   Future<bool> isBiometricAvailable() => _service.isBiometricAvailable();
 
   @override

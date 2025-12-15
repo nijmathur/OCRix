@@ -461,6 +461,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
 
   /// Encrypt file with password
   /// Format: [Salt (32 bytes)][IV (16 bytes)][Encrypted Data]
+  @override
   Future<String> encryptFileWithPassword(
     String filePath,
     String password,
@@ -518,6 +519,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
   }
 
   /// Decrypt file with password
+  @override
   Future<String> decryptFileWithPassword(
     String encryptedFilePath,
     String password,
