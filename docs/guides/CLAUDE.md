@@ -153,6 +153,19 @@ auditService.setLogLevel(AuditLogLevel.info); // or .verbose
 - **Biometric Auth**: Optional fingerprint/face unlock for app access
 - **Data Encryption**: AES-256 for all data at rest
 - **Secure Storage**: Encryption keys in platform secure storage (Keychain/Keystore)
+- **Password-Based Encryption**: PBKDF2 with 100,000 iterations for portable database exports
+
+**Encryption Architecture:**
+1. **Local Data Encryption**: AES-256 with device-specific keys in secure storage
+2. **Database Export Encryption**: PBKDF2 + AES-256 with user-provided password
+   - 100,000 iterations for key derivation (NIST recommended)
+   - 32-byte unique salt per export
+   - 16-byte unique IV per file
+   - File format: `[Salt (32 bytes)][IV (16 bytes)][Encrypted Data]`
+3. **IV Management**: Initialization Vector prepended to all encrypted data for portability
+   - Each encryption operation generates a unique IV
+   - IV stored with encrypted data (not secret, just needs to be unique)
+   - Prevents need for persistent IV storage across app versions
 
 **Biometric Auth Flow:**
 - Enabled via `BiometricAuthNotifier` in `biometric_auth_provider.dart`
@@ -169,6 +182,12 @@ Screens in `lib/ui/screens/`:
 - `DocumentDetailScreen`: View/edit document details
 - `DocumentListScreen`: Searchable document grid/list
 - `SettingsScreen`: App settings and preferences
+
+**Key Widgets** in `lib/ui/widgets/`:
+- `DocumentGrid`: Grid view for document display (configurable scroll behavior)
+- `PasswordDialog`: Password input with strength indicator (for database export/import)
+- `LogExportDialog`: Export troubleshooting logs
+- `BiometricPrompt`: Biometric authentication UI
 
 ### Error Handling
 
@@ -189,33 +208,60 @@ Screens in `lib/ui/screens/`:
 **Service:** `DatabaseExportService` with `DatabaseExportProvider`
 
 **Export process:**
-1. Close database connection
-2. Copy database to temporary location
-3. Encrypt database file (AES-256)
-4. Upload encrypted file to Google Drive's `appDataFolder`
-5. Clean up and reopen database
+1. Prompt user for password (via `PasswordDialog`)
+2. Close database connection
+3. Copy database to temporary location
+4. Encrypt database file with password (PBKDF2 + AES-256)
+5. Upload encrypted file to Google Drive's `appDataFolder`
+6. Clean up and reopen database
+7. Log audit entry
 
 **Import process:**
-1. Download encrypted file from Google Drive
-2. Decrypt database file
-3. Backup current database (optional)
-4. Replace database with imported one
-5. Reopen database connection
+1. List available backups from Google Drive
+2. Prompt user for password (used during export)
+3. Download encrypted file from Google Drive
+4. Decrypt database file with password
+5. Backup current database (optional)
+6. Replace database with imported one
+7. Reopen database connection
+8. Log audit entry
 
 **Security:**
-- Database encrypted before upload (AES-256)
-- Same encryption key as local data (stored in secure storage)
-- Google Drive only stores encrypted data
+- **Password-based encryption**: User-provided password required (not device-specific keys)
+- **PBKDF2 key derivation**: 100,000 iterations with 32-byte unique salt
+- **AES-256 encryption**: Industry-standard symmetric encryption
+- **Portable backups**: Works across devices and app versions
+- **User responsibility**: Password must be remembered (unrecoverable if lost)
+- **Google Drive security**: Only stores encrypted data, encryption in transit (HTTPS/TLS)
 - File naming: `ocrix_database_backup_YYYY-MM-DD.db.enc`
+
+**UI Components:**
+- `PasswordDialog`: Password input with strength indicator and confirmation
+- `showExportPasswordDialog()`: Password setup for export (with confirmation)
+- `showImportPasswordDialog()`: Password entry for import (no confirmation)
 
 **Provider methods:**
 ```dart
 final exportNotifier = ref.read(databaseExportNotifierProvider.notifier);
-await exportNotifier.exportDatabase(); // Returns Google Drive file ID
-await exportNotifier.importDatabase(driveFileId: 'file_id', backupCurrent: true);
+
+// Export requires password
+final password = await showExportPasswordDialog(context);
+await exportNotifier.exportDatabase(password: password); // Returns Google Drive file ID
+
+// Import requires password
+final password = await showImportPasswordDialog(context);
+await exportNotifier.importDatabase(
+  driveFileId: 'file_id',
+  password: password,
+  backupCurrent: true,
+);
+
+// List and delete backups
 await exportNotifier.refreshBackups(); // List available backups
 await exportNotifier.deleteBackup('file_id'); // Delete backup
 ```
+
+**IMPORTANT:** If user forgets the password, the backup cannot be restored. The password dialog includes a prominent warning about this.
 
 #### Image Processing
 **Service:** `ImageProcessingService` (`IImageProcessingService`)
@@ -351,6 +397,44 @@ Close DB → Copy DB → Encrypt (AES-256) → Upload to Google Drive (appDataFo
 Clean up → Reopen DB → Audit Log
 ```
 
+## Recent Bug Fixes and Improvements
+
+### Password-Based Database Encryption (December 2024)
+**Problem:** Database exports were encrypted with device-specific keys, making them non-portable across devices.
+
+**Solution:** Implemented PBKDF2-based password encryption:
+- User provides password during export (with strength indicator and confirmation)
+- PBKDF2 with 100,000 iterations derives encryption key from password
+- Backups work across devices and app versions
+- See `docs/fixes/BUG_FIX_SUMMARY.md` for migration details
+
+**Files changed:**
+- `lib/services/encryption_service.dart` - Added `encryptFileWithPassword()` and `decryptFileWithPassword()`
+- `lib/services/database_export_service.dart` - Added password parameters
+- `lib/ui/widgets/password_dialog.dart` - New password input widget
+
+### IV Management Fix (December 2024)
+**Problem:** Database imports failed after app reinstall because IV (Initialization Vector) was randomly generated but never stored.
+
+**Solution:** Prepend IV to encrypted data: `[IV (16 bytes)][Encrypted Data]`
+- Each encryption generates unique IV
+- IV stored with encrypted data (self-contained files)
+- Works across app versions
+
+**Files changed:**
+- `lib/services/encryption_service.dart` - Updated `encryptBytes()` and `decryptBytes()` to prepend IV
+
+### Scroll Fix in Document Search (December 2024)
+**Problem:** Scroll not working in Documents tab when searching.
+
+**Solution:** Made `DocumentGrid` widget configurable:
+- Added optional `controller`, `physics`, and `shrinkWrap` parameters
+- Default to `AlwaysScrollableScrollPhysics()` for scrollable grids
+- Backward compatible with existing usage in `HomeScreen`
+
+**Files changed:**
+- `lib/ui/widgets/document_grid.dart` - Added optional scroll parameters
+
 ## Documentation References
 
 Comprehensive documentation is available in `docs/`:
@@ -359,6 +443,8 @@ Comprehensive documentation is available in `docs/`:
 - **Troubleshooting**: `docs/TROUBLESHOOTING_LOGGING_SYSTEM.md` - File-based logging for support
 - **DB Export/Import**: `docs/features/DATABASE_EXPORT_IMPORT.md` - Google Drive backup feature
 - **Refactoring Status**: `docs/architecture/REFACTORING_SUMMARY.md` - SOLID refactoring progress
+- **Bug Fixes**: `docs/fixes/BUG_FIX_SUMMARY.md` - Detailed bug fix documentation
 - **Service Interfaces**: `docs/api/service-interfaces.md` - API contracts
 - **Requirements**: `docs/requirements/requirements.md` - Functional requirements
 - **User Guide**: `docs/user-guide/getting-started.md` - End-user documentation
+- **Google Drive Setup**: `docs/features/google-drive/` - Google Drive integration guides
