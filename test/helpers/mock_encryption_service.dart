@@ -121,7 +121,8 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
   }
 
   @override
-  Future<String> encryptFileWithPassword(String filePath, String password) async {
+  Future<String> encryptFileWithPassword(
+      String filePath, String password) async {
     // Mock implementation - just use regular encrypt for testing
     return encryptFile(filePath);
   }

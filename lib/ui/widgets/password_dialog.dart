@@ -137,7 +137,8 @@ class _PasswordDialogState extends State<PasswordDialog> {
                 }
               },
             ),
-            if (widget.showStrengthIndicator && _passwordController.text.isNotEmpty) ...[
+            if (widget.showStrengthIndicator &&
+                _passwordController.text.isNotEmpty) ...[
               const SizedBox(height: 8),
               Row(
                 children: [

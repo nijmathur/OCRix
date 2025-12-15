@@ -216,8 +216,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       final extractedIV = IV(ivBytes);
 
       // Extract encrypted data (everything after first 16 bytes)
-      final encryptedData =
-          Uint8List.fromList(encryptedBytes.sublist(16));
+      final encryptedData = Uint8List.fromList(encryptedBytes.sublist(16));
 
       final encrypter = Encrypter(AES(_key!));
       final encrypted = Encrypted(encryptedData);
@@ -417,9 +416,9 @@ class EncryptionService extends BaseService implements IEncryptionService {
   /// Returns: [Key, Salt] - both are needed for encryption/decryption
   List<Uint8List> _deriveKeyFromPassword(String password, Uint8List? salt) {
     // Use provided salt or generate new one
-    final keySalt = salt ?? Uint8List.fromList(
-      List<int>.generate(32, (i) => DateTime.now().millisecondsSinceEpoch % 256 + i)
-    );
+    final keySalt = salt ??
+        Uint8List.fromList(List<int>.generate(
+            32, (i) => DateTime.now().millisecondsSinceEpoch % 256 + i));
 
     // PBKDF2 parameters
     const iterations = 100000; // High iteration count for security

@@ -83,7 +83,8 @@ class DatabaseExportService extends BaseService {
 
         // Step 4: Encrypt the database file with user password
         logInfo('Encrypting database file with password...');
-        final encryptedFilePath = await _encryptionService.encryptFileWithPassword(
+        final encryptedFilePath =
+            await _encryptionService.encryptFileWithPassword(
           tempDbPath,
           password,
         );
@@ -245,7 +246,8 @@ class DatabaseExportService extends BaseService {
 
       // Step 3: Decrypt the database file with user password
       logInfo('Decrypting database file with password...');
-      final decryptedFilePath = await _encryptionService.decryptFileWithPassword(
+      final decryptedFilePath =
+          await _encryptionService.decryptFileWithPassword(
         encryptedFilePath,
         password,
       );
