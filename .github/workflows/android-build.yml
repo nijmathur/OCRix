@@ -57,6 +57,21 @@ jobs:
             - name: Verify Flutter setup
               run: flutter doctor -v
 
+            - name: Free up disk space
+              run: |
+                  echo "Disk space before cleanup:"
+                  df -h
+
+                  # Remove unnecessary packages and files
+                  sudo rm -rf /usr/share/dotnet
+                  sudo rm -rf /usr/local/lib/android
+                  sudo rm -rf /opt/ghc
+                  sudo rm -rf /opt/hostedtoolcache/CodeQL
+                  sudo docker image prune --all --force
+
+                  echo "Disk space after cleanup:"
+                  df -h
+
             - name: Run Flutter analyze
               run: |
                   echo "Running static analysis..."
@@ -79,9 +94,6 @@ jobs:
                   fi
                   echo "✅ ProGuard rules file exists"
 
-            - name: Build APK (Debug)
-              run: flutter build apk --debug
-
             - name: Build APK (Release)
               run: flutter build apk --release
 
@@ -93,13 +105,6 @@ jobs:
                   fi
                   echo "✅ Release APK built successfully"
                   ls -lh build/app/outputs/flutter-apk/
-
-            - name: Upload Debug APK
-              uses: actions/upload-artifact@v4
-              with:
-                  name: app-debug-apk
-                  path: build/app/outputs/flutter-apk/app-debug.apk
-                  retention-days: 7
 
             - name: Upload Release APK
               uses: actions/upload-artifact@v4
