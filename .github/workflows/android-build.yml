@@ -62,12 +62,14 @@ jobs:
                   echo "Disk space before cleanup:"
                   df -h
 
-                  # Remove unnecessary packages and files
+                  # Remove unnecessary packages and files (but keep Android SDK)
                   sudo rm -rf /usr/share/dotnet
-                  sudo rm -rf /usr/local/lib/android
                   sudo rm -rf /opt/ghc
                   sudo rm -rf /opt/hostedtoolcache/CodeQL
-                  sudo docker image prune --all --force
+                  sudo rm -rf /usr/local/share/boost
+                  sudo rm -rf /usr/local/share/powershell
+                  sudo rm -rf /usr/share/swift
+                  sudo docker image prune --all --force || true
 
                   echo "Disk space after cleanup:"
                   df -h
