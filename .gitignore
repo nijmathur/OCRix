@@ -126,3 +126,9 @@ $RECYCLE.BIN/
 
 # Local configuration files
 local.properties
+
+# Android signing
+android/key.properties
+*.jks
+*.keystore
+upload-keystore.jks
