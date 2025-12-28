@@ -83,13 +83,15 @@ jobs:
                   KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
               run: |
                   if [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_PASSWORD" ] && [ -n "$KEY_ALIAS" ]; then
+                      KEYSTORE_PATH="${GITHUB_WORKSPACE}/android/app/release-keystore.jks"
                       cat > android/key.properties << EOF
                   storePassword=$KEYSTORE_PASSWORD
                   keyPassword=$KEY_PASSWORD
                   keyAlias=$KEY_ALIAS
-                  storeFile=release-keystore.jks
+                  storeFile=$KEYSTORE_PATH
                   EOF
                       echo "✅ key.properties created successfully"
+                      echo "Keystore path: $KEYSTORE_PATH"
                   else
                       echo "⚠️ Warning: Signing secrets not set, will use debug signing"
                   fi
