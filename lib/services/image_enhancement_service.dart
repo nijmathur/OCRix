@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
@@ -80,14 +79,20 @@ class ImageEnhancementService extends BaseService
       appliedEnhancements['noiseStrength'] = options.noiseReductionStrength;
     }
 
-    // 4. Contrast adjustment (if enabled)
+    // 4. Sharpening (if enabled) - improves text clarity for OCR
+    if (options.sharpen) {
+      image = _sharpenImage(image);
+      appliedEnhancements['sharpen'] = true;
+    }
+
+    // 5. Contrast adjustment (if enabled)
     if (options.adjustContrast) {
       image = img.adjustColor(image, contrast: options.contrastFactor);
       appliedEnhancements['contrastAdjustment'] = true;
       appliedEnhancements['contrastFactor'] = options.contrastFactor;
     }
 
-    // 5. Brightness adjustment (if enabled)
+    // 6. Brightness adjustment (if enabled)
     if (options.adjustBrightness) {
       final brightnessValue = ((options.brightnessFactor - 1.0) * 100).round();
       image = img.adjustColor(image, brightness: brightnessValue.toDouble());
@@ -95,7 +100,7 @@ class ImageEnhancementService extends BaseService
       appliedEnhancements['brightnessFactor'] = options.brightnessFactor;
     }
 
-    // 6. Binarization (if enabled) - should be last
+    // 7. Binarization (if enabled) - should be last
     if (options.binarize) {
       image = _binarizeImageInIsolate(image, options.binarizationThreshold);
       appliedEnhancements['binarization'] = true;
@@ -168,18 +173,128 @@ class ImageEnhancementService extends BaseService
   }
 
   static List<math.Point<int>>? _findDocumentCorners(img.Image edges) {
-    // Simplified corner detection
-    // In a production app, you'd use Hough transform or contour detection
-    // For now, return null to indicate we couldn't find corners reliably
+    // Find document corners using edge density analysis
+    final width = edges.width;
+    final height = edges.height;
+
+    // Divide image into grid and find edge density in each cell
+    const gridSize = 10;
+    final cellWidth = width ~/ gridSize;
+    final cellHeight = height ~/ gridSize;
+
+    // Find the bounding box of the document based on edge density
+    int minX = width;
+    int maxX = 0;
+    int minY = height;
+    int maxY = 0;
+
+    for (var gy = 0; gy < gridSize; gy++) {
+      for (var gx = 0; gx < gridSize; gx++) {
+        final density = _calculateEdgeDensity(
+          edges,
+          gx * cellWidth,
+          gy * cellHeight,
+          cellWidth,
+          cellHeight,
+        );
+
+        // Threshold for edge detection (30% of max intensity)
+        if (density > 76) {
+          // 76 ≈ 30% of 255
+          if (gx * cellWidth < minX) minX = gx * cellWidth;
+          if ((gx + 1) * cellWidth > maxX) maxX = (gx + 1) * cellWidth;
+          if (gy * cellHeight < minY) minY = gy * cellHeight;
+          if ((gy + 1) * cellHeight > maxY) maxY = (gy + 1) * cellHeight;
+        }
+      }
+    }
+
+    // If we found a reasonable bounding box (at least 30% of image)
+    final detectedWidth = maxX - minX;
+    final detectedHeight = maxY - minY;
+    if (detectedWidth > width * 0.3 && detectedHeight > height * 0.3) {
+      // Return corners in clockwise order: top-left, top-right, bottom-right, bottom-left
+      return [
+        math.Point(minX, minY), // Top-left
+        math.Point(maxX, minY), // Top-right
+        math.Point(maxX, maxY), // Bottom-right
+        math.Point(minX, maxY), // Bottom-left
+      ];
+    }
+
+    // Couldn't find reliable corners
     return null;
+  }
+
+  static int _calculateEdgeDensity(
+      img.Image edges, int startX, int startY, int width, int height) {
+    int totalIntensity = 0;
+    int pixelCount = 0;
+
+    final endX = math.min(startX + width, edges.width);
+    final endY = math.min(startY + height, edges.height);
+
+    for (var y = startY; y < endY; y++) {
+      for (var x = startX; x < endX; x++) {
+        final pixel = edges.getPixel(x, y);
+        totalIntensity += img.getLuminance(pixel).toInt();
+        pixelCount++;
+      }
+    }
+
+    return pixelCount > 0 ? totalIntensity ~/ pixelCount : 0;
   }
 
   static img.Image _applyPerspectiveTransform(
       img.Image image, List<math.Point<int>> corners) {
-    // This would apply a perspective transform matrix
-    // For now, return the original image
-    // A full implementation would use homography transformation
-    return image;
+    // Apply perspective correction by cropping to the document bounds
+    // corners order: top-left, top-right, bottom-right, bottom-left
+    if (corners.length != 4) return image;
+
+    final topLeft = corners[0];
+    final topRight = corners[1];
+    final bottomRight = corners[2];
+    final bottomLeft = corners[3];
+
+    // Calculate the bounding box
+    final minX = math.min(
+      math.min(topLeft.x, topRight.x),
+      math.min(bottomLeft.x, bottomRight.x),
+    );
+    final maxX = math.max(
+      math.max(topLeft.x, topRight.x),
+      math.max(bottomLeft.x, bottomRight.x),
+    );
+    final minY = math.min(
+      math.min(topLeft.y, topRight.y),
+      math.min(bottomLeft.y, bottomRight.y),
+    );
+    final maxY = math.max(
+      math.max(topLeft.y, topRight.y),
+      math.max(bottomLeft.y, bottomRight.y),
+    );
+
+    // Ensure bounds are within image dimensions
+    final cropX = math.max(0, minX);
+    final cropY = math.max(0, minY);
+    final cropWidth = math.min(maxX - minX, image.width - cropX);
+    final cropHeight = math.min(maxY - minY, image.height - cropY);
+
+    // Validate crop dimensions
+    if (cropWidth <= 0 || cropHeight <= 0) {
+      return image; // Invalid crop, return original
+    }
+
+    // Crop the image to document bounds
+    final cropped = img.copyCrop(
+      image,
+      x: cropX,
+      y: cropY,
+      width: cropWidth,
+      height: cropHeight,
+    );
+
+    return cropped;
   }
 
   @override
@@ -213,19 +328,59 @@ class ImageEnhancementService extends BaseService
   }
 
   static double _detectSkewAngle(img.Image image) {
-    // Simplified skew detection using projection profile method
-    // Convert to grayscale and binarize
+    // Skew detection using projection profile method
+    // Convert to grayscale and binarize for edge detection
     final gray = img.grayscale(image);
-    final binary = img.grayscale(gray);
+    final edges = img.sobel(gray);
 
-    // For a production implementation, you would:
-    // 1. Use Hough transform to detect lines
-    // 2. Calculate dominant line angle
-    // 3. Return the skew angle
+    // Use variance of horizontal projection to detect skew
+    // Test angles from -15 to +15 degrees in 0.5 degree increments
+    double bestAngle = 0.0;
+    double maxVariance = 0.0;
 
-    // For now, return 0 (no skew detected)
-    // A real implementation would analyze horizontal projection profiles
-    return 0.0;
+    for (double angle = -15.0; angle <= 15.0; angle += 0.5) {
+      // Rotate image by test angle
+      final rotated = img.copyRotate(edges, angle: angle);
+
+      // Calculate horizontal projection profile
+      final variance = _calculateProjectionVariance(rotated);
+
+      // The correct angle will have maximum variance in horizontal projection
+      if (variance > maxVariance) {
+        maxVariance = variance;
+        bestAngle = angle;
+      }
+    }
+
+    return bestAngle;
+  }
+
+  static double _calculateProjectionVariance(img.Image image) {
+    // Calculate variance of horizontal projection profile
+    // Higher variance = better text line alignment (correct skew angle)
+    final projections = <int>[];
+
+    // Sum pixel intensities for each row
+    for (var y = 0; y < image.height; y++) {
+      int rowSum = 0;
+      for (var x = 0; x < image.width; x++) {
+        final pixel = image.getPixel(x, y);
+        rowSum += img.getLuminance(pixel).toInt();
+      }
+      projections.add(rowSum);
+    }
+
+    // Calculate mean
+    final mean = projections.reduce((a, b) => a + b) / projections.length;
+
+    // Calculate variance
+    double variance = 0.0;
+    for (final value in projections) {
+      variance += math.pow(value - mean, 2);
+    }
+    variance /= projections.length;
+
+    return variance;
   }
 
   @override
@@ -366,12 +521,16 @@ class ImageEnhancementService extends BaseService
     // Convert to grayscale first
     final gray = img.grayscale(image);
 
+    // If threshold is 0, use Otsu's method for automatic threshold detection
+    final finalThreshold =
+        threshold == 0 ? _calculateOtsuThreshold(gray) : threshold;
+
     // Apply threshold
     for (var y = 0; y < gray.height; y++) {
       for (var x = 0; x < gray.width; x++) {
         final pixel = gray.getPixel(x, y);
         final luminance = img.getLuminance(pixel);
-        final newValue = luminance > threshold ? 255 : 0;
+        final newValue = luminance > finalThreshold ? 255 : 0;
         gray.setPixelRgba(x, y, newValue, newValue, newValue, 255);
       }
     }
@@ -379,22 +538,96 @@ class ImageEnhancementService extends BaseService
     return gray;
   }
 
+  static int _calculateOtsuThreshold(img.Image image) {
+    // Otsu's method for automatic threshold calculation
+    // Calculate histogram
+    final histogram = List<int>.filled(256, 0);
+    for (var y = 0; y < image.height; y++) {
+      for (var x = 0; x < image.width; x++) {
+        final pixel = image.getPixel(x, y);
+        final luminance = img.getLuminance(pixel).toInt();
+        histogram[luminance]++;
+      }
+    }
+
+    final totalPixels = image.width * image.height;
+
+    // Calculate sum of all intensities
+    double sum = 0;
+    for (var i = 0; i < 256; i++) {
+      sum += i * histogram[i];
+    }
+
+    double sumBackground = 0;
+    int weightBackground = 0;
+    int weightForeground = 0;
+
+    double maxVariance = 0;
+    int threshold = 0;
+
+    // Try all possible thresholds
+    for (var t = 0; t < 256; t++) {
+      weightBackground += histogram[t];
+      if (weightBackground == 0) continue;
+
+      weightForeground = totalPixels - weightBackground;
+      if (weightForeground == 0) break;
+
+      sumBackground += t * histogram[t];
+
+      final meanBackground = sumBackground / weightBackground;
+      final meanForeground = (sum - sumBackground) / weightForeground;
+
+      // Calculate between-class variance
+      final variance = weightBackground.toDouble() *
+          weightForeground.toDouble() *
+          math.pow(meanBackground - meanForeground, 2);
+
+      // Check if new maximum found
+      if (variance > maxVariance) {
+        maxVariance = variance;
+        threshold = t;
+      }
+    }
+
+    return threshold;
+  }
+
   @override
   Future<ImageEnhancementResult> autoEnhance(Uint8List imageBytes) async {
-    // Apply smart defaults for document scanning
+    // Apply smart defaults for OCR document scanning
     const options = ImageEnhancementOptions(
-      perspectiveCorrection:
-          false, // Disabled for now (needs better implementation)
-      deskew: true,
+      perspectiveCorrection: true, // Now implemented with edge detection
+      deskew: true, // Now uses projection profile method
       adjustContrast: true,
       adjustBrightness: true,
       reduceNoise: true,
-      binarize: false, // User preference
-      contrastFactor: 1.3,
-      brightnessFactor: 1.1,
-      noiseReductionStrength: 2,
+      sharpen: true, // Improves text clarity for OCR
+      binarize:
+          false, // User preference (can use Otsu if enabled with threshold: 0)
+      contrastFactor: 1.4, // Increased for better text clarity
+      brightnessFactor: 1.05, // Slight brightness boost
+      noiseReductionStrength: 2, // Moderate noise reduction
     );
 
     return enhanceImage(imageBytes, options);
+  }
+
+  /// Apply sharpening filter to improve text clarity for OCR
+  static img.Image _sharpenImage(img.Image image) {
+    // Unsharp mask kernel for sharpening (3x3 matrix)
+    // This enhances edges and text clarity
+    final sharpened = img.convolution(
+      image,
+      filter: [
+        -1, -1, -1,
+        -1, 9, -1,
+        -1, -1, -1,
+      ],
+      div: 1,
+      offset: 0,
+    );
+
+    return sharpened;
   }
 }

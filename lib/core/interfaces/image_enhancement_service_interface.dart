@@ -7,6 +7,7 @@ class ImageEnhancementOptions {
   final bool adjustContrast;
   final bool adjustBrightness;
   final bool reduceNoise;
+  final bool sharpen;
   final bool binarize;
 
   // Enhancement parameters
@@ -15,7 +16,7 @@ class ImageEnhancementOptions {
   final double
       brightnessFactor; // 1.0 = no change, >1.0 = brighter, <1.0 = darker
   final int noiseReductionStrength; // 1-5, higher = more aggressive
-  final int binarizationThreshold; // 0-255, for adaptive thresholding
+  final int binarizationThreshold; // 0-255, 0 = use Otsu's automatic threshold
 
   const ImageEnhancementOptions({
     this.perspectiveCorrection = false,
@@ -23,6 +24,7 @@ class ImageEnhancementOptions {
     this.adjustContrast = false,
     this.adjustBrightness = false,
     this.reduceNoise = false,
+    this.sharpen = false,
     this.binarize = false,
     this.contrastFactor = 1.2,
     this.brightnessFactor = 1.1,
@@ -37,6 +39,7 @@ class ImageEnhancementOptions {
       'adjustContrast': adjustContrast,
       'adjustBrightness': adjustBrightness,
       'reduceNoise': reduceNoise,
+      'sharpen': sharpen,
       'binarize': binarize,
       'contrastFactor': contrastFactor,
       'brightnessFactor': brightnessFactor,
@@ -52,6 +55,7 @@ class ImageEnhancementOptions {
       adjustContrast: json['adjustContrast'] ?? false,
       adjustBrightness: json['adjustBrightness'] ?? false,
       reduceNoise: json['reduceNoise'] ?? false,
+      sharpen: json['sharpen'] ?? false,
       binarize: json['binarize'] ?? false,
       contrastFactor: json['contrastFactor'] ?? 1.2,
       brightnessFactor: json['brightnessFactor'] ?? 1.1,
