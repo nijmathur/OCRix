@@ -15,14 +15,18 @@ import '../core/interfaces/camera_service_interface.dart';
 import '../core/interfaces/encryption_service_interface.dart';
 import '../core/interfaces/storage_provider_service_interface.dart';
 import '../core/interfaces/image_processing_service_interface.dart';
+import '../core/interfaces/image_enhancement_service_interface.dart';
 import '../core/models/ocr_result.dart';
 import '../core/config/app_config.dart';
 import '../services/audit_logging_service.dart';
 import '../models/audit_log.dart';
 import 'audit_provider.dart';
 import 'troubleshooting_logger_provider.dart';
+import 'image_enhancement_provider.dart';
 import '../core/interfaces/troubleshooting_logger_interface.dart';
 import '../models/document_page.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 // Service providers - using interfaces for dependency inversion
 final databaseServiceProvider = Provider<IDatabaseService>((ref) {
@@ -78,6 +82,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
   final IDatabaseService _databaseService;
   final IOCRService _ocrService;
   final IImageProcessingService _imageProcessingService;
+  final IImageEnhancementService _imageEnhancementService;
   final AuditLoggingService? _auditLoggingService;
   final ITroubleshootingLogger? _troubleshootingLogger;
 
@@ -90,12 +95,14 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
     this._databaseService,
     this._ocrService,
     ICameraService cameraService,
-    IStorageProviderService storageService, {
+    IStorageProviderService storageService,
+    IImageEnhancementService imageEnhancementService, {
     IImageProcessingService? imageProcessingService,
     AuditLoggingService? auditLoggingService,
     ITroubleshootingLogger? troubleshootingLogger,
   })  : _imageProcessingService =
             imageProcessingService ?? ImageProcessingService(),
+        _imageEnhancementService = imageEnhancementService,
         _auditLoggingService = auditLoggingService,
         _troubleshootingLogger = troubleshootingLogger,
         super(const AsyncValue.loading()) {
@@ -182,6 +189,45 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
 
   bool get hasMore => _hasMore;
 
+  /// Apply auto-enhancement to image and return path to enhanced temp file
+  Future<String> _applyAutoEnhancement(
+      String originalPath, Uint8List imageBytes) async {
+    try {
+      _troubleshootingLogger?.info(
+        'Applying automatic image enhancement for better OCR accuracy',
+        tag: 'DocumentNotifier',
+      );
+
+      // Apply auto-enhancement
+      final enhancementResult =
+          await _imageEnhancementService.autoEnhance(imageBytes);
+
+      // Save enhanced image to temporary file
+      final tempDir = await getTemporaryDirectory();
+      final enhancedPath = path.join(
+        tempDir.path,
+        'enhanced_${path.basename(originalPath)}',
+      );
+      final enhancedFile = File(enhancedPath);
+      await enhancedFile.writeAsBytes(enhancementResult.enhancedImageBytes);
+
+      _troubleshootingLogger?.info(
+        'Auto-enhancement applied: ${enhancementResult.appliedEnhancements}',
+        tag: 'DocumentNotifier',
+      );
+
+      return enhancedPath;
+    } catch (e) {
+      _troubleshootingLogger?.warning(
+        'Failed to apply auto-enhancement, using original image',
+        tag: 'DocumentNotifier',
+        error: e,
+      );
+      // Return original path if enhancement fails
+      return originalPath;
+    }
+  }
+
   Future<String> scanDocument({
     required String imagePath,
     String? title,
@@ -189,6 +235,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
     String? notes,
     String? location,
   }) async {
+    String? enhancedImagePath;
     try {
       state = const AsyncValue.loading();
 
@@ -203,14 +250,18 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         throw Exception('Image file is empty');
       }
 
+      // Apply auto-enhancement for better OCR accuracy
+      enhancedImagePath = await _applyAutoEnhancement(imagePath, imageBytes);
+
       // Process image for optimal storage using ImageProcessingService
       final processedResult =
           await _imageProcessingService.processImageForStorage(
         imageBytes.toList(),
       );
 
-      // Extract text using OCR
-      final ocrResult = await _ocrService.extractTextFromImage(imagePath);
+      // Extract text using OCR from enhanced image
+      final ocrResult =
+          await _ocrService.extractTextFromImage(enhancedImagePath);
 
       // Categorize document
       final documentType = await _ocrService.categorizeDocument(ocrResult.text);
@@ -289,6 +340,26 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       );
       state = AsyncValue.error(e, stackTrace);
       rethrow;
+    } finally {
+      // Clean up enhanced temporary file
+      if (enhancedImagePath != null && enhancedImagePath != imagePath) {
+        try {
+          final enhancedFile = File(enhancedImagePath);
+          if (await enhancedFile.exists()) {
+            await enhancedFile.delete();
+            _troubleshootingLogger?.debug(
+              'Cleaned up enhanced temporary file: $enhancedImagePath',
+              tag: 'DocumentNotifier',
+            );
+          }
+        } catch (e) {
+          _troubleshootingLogger?.warning(
+            'Failed to cleanup enhanced temp file',
+            tag: 'DocumentNotifier',
+            error: e,
+          );
+        }
+      }
     }
   }
 
@@ -531,6 +602,7 @@ final documentNotifierProvider =
   final cameraService = ref.read(cameraServiceProvider);
   final storageService = ref.read(storageProviderServiceProvider);
   final imageProcessingService = ref.read(imageProcessingServiceProvider);
+  final imageEnhancementService = ref.read(imageEnhancementServiceProvider);
   final auditLoggingService = ref.read(auditLoggingServiceProvider);
 
   final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
@@ -540,6 +612,7 @@ final documentNotifierProvider =
     ocrService,
     cameraService,
     storageService,
+    imageEnhancementService,
     imageProcessingService: imageProcessingService,
     auditLoggingService: auditLoggingService,
     troubleshootingLogger: troubleshootingLogger,
