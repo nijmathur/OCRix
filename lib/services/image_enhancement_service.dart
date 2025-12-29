@@ -168,12 +168,129 @@ class ImageEnhancementService extends BaseService
     // Convert to grayscale
     final gray = img.grayscale(image);
 
+    // Apply Gaussian blur to reduce noise before edge detection
+    final blurred = img.gaussianBlur(gray, radius: 2);
+
     // Apply Sobel operator for edge detection
-    return img.sobel(gray);
+    final edges = img.sobel(blurred);
+
+    // Apply morphological operations to improve edge connectivity
+    final dilated = _dilateEdges(edges, iterations: 1);
+    final cleaned = _erodeEdges(dilated, iterations: 1);
+
+    return cleaned;
+  }
+
+  /// Dilate edges to connect nearby edge pixels
+  static img.Image _dilateEdges(img.Image image, {int iterations = 1}) {
+    var result = image;
+    for (var i = 0; i < iterations; i++) {
+      result = _morphologyOperation(result, isDilation: true);
+    }
+    return result;
+  }
+
+  /// Erode edges to remove small noise
+  static img.Image _erodeEdges(img.Image image, {int iterations = 1}) {
+    var result = image;
+    for (var i = 0; i < iterations; i++) {
+      result = _morphologyOperation(result, isDilation: false);
+    }
+    return result;
+  }
+
+  /// Perform morphological operation (dilation or erosion)
+  static img.Image _morphologyOperation(img.Image image,
+      {required bool isDilation}) {
+    final output = img.Image.from(image);
+
+    // 3x3 structuring element (cross shape)
+    final kernel = [
+      [0, 1, 0],
+      [1, 1, 1],
+      [0, 1, 0],
+    ];
+
+    for (var y = 1; y < image.height - 1; y++) {
+      for (var x = 1; x < image.width - 1; x++) {
+        int maxValue = 0;
+        int minValue = 255;
+
+        // Apply kernel
+        for (var ky = -1; ky <= 1; ky++) {
+          for (var kx = -1; kx <= 1; kx++) {
+            if (kernel[ky + 1][kx + 1] == 1) {
+              final pixel = image.getPixel(x + kx, y + ky);
+              final value = img.getLuminance(pixel).toInt();
+              if (value > maxValue) maxValue = value;
+              if (value < minValue) minValue = value;
+            }
+          }
+        }
+
+        final newValue = isDilation ? maxValue : minValue;
+        output.setPixelRgba(x, y, newValue, newValue, newValue, 255);
+      }
+    }
+
+    return output;
   }
 
   static List<math.Point<int>>? _findDocumentCorners(img.Image edges) {
-    // Find document corners using edge density analysis
+    // Try contour-based corner detection first
+    final contourCorners = _findCornersUsingContours(edges);
+    if (contourCorners != null) {
+      return contourCorners;
+    }
+
+    // Fallback to edge density analysis
+    return _findCornersUsingEdgeDensity(edges);
+  }
+
+  /// Find corners using contour detection and approximation
+  static List<math.Point<int>>? _findCornersUsingContours(img.Image edges) {
+    final width = edges.width;
+    final height = edges.height;
+
+    // Threshold the edge image to get binary edges
+    final binary = img.Image.from(edges);
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        final pixel = edges.getPixel(x, y);
+        final value = img.getLuminance(pixel).toInt();
+        // Use adaptive threshold
+        final newValue = value > 50 ? 255 : 0;
+        binary.setPixelRgba(x, y, newValue, newValue, newValue, 255);
+      }
+    }
+
+    // Find the largest connected component (document)
+    final contours = _findContours(binary);
+    if (contours.isEmpty) return null;
+
+    // Sort by area and get the largest contour
+    contours.sort(
+        (a, b) => _calculateContourArea(b).compareTo(_calculateContourArea(a)));
+
+    // Take the largest contour that's at least 20% of image area
+    final minArea = width * height * 0.2;
+    for (final contour in contours) {
+      final area = _calculateContourArea(contour);
+      if (area < minArea) continue;
+
+      // Approximate contour to quadrilateral
+      final quad = _approximateToQuadrilateral(contour);
+      if (quad != null && quad.length == 4) {
+        // Order corners: top-left, top-right, bottom-right, bottom-left
+        return _orderCorners(quad);
+      }
+    }
+
+    return null;
+  }
+
+  /// Find corners using edge density analysis (fallback method)
+  static List<math.Point<int>>? _findCornersUsingEdgeDensity(img.Image edges) {
     final width = edges.width;
     final height = edges.height;
 
@@ -200,7 +317,6 @@ class ImageEnhancementService extends BaseService
 
         // Threshold for edge detection (30% of max intensity)
         if (density > 76) {
-          // 76 ≈ 30% of 255
           if (gx * cellWidth < minX) minX = gx * cellWidth;
           if ((gx + 1) * cellWidth > maxX) maxX = (gx + 1) * cellWidth;
           if (gy * cellHeight < minY) minY = gy * cellHeight;
@@ -213,7 +329,6 @@ class ImageEnhancementService extends BaseService
     final detectedWidth = maxX - minX;
     final detectedHeight = maxY - minY;
     if (detectedWidth > width * 0.3 && detectedHeight > height * 0.3) {
-      // Return corners in clockwise order: top-left, top-right, bottom-right, bottom-left
       return [
         math.Point(minX, minY), // Top-left
         math.Point(maxX, minY), // Top-right
@@ -222,8 +337,198 @@ class ImageEnhancementService extends BaseService
       ];
     }
 
-    // Couldn't find reliable corners
     return null;
+  }
+
+  /// Find contours in a binary image
+  static List<List<math.Point<int>>> _findContours(img.Image binary) {
+    final contours = <List<math.Point<int>>>[];
+    final visited = List.generate(
+      binary.height,
+      (_) => List.filled(binary.width, false),
+    );
+
+    for (var y = 0; y < binary.height; y++) {
+      for (var x = 0; x < binary.width; x++) {
+        if (!visited[y][x]) {
+          final pixel = binary.getPixel(x, y);
+          final value = img.getLuminance(pixel).toInt();
+
+          if (value > 128) {
+            // Found edge pixel, trace the contour
+            final contour = _traceContour(binary, x, y, visited);
+            if (contour.length > 10) {
+              // Only keep significant contours
+              contours.add(contour);
+            }
+          }
+        }
+      }
+    }
+
+    return contours;
+  }
+
+  /// Trace a contour starting from a point
+  static List<math.Point<int>> _traceContour(
+    img.Image binary,
+    int startX,
+    int startY,
+    List<List<bool>> visited,
+  ) {
+    final contour = <math.Point<int>>[];
+    final queue = <math.Point<int>>[math.Point(startX, startY)];
+
+    while (queue.isNotEmpty) {
+      final point = queue.removeAt(0);
+      final x = point.x;
+      final y = point.y;
+
+      if (x < 0 || x >= binary.width || y < 0 || y >= binary.height) continue;
+      if (visited[y][x]) continue;
+
+      visited[y][x] = true;
+      final pixel = binary.getPixel(x, y);
+      final value = img.getLuminance(pixel).toInt();
+
+      if (value > 128) {
+        contour.add(point);
+
+        // Add 8-connected neighbors
+        for (var dy = -1; dy <= 1; dy++) {
+          for (var dx = -1; dx <= 1; dx++) {
+            if (dx == 0 && dy == 0) continue;
+            final nx = x + dx;
+            final ny = y + dy;
+            if (nx >= 0 && nx < binary.width && ny >= 0 && ny < binary.height) {
+              if (!visited[ny][nx]) {
+                queue.add(math.Point(nx, ny));
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return contour;
+  }
+
+  /// Calculate the area of a contour
+  static double _calculateContourArea(List<math.Point<int>> contour) {
+    if (contour.length < 3) return 0;
+
+    double area = 0;
+    for (var i = 0; i < contour.length; i++) {
+      final j = (i + 1) % contour.length;
+      area += contour[i].x * contour[j].y;
+      area -= contour[j].x * contour[i].y;
+    }
+    return area.abs() / 2;
+  }
+
+  /// Approximate contour to quadrilateral using Douglas-Peucker algorithm
+  static List<math.Point<int>>? _approximateToQuadrilateral(
+      List<math.Point<int>> contour) {
+    if (contour.length < 4) return null;
+
+    // Simplify contour using Douglas-Peucker
+    var epsilon = 0.02 * _calculatePerimeter(contour);
+    var simplified = _douglasPeucker(contour, epsilon);
+
+    // If we don't have 4 points, try with larger epsilon
+    if (simplified.length != 4) {
+      epsilon = 0.05 * _calculatePerimeter(contour);
+      simplified = _douglasPeucker(contour, epsilon);
+    }
+
+    return simplified.length == 4 ? simplified : null;
+  }
+
+  /// Calculate perimeter of contour
+  static double _calculatePerimeter(List<math.Point<int>> contour) {
+    double perimeter = 0;
+    for (var i = 0; i < contour.length; i++) {
+      final j = (i + 1) % contour.length;
+      perimeter += contour[i].distanceTo(contour[j]);
+    }
+    return perimeter;
+  }
+
+  /// Douglas-Peucker algorithm for contour simplification
+  static List<math.Point<int>> _douglasPeucker(
+      List<math.Point<int>> points, double epsilon) {
+    if (points.length < 3) return points;
+
+    // Find the point with maximum distance from line segment
+    double maxDistance = 0;
+    int maxIndex = 0;
+    final end = points.length - 1;
+
+    for (var i = 1; i < end; i++) {
+      final distance = _perpendicularDistance(
+        points[i],
+        points[0],
+        points[end],
+      );
+      if (distance > maxDistance) {
+        maxDistance = distance;
+        maxIndex = i;
+      }
+    }
+
+    // If max distance is greater than epsilon, recursively simplify
+    if (maxDistance > epsilon) {
+      final left = _douglasPeucker(points.sublist(0, maxIndex + 1), epsilon);
+      final right = _douglasPeucker(points.sublist(maxIndex), epsilon);
+
+      return [...left.sublist(0, left.length - 1), ...right];
+    } else {
+      return [points[0], points[end]];
+    }
+  }
+
+  /// Calculate perpendicular distance from point to line
+  static double _perpendicularDistance(
+    math.Point<int> point,
+    math.Point<int> lineStart,
+    math.Point<int> lineEnd,
+  ) {
+    final dx = lineEnd.x - lineStart.x;
+    final dy = lineEnd.y - lineStart.y;
+
+    if (dx == 0 && dy == 0) {
+      return point.distanceTo(lineStart);
+    }
+
+    final numerator =
+        ((point.x - lineStart.x) * dy - (point.y - lineStart.y) * dx).abs();
+    final denominator = math.sqrt(dx * dx + dy * dy);
+
+    return numerator / denominator;
+  }
+
+  /// Order corners: top-left, top-right, bottom-right, bottom-left
+  static List<math.Point<int>> _orderCorners(List<math.Point<int>> corners) {
+    if (corners.length != 4) return corners;
+
+    // Sort by y-coordinate to get top and bottom pairs
+    final sorted = List<math.Point<int>>.from(corners);
+    sorted.sort((a, b) => a.y.compareTo(b.y));
+
+    // Top two points
+    final topPoints = sorted.sublist(0, 2);
+    topPoints.sort((a, b) => a.x.compareTo(b.x));
+
+    // Bottom two points
+    final bottomPoints = sorted.sublist(2);
+    bottomPoints.sort((a, b) => a.x.compareTo(b.x));
+
+    return [
+      topPoints[0], // Top-left
+      topPoints[1], // Top-right
+      bottomPoints[1], // Bottom-right
+      bottomPoints[0], // Bottom-left
+    ];
   }
 
   static int _calculateEdgeDensity(
