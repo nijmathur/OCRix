@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:uuid/uuid.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/image_enhancement_provider.dart';
 import '../../models/document.dart';
@@ -688,6 +689,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
       for (int i = 0; i < _capturedPages.length; i++) {
         final capturedPage = _capturedPages[i];
+        String? tempEnhancedPath;
 
         try {
           // Verify image file exists
@@ -708,14 +710,34 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                 'Image bytes are empty for page ${capturedPage.pageNumber}');
           }
 
-          // Use enhanced image if available, otherwise original
-          final imageToProcess =
-              capturedPage.enhancedImageBytes ?? capturedPage.imageBytes!;
+          // Prepare image for OCR
+          Uint8List imageForOCR;
 
-          // Perform OCR using file path (more reliable than bytes)
+          if (capturedPage.enhancedImageBytes != null) {
+            // Use manually enhanced image
+            imageForOCR = capturedPage.enhancedImageBytes!;
+          } else {
+            // Apply auto-enhancement for better OCR accuracy
+            final enhancementService =
+                ref.read(imageEnhancementServiceProvider);
+            final enhancementResult =
+                await enhancementService.autoEnhance(capturedPage.imageBytes!);
+            imageForOCR = enhancementResult.enhancedImageBytes;
+          }
+
+          // Save enhanced bytes to temp file for OCR
+          final tempDir = await getTemporaryDirectory();
+          tempEnhancedPath =
+              '${tempDir.path}/ocr_temp_page_${capturedPage.pageNumber}.jpg';
+          await File(tempEnhancedPath).writeAsBytes(imageForOCR);
+
+          // Use enhanced image if available, otherwise original
+          final imageToProcess = capturedPage.enhancedImageBytes ?? imageForOCR;
+
+          // Perform OCR using enhanced image
           final ocrService = ref.read(ocrServiceProvider);
           final ocrResult =
-              await ocrService.extractTextFromImage(capturedPage.imagePath);
+              await ocrService.extractTextFromImage(tempEnhancedPath);
 
           // Create DocumentPage
           final documentPage = DocumentPage.create(
@@ -763,6 +785,18 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                 capturedPage.enhancementOptions?.toJson() ?? {},
           );
           documentPages.add(documentPage);
+        } finally {
+          // Clean up temporary enhanced file
+          if (tempEnhancedPath != null) {
+            try {
+              final tempFile = File(tempEnhancedPath);
+              if (await tempFile.exists()) {
+                await tempFile.delete();
+              }
+            } catch (_) {
+              // Ignore cleanup errors
+            }
+          }
         }
       }
 
