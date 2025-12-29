@@ -175,7 +175,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
           document_id TEXT NOT NULL,
           page_number INTEGER NOT NULL,
           image_data BLOB,
-          original_image_data BLOB,
           thumbnail_data BLOB,
           image_format TEXT DEFAULT 'jpeg',
           image_size INTEGER,
@@ -185,8 +184,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
           confidence_score REAL NOT NULL,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL,
-          is_enhanced INTEGER NOT NULL DEFAULT 0,
-          enhancement_metadata TEXT,
           FOREIGN KEY (document_id) REFERENCES documents (id) ON DELETE CASCADE
         )
       ''');
@@ -452,7 +449,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
             document_id TEXT NOT NULL,
             page_number INTEGER NOT NULL,
             image_data BLOB,
-            original_image_data BLOB,
             thumbnail_data BLOB,
             image_format TEXT DEFAULT 'jpeg',
             image_size INTEGER,
@@ -462,8 +458,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
             confidence_score REAL NOT NULL,
             created_at INTEGER NOT NULL,
             updated_at INTEGER NOT NULL,
-            is_enhanced INTEGER NOT NULL DEFAULT 0,
-            enhancement_metadata TEXT,
             FOREIGN KEY (document_id) REFERENCES documents (id) ON DELETE CASCADE
           )
         ''');
@@ -1236,7 +1230,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
           'document_id': page.documentId,
           'page_number': page.pageNumber,
           'image_data': page.imageData,
-          'original_image_data': page.originalImageData,
           'thumbnail_data': page.thumbnailData,
           'image_format': page.imageFormat,
           'image_size': page.imageSize,
@@ -1246,10 +1239,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
           'confidence_score': page.confidenceScore,
           'created_at': page.createdAt.millisecondsSinceEpoch,
           'updated_at': page.updatedAt.millisecondsSinceEpoch,
-          'is_enhanced': page.isEnhanced ? 1 : 0,
-          'enhancement_metadata': page.enhancementMetadata.isNotEmpty
-              ? jsonEncode(page.enhancementMetadata)
-              : null,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
@@ -1326,7 +1315,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         'document_pages',
         {
           'image_data': page.imageData,
-          'original_image_data': page.originalImageData,
           'thumbnail_data': page.thumbnailData,
           'image_format': page.imageFormat,
           'image_size': page.imageSize,
@@ -1335,10 +1323,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
           'extracted_text': page.extractedText,
           'confidence_score': page.confidenceScore,
           'updated_at': DateTime.now().millisecondsSinceEpoch,
-          'is_enhanced': page.isEnhanced ? 1 : 0,
-          'enhancement_metadata': page.enhancementMetadata.isNotEmpty
-              ? jsonEncode(page.enhancementMetadata)
-              : null,
         },
         where: 'id = ?',
         whereArgs: [page.id],
@@ -1404,7 +1388,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
       documentId: map['document_id'] as String,
       pageNumber: map['page_number'] as int,
       imageData: map['image_data'] as Uint8List?,
-      originalImageData: map['original_image_data'] as Uint8List?,
       thumbnailData: map['thumbnail_data'] as Uint8List?,
       imageFormat: map['image_format'] as String? ?? 'jpeg',
       imageSize: map['image_size'] as int?,
@@ -1414,11 +1397,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
       confidenceScore: map['confidence_score'] as double,
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
-      isEnhanced: (map['is_enhanced'] as int) == 1,
-      enhancementMetadata: map['enhancement_metadata'] != null
-          ? jsonDecode(map['enhancement_metadata'] as String)
-              as Map<String, dynamic>
-          : {},
     );
   }
 }

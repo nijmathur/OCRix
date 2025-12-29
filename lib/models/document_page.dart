@@ -30,8 +30,6 @@ class DocumentPage extends Equatable {
   @Uint8ListConverter()
   final Uint8List? imageData;
   @Uint8ListConverter()
-  final Uint8List? originalImageData; // Store original before enhancement
-  @Uint8ListConverter()
   final Uint8List? thumbnailData;
   final String imageFormat;
   final int? imageSize;
@@ -41,15 +39,12 @@ class DocumentPage extends Equatable {
   final double confidenceScore;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final bool isEnhanced;
-  final Map<String, dynamic> enhancementMetadata; // Store enhancement settings
 
   const DocumentPage({
     required this.id,
     required this.documentId,
     required this.pageNumber,
     this.imageData,
-    this.originalImageData,
     this.thumbnailData,
     this.imageFormat = 'jpeg',
     this.imageSize,
@@ -59,15 +54,12 @@ class DocumentPage extends Equatable {
     required this.confidenceScore,
     required this.createdAt,
     required this.updatedAt,
-    this.isEnhanced = false,
-    this.enhancementMetadata = const {},
   });
 
   factory DocumentPage.create({
     required String documentId,
     required int pageNumber,
     Uint8List? imageData,
-    Uint8List? originalImageData,
     Uint8List? thumbnailData,
     String imageFormat = 'jpeg',
     int? imageSize,
@@ -75,8 +67,6 @@ class DocumentPage extends Equatable {
     int? imageHeight,
     required String extractedText,
     required double confidenceScore,
-    bool isEnhanced = false,
-    Map<String, dynamic> enhancementMetadata = const {},
   }) {
     final now = DateTime.now();
     return DocumentPage(
@@ -84,7 +74,6 @@ class DocumentPage extends Equatable {
       documentId: documentId,
       pageNumber: pageNumber,
       imageData: imageData,
-      originalImageData: originalImageData,
       thumbnailData: thumbnailData,
       imageFormat: imageFormat,
       imageSize: imageSize,
@@ -94,8 +83,6 @@ class DocumentPage extends Equatable {
       confidenceScore: confidenceScore,
       createdAt: now,
       updatedAt: now,
-      isEnhanced: isEnhanced,
-      enhancementMetadata: enhancementMetadata,
     );
   }
 
@@ -104,7 +91,6 @@ class DocumentPage extends Equatable {
     String? documentId,
     int? pageNumber,
     Uint8List? imageData,
-    Uint8List? originalImageData,
     Uint8List? thumbnailData,
     String? imageFormat,
     int? imageSize,
@@ -114,15 +100,12 @@ class DocumentPage extends Equatable {
     double? confidenceScore,
     DateTime? createdAt,
     DateTime? updatedAt,
-    bool? isEnhanced,
-    Map<String, dynamic>? enhancementMetadata,
   }) {
     return DocumentPage(
       id: id ?? this.id,
       documentId: documentId ?? this.documentId,
       pageNumber: pageNumber ?? this.pageNumber,
       imageData: imageData ?? this.imageData,
-      originalImageData: originalImageData ?? this.originalImageData,
       thumbnailData: thumbnailData ?? this.thumbnailData,
       imageFormat: imageFormat ?? this.imageFormat,
       imageSize: imageSize ?? this.imageSize,
@@ -132,8 +115,6 @@ class DocumentPage extends Equatable {
       confidenceScore: confidenceScore ?? this.confidenceScore,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      isEnhanced: isEnhanced ?? this.isEnhanced,
-      enhancementMetadata: enhancementMetadata ?? this.enhancementMetadata,
     );
   }
 
@@ -147,7 +128,6 @@ class DocumentPage extends Equatable {
         documentId,
         pageNumber,
         imageData,
-        originalImageData,
         thumbnailData,
         imageFormat,
         imageSize,
@@ -157,7 +137,5 @@ class DocumentPage extends Equatable {
         confidenceScore,
         createdAt,
         updatedAt,
-        isEnhanced,
-        enhancementMetadata,
       ];
 }
