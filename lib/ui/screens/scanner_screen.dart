@@ -60,28 +60,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isMultiPageMode
-            ? 'Multi-Page Scanner (${_capturedPages.length})'
-            : 'Document Scanner'),
+        title: const Text('Document Scanner'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // Multi-page mode toggle
-          IconButton(
-            icon: Icon(_isMultiPageMode ? Icons.pages : Icons.insert_drive_file),
-            tooltip: _isMultiPageMode
-                ? 'Switch to single page'
-                : 'Switch to multi-page',
-            onPressed: () {
-              setState(() {
-                _isMultiPageMode = !_isMultiPageMode;
-                if (!_isMultiPageMode) {
-                  _capturedPages.clear();
-                }
-              });
-            },
-          ),
           if (_capturedImagePath != null && !_isMultiPageMode)
             IconButton(
               icon: const Icon(Icons.check),
@@ -157,6 +140,77 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       );
     }
 
+    // Build the main content with mode selector
+    return Column(
+      children: [
+        // Prominent mode selector
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.document_scanner, size: 20),
+              const SizedBox(width: 12),
+              const Text(
+                'Scan Mode:',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment<bool>(
+                      value: false,
+                      label: Text('Single Page'),
+                      icon: Icon(Icons.insert_drive_file, size: 18),
+                    ),
+                    ButtonSegment<bool>(
+                      value: true,
+                      label: Text('Multi-Page'),
+                      icon: Icon(Icons.content_copy, size: 18),
+                    ),
+                  ],
+                  selected: {_isMultiPageMode},
+                  onSelectionChanged: (Set<bool> selection) {
+                    setState(() {
+                      _isMultiPageMode = selection.first;
+                      // Clear captured data when switching modes
+                      if (_isMultiPageMode) {
+                        _capturedImagePath = null;
+                      } else {
+                        _capturedPages.clear();
+                      }
+                    });
+                  },
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Main camera/preview content
+        Expanded(
+          child: _buildCameraContent(scannerState),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCameraContent(ScannerState scannerState) {
     // Multi-page mode: show page grid and camera
     if (_isMultiPageMode) {
       return Column(

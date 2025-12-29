@@ -124,6 +124,39 @@ class DocumentListItem extends StatelessWidget {
               size: 24,
             ),
           ),
+          // Multi-page indicator
+          if (document.isMultiPage && document.pageCount > 1)
+            Positioned(
+              bottom: 2,
+              left: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.secondary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.content_copy,
+                      size: 8,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      '${document.pageCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          // Encryption indicator
           if (document.isEncrypted)
             Positioned(
               top: 2,

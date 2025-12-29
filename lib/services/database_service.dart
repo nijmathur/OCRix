@@ -1098,6 +1098,8 @@ class DatabaseService extends BaseService implements IDatabaseService {
       'is_synced': document.isSynced ? 1 : 0,
       'cloud_id': document.cloudId,
       'last_synced_at': document.lastSyncedAt?.millisecondsSinceEpoch,
+      'is_multi_page': document.isMultiPage ? 1 : 0,
+      'page_count': document.pageCount,
     };
   }
 
@@ -1134,6 +1136,8 @@ class DatabaseService extends BaseService implements IDatabaseService {
       lastSyncedAt: map['last_synced_at'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['last_synced_at'])
           : null,
+      isMultiPage: (map['is_multi_page'] ?? 0) == 1,
+      pageCount: map['page_count'] ?? 1,
     );
   }
 
