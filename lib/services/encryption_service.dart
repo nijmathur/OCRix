@@ -126,7 +126,8 @@ class EncryptionService extends BaseService implements IEncryptionService {
 
       if (encryptedBytes.length < 16) {
         throw EncryptionException(
-            'Invalid encrypted text: too short (${encryptedBytes.length} bytes)');
+          'Invalid encrypted text: too short (${encryptedBytes.length} bytes)',
+        );
       }
 
       // Extract IV from first 16 bytes
@@ -180,7 +181,8 @@ class EncryptionService extends BaseService implements IEncryptionService {
       result.setRange(16, result.length, encrypted.bytes);
 
       logInfo(
-          'Bytes encrypted successfully: ${bytes.length} -> ${result.length} (IV: 16 bytes + encrypted: ${encrypted.bytes.length} bytes)');
+        'Bytes encrypted successfully: ${bytes.length} -> ${result.length} (IV: 16 bytes + encrypted: ${encrypted.bytes.length} bytes)',
+      );
       return result.toList();
     } catch (e) {
       logError('Failed to encrypt bytes', e);
@@ -208,7 +210,8 @@ class EncryptionService extends BaseService implements IEncryptionService {
       // Encrypted data format: [IV (16 bytes)][Encrypted Data]
       if (encryptedBytes.length < 16) {
         throw EncryptionException(
-            'Invalid encrypted data: too short (${encryptedBytes.length} bytes)');
+          'Invalid encrypted data: too short (${encryptedBytes.length} bytes)',
+        );
       }
 
       // Extract IV from first 16 bytes
@@ -223,7 +226,8 @@ class EncryptionService extends BaseService implements IEncryptionService {
       final decrypted = encrypter.decryptBytes(encrypted, iv: extractedIV);
 
       logInfo(
-          'Bytes decrypted successfully: ${encryptedBytes.length} (IV: 16 bytes + encrypted: ${encryptedData.length} bytes) -> ${decrypted.length}');
+        'Bytes decrypted successfully: ${encryptedBytes.length} (IV: 16 bytes + encrypted: ${encryptedData.length} bytes) -> ${decrypted.length}',
+      );
       return decrypted.toList();
     } catch (e) {
       logError('Failed to decrypt bytes', e);
@@ -273,7 +277,8 @@ class EncryptionService extends BaseService implements IEncryptionService {
       final encryptedFile = File(encryptedFilePath);
       if (!await encryptedFile.exists()) {
         throw EncryptionException(
-            'Encrypted file does not exist: $encryptedFilePath');
+          'Encrypted file does not exist: $encryptedFilePath',
+        );
       }
 
       final encryptedBytes = await encryptedFile.readAsBytes();

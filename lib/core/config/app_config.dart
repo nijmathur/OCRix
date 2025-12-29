@@ -67,8 +67,9 @@ class AppConfig {
   // Troubleshooting log configuration
   static const String logDirectory = 'logs';
   static const String logFileName = 'app.log';
-  static const Duration logRotationInterval =
-      Duration(hours: 24); // Rotate every 24 hours
+  static const Duration logRotationInterval = Duration(
+    hours: 24,
+  ); // Rotate every 24 hours
   static const int maxLogFileSize = 10 * 1024 * 1024; // 10MB max file size
   static const LogLevel defaultLogLevel =
       LogLevel.debug; // Verbose logging by default

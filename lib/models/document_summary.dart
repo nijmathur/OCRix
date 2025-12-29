@@ -82,17 +82,17 @@ class DocumentSummary extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        title,
-        thumbnailData,
-        imageFormat,
-        type,
-        scanDate,
-        tags,
-        confidenceScore,
-        detectedLanguage,
-        createdAt,
-        updatedAt,
-        isEncrypted,
-      ];
+    id,
+    title,
+    thumbnailData,
+    imageFormat,
+    type,
+    scanDate,
+    tags,
+    confidenceScore,
+    detectedLanguage,
+    createdAt,
+    updatedAt,
+    isEncrypted,
+  ];
 }

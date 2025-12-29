@@ -68,43 +68,45 @@ void main() {
       }
     });
 
-    test('CRITICAL: Audit entry checksum calculation and verification',
-        () async {
-      // Create an audit entry
-      final entry = AuditEntry.create(
-        level: AuditLogLevel.compulsory,
-        action: AuditAction.create,
-        resourceType: 'document',
-        resourceId: 'test_doc_1',
-        userId: 'test_user',
-        details: 'Test document creation',
-      );
+    test(
+      'CRITICAL: Audit entry checksum calculation and verification',
+      () async {
+        // Create an audit entry
+        final entry = AuditEntry.create(
+          level: AuditLogLevel.compulsory,
+          action: AuditAction.create,
+          resourceType: 'document',
+          resourceId: 'test_doc_1',
+          userId: 'test_user',
+          details: 'Test document creation',
+        );
 
-      // Verify checksum is calculated
-      expect(entry.checksum, isNotEmpty);
-      expect(entry.checksum.length, greaterThan(40)); // SHA-256 hex string
+        // Verify checksum is calculated
+        expect(entry.checksum, isNotEmpty);
+        expect(entry.checksum.length, greaterThan(40)); // SHA-256 hex string
 
-      // Verify checksum is correct
-      expect(entry.verifyChecksum(), isTrue);
+        // Verify checksum is correct
+        expect(entry.verifyChecksum(), isTrue);
 
-      // Tamper with entry and verify checksum fails
-      final tamperedEntry = AuditEntry(
-        id: entry.id,
-        level: entry.level,
-        action: entry.action,
-        resourceType: entry.resourceType,
-        resourceId: 'TAMPERED_ID', // Changed
-        userId: entry.userId,
-        timestamp: entry.timestamp,
-        details: entry.details,
-        isSuccess: entry.isSuccess,
-        checksum: entry.checksum, // Old checksum
-        previousEntryId: entry.previousEntryId,
-        previousChecksum: entry.previousChecksum,
-      );
+        // Tamper with entry and verify checksum fails
+        final tamperedEntry = AuditEntry(
+          id: entry.id,
+          level: entry.level,
+          action: entry.action,
+          resourceType: entry.resourceType,
+          resourceId: 'TAMPERED_ID', // Changed
+          userId: entry.userId,
+          timestamp: entry.timestamp,
+          details: entry.details,
+          isSuccess: entry.isSuccess,
+          checksum: entry.checksum, // Old checksum
+          previousEntryId: entry.previousEntryId,
+          previousChecksum: entry.previousChecksum,
+        );
 
-      expect(tamperedEntry.verifyChecksum(), isFalse);
-    });
+        expect(tamperedEntry.verifyChecksum(), isFalse);
+      },
+    );
 
     test('CRITICAL: Audit entry chain linking and integrity', () async {
       // Create first entry
@@ -150,55 +152,61 @@ void main() {
       expect(allEntries[0].previousChecksum, equals(entry1.checksum));
     });
 
-    test('CRITICAL: Database write operations are logged (COMPULSORY)',
-        () async {
-      // Set audit logging service in database service
-      (mainDatabaseService).setAuditLoggingService(auditLoggingService);
+    test(
+      'CRITICAL: Database write operations are logged (COMPULSORY)',
+      () async {
+        // Set audit logging service in database service
+        (mainDatabaseService).setAuditLoggingService(auditLoggingService);
 
-      // Perform a database operation (we'll need to create a test document)
-      // For now, just verify that the logging service is set up correctly
-      expect(
-          auditLoggingService.currentLevel, equals(AuditLogLevel.compulsory));
+        // Perform a database operation (we'll need to create a test document)
+        // For now, just verify that the logging service is set up correctly
+        expect(
+          auditLoggingService.currentLevel,
+          equals(AuditLogLevel.compulsory),
+        );
 
-      // Log a database write
-      await auditLoggingService.logDatabaseWrite(
-        action: AuditAction.create,
-        resourceType: 'document',
-        resourceId: 'test_doc',
-        details: 'Test document created',
-      );
+        // Log a database write
+        await auditLoggingService.logDatabaseWrite(
+          action: AuditAction.create,
+          resourceType: 'document',
+          resourceId: 'test_doc',
+          details: 'Test document created',
+        );
 
-      // Verify entry was created
-      final entries = await auditDatabaseService.getAuditEntries();
-      expect(entries.length, greaterThan(0));
+        // Verify entry was created
+        final entries = await auditDatabaseService.getAuditEntries();
+        expect(entries.length, greaterThan(0));
 
-      final lastEntry = entries.first;
-      expect(lastEntry.level, equals(AuditLogLevel.compulsory));
-      expect(lastEntry.action, equals(AuditAction.create));
-      expect(lastEntry.resourceType, equals('database'));
-      expect(lastEntry.resourceId, contains('document'));
-    });
+        final lastEntry = entries.first;
+        expect(lastEntry.level, equals(AuditLogLevel.compulsory));
+        expect(lastEntry.action, equals(AuditAction.create));
+        expect(lastEntry.resourceType, equals('database'));
+        expect(lastEntry.resourceId, contains('document'));
+      },
+    );
 
-    test('CRITICAL: Database read operations are logged (COMPULSORY)',
-        () async {
-      // Set audit logging service
-      (mainDatabaseService).setAuditLoggingService(auditLoggingService);
+    test(
+      'CRITICAL: Database read operations are logged (COMPULSORY)',
+      () async {
+        // Set audit logging service
+        (mainDatabaseService).setAuditLoggingService(auditLoggingService);
 
-      // Log a database read
-      await auditLoggingService.logDatabaseRead(
-        resourceType: 'document',
-        resourceId: 'test_doc',
-        details: 'Test document read',
-      );
+        // Log a database read
+        await auditLoggingService.logDatabaseRead(
+          resourceType: 'document',
+          resourceId: 'test_doc',
+          details: 'Test document read',
+        );
 
-      // Verify entry was created
-      final entries = await auditDatabaseService.getAuditEntries();
-      expect(entries.length, greaterThan(0));
+        // Verify entry was created
+        final entries = await auditDatabaseService.getAuditEntries();
+        expect(entries.length, greaterThan(0));
 
-      final lastEntry = entries.first;
-      expect(lastEntry.level, equals(AuditLogLevel.compulsory));
-      expect(lastEntry.action, equals(AuditAction.read));
-    });
+        final lastEntry = entries.first;
+        expect(lastEntry.level, equals(AuditLogLevel.compulsory));
+        expect(lastEntry.action, equals(AuditAction.read));
+      },
+    );
 
     test('CRITICAL: Audit database integrity verification', () async {
       // Create multiple entries with small delays to ensure different timestamps
@@ -221,8 +229,11 @@ void main() {
 
       // Verify integrity
       final failedEntries = await auditDatabaseService.verifyIntegrity();
-      expect(failedEntries, isEmpty,
-          reason: 'All entries should pass integrity check');
+      expect(
+        failedEntries,
+        isEmpty,
+        reason: 'All entries should pass integrity check',
+      );
 
       // Verify all entries are retrievable
       // Entries are returned in DESC order (newest first)
@@ -233,14 +244,23 @@ void main() {
       // Since entries are DESC order: entries[0] is newest, entries[4] is oldest
       // Each newer entry should link to the previous (older) entry
       for (int i = 0; i < entries.length - 1; i++) {
-        expect(entries[i].previousEntryId, equals(entries[i + 1].id),
-            reason: 'Entry $i should link to entry ${i + 1}');
-        expect(entries[i].previousChecksum, equals(entries[i + 1].checksum),
-            reason: 'Entry $i checksum should match entry ${i + 1}');
+        expect(
+          entries[i].previousEntryId,
+          equals(entries[i + 1].id),
+          reason: 'Entry $i should link to entry ${i + 1}',
+        );
+        expect(
+          entries[i].previousChecksum,
+          equals(entries[i + 1].checksum),
+          reason: 'Entry $i checksum should match entry ${i + 1}',
+        );
       }
       // Oldest entry (last in DESC order) should have no previous
-      expect(entries[entries.length - 1].previousEntryId, isNull,
-          reason: 'Oldest entry should have no previous entry');
+      expect(
+        entries[entries.length - 1].previousEntryId,
+        isNull,
+        reason: 'Oldest entry should have no previous entry',
+      );
     });
 
     test('CRITICAL: Log level filtering works correctly', () async {
@@ -270,15 +290,18 @@ void main() {
 
       // Verify only COMPULSORY entries were logged
       final entries = await auditDatabaseService.getAuditEntries();
-      final compulsoryEntries =
-          entries.where((e) => e.level == AuditLogLevel.compulsory).toList();
+      final compulsoryEntries = entries
+          .where((e) => e.level == AuditLogLevel.compulsory)
+          .toList();
       expect(compulsoryEntries.length, greaterThan(0));
 
       // Verify INFO and VERBOSE were filtered
-      final infoEntries =
-          entries.where((e) => e.level == AuditLogLevel.info).toList();
-      final verboseEntries =
-          entries.where((e) => e.level == AuditLogLevel.verbose).toList();
+      final infoEntries = entries
+          .where((e) => e.level == AuditLogLevel.info)
+          .toList();
+      final verboseEntries = entries
+          .where((e) => e.level == AuditLogLevel.verbose)
+          .toList();
       expect(infoEntries, isEmpty);
       expect(verboseEntries, isEmpty);
     });
@@ -307,8 +330,11 @@ void main() {
 
       // Verify integrity check detects tampering
       final failedEntries = await auditDatabaseService.verifyIntegrity();
-      expect(failedEntries, contains(entry.id),
-          reason: 'Tampered entry should be detected');
+      expect(
+        failedEntries,
+        contains(entry.id),
+        reason: 'Tampered entry should be detected',
+      );
     });
 
     test('CRITICAL: Chain break detection', () async {
@@ -343,54 +369,61 @@ void main() {
 
       // Verify integrity check detects chain break
       final failedEntries = await auditDatabaseService.verifyIntegrity();
-      expect(failedEntries, contains(middleEntry.id),
-          reason: 'Chain break should be detected');
-    });
-
-    test('CRITICAL: Multiple concurrent audit writes maintain integrity',
-        () async {
-      // Create an initial entry to serve as the base for concurrent writes
-      final baseEntry = AuditEntry.create(
-        level: AuditLogLevel.compulsory,
-        action: AuditAction.create,
-        resourceType: 'document',
-        resourceId: 'base_doc',
-        userId: 'test_user',
-        details: 'Base entry for concurrent writes',
+      expect(
+        failedEntries,
+        contains(middleEntry.id),
+        reason: 'Chain break should be detected',
       );
-      await auditDatabaseService.insertAuditEntry(baseEntry);
-
-      // Simulate concurrent writes - all will link to the base entry
-      final futures = <Future>[];
-      for (int i = 0; i < 10; i++) {
-        futures.add(() async {
-          final lastEntry = await auditDatabaseService.getLastEntry();
-          final entry = AuditEntry.create(
-            level: AuditLogLevel.compulsory,
-            action: AuditAction.create,
-            resourceType: 'document',
-            resourceId: 'doc_$i',
-            userId: 'test_user',
-            details: 'Concurrent entry $i',
-            previousEntryId: lastEntry?.id,
-            previousChecksum: lastEntry?.checksum,
-          );
-          return await auditDatabaseService.insertAuditEntry(entry);
-        }());
-      }
-
-      await Future.wait(futures);
-
-      // Verify all entries were created (base + 10 concurrent = 11 total)
-      final entries = await auditDatabaseService.getAuditEntries();
-      expect(entries.length, equals(11));
-
-      // Verify integrity - forks are allowed (multiple entries can link to same previous)
-      final failedEntries = await auditDatabaseService.verifyIntegrity();
-      expect(failedEntries, isEmpty,
-          reason:
-              'Concurrent writes should maintain integrity (forks allowed)');
     });
+
+    test(
+      'CRITICAL: Multiple concurrent audit writes maintain integrity',
+      () async {
+        // Create an initial entry to serve as the base for concurrent writes
+        final baseEntry = AuditEntry.create(
+          level: AuditLogLevel.compulsory,
+          action: AuditAction.create,
+          resourceType: 'document',
+          resourceId: 'base_doc',
+          userId: 'test_user',
+          details: 'Base entry for concurrent writes',
+        );
+        await auditDatabaseService.insertAuditEntry(baseEntry);
+
+        // Simulate concurrent writes - all will link to the base entry
+        final futures = <Future>[];
+        for (int i = 0; i < 10; i++) {
+          futures.add(() async {
+            final lastEntry = await auditDatabaseService.getLastEntry();
+            final entry = AuditEntry.create(
+              level: AuditLogLevel.compulsory,
+              action: AuditAction.create,
+              resourceType: 'document',
+              resourceId: 'doc_$i',
+              userId: 'test_user',
+              details: 'Concurrent entry $i',
+              previousEntryId: lastEntry?.id,
+              previousChecksum: lastEntry?.checksum,
+            );
+            return await auditDatabaseService.insertAuditEntry(entry);
+          }());
+        }
+
+        await Future.wait(futures);
+
+        // Verify all entries were created (base + 10 concurrent = 11 total)
+        final entries = await auditDatabaseService.getAuditEntries();
+        expect(entries.length, equals(11));
+
+        // Verify integrity - forks are allowed (multiple entries can link to same previous)
+        final failedEntries = await auditDatabaseService.verifyIntegrity();
+        expect(
+          failedEntries,
+          isEmpty,
+          reason: 'Concurrent writes should maintain integrity (forks allowed)',
+        );
+      },
+    );
 
     test('CRITICAL: Entry count and filtering work correctly', () async {
       // Create entries with different levels
@@ -414,7 +447,8 @@ void main() {
       expect(totalCount, greaterThanOrEqualTo(3));
 
       final compulsoryCount = await auditDatabaseService.getEntryCount(
-          level: AuditLogLevel.compulsory);
+        level: AuditLogLevel.compulsory,
+      );
       expect(compulsoryCount, greaterThanOrEqualTo(3));
     });
   });

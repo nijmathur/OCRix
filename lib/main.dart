@@ -48,15 +48,13 @@ class OCRixApp extends ConsumerWidget {
       navigatorObservers: [navigationObserver],
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor:
-              const Color(0xFF2E7D32), // Green theme for privacy/security
+          seedColor: const Color(
+            0xFF2E7D32,
+          ), // Green theme for privacy/security
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-        ),
+        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
         cardTheme: CardThemeData(
           elevation: 2,
           shape: RoundedRectangleBorder(
@@ -72,11 +70,11 @@ class OCRixApp extends ConsumerWidget {
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
           ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
       darkTheme: ThemeData(
@@ -85,10 +83,7 @@ class OCRixApp extends ConsumerWidget {
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-        ),
+        appBarTheme: const AppBarTheme(centerTitle: true, elevation: 0),
         cardTheme: CardThemeData(
           elevation: 2,
           shape: RoundedRectangleBorder(
@@ -104,11 +99,11 @@ class OCRixApp extends ConsumerWidget {
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
           ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
       home: const AppInitializer(),
@@ -161,8 +156,9 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
       // Only check if we have a background time recorded (app was actually backgrounded)
       // and it was more than 1 second ago (to avoid checking on quick navigation)
       if (_lastBackgroundTime != null) {
-        final timeSinceBackground =
-            DateTime.now().difference(_lastBackgroundTime!);
+        final timeSinceBackground = DateTime.now().difference(
+          _lastBackgroundTime!,
+        );
         if (timeSinceBackground.inSeconds >= 1) {
           _checkBiometricOnResume();
         }
@@ -200,19 +196,22 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
     });
 
     try {
-      final biometricNotifier =
-          ref.read(biometricAuthNotifierProvider.notifier);
+      final biometricNotifier = ref.read(
+        biometricAuthNotifierProvider.notifier,
+      );
       final biometricService = ref.read(biometricAuthServiceProvider);
 
-      biometricService
-          .logInfo('App resumed - requesting biometric authentication');
+      biometricService.logInfo(
+        'App resumed - requesting biometric authentication',
+      );
       final authenticated = await biometricNotifier.authenticate(
         reason: 'Use your fingerprint to continue',
       );
 
       if (authenticated) {
-        biometricService
-            .logInfo('Biometric authentication successful on app resume');
+        biometricService.logInfo(
+          'Biometric authentication successful on app resume',
+        );
         setState(() {
           _isAuthenticated = true;
           _isCheckingBiometric = false;
@@ -220,7 +219,8 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
       } else {
         // Biometric failed or cancelled - show login screen with Google Sign-In as backup
         biometricService.logWarning(
-            'Biometric authentication failed or cancelled on app resume - showing login screen');
+          'Biometric authentication failed or cancelled on app resume - showing login screen',
+        );
         setState(() {
           _isAuthenticated = false;
           _isCheckingBiometric = false;
@@ -231,7 +231,10 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
       // On error, show login screen with Google Sign-In as backup
       final biometricService = ref.read(biometricAuthServiceProvider);
       biometricService.logError(
-          'Error during biometric check on app resume', e, stackTrace);
+        'Error during biometric check on app resume',
+        e,
+        stackTrace,
+      );
       setState(() {
         _isAuthenticated = false;
         _isCheckingBiometric = false;
@@ -288,8 +291,10 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
       ErrorHandler.initialize(troubleshootingLogger);
 
       // Log app initialization start
-      troubleshootingLogger.info('App initialization started',
-          tag: 'AppInitializer');
+      troubleshootingLogger.info(
+        'App initialization started',
+        tag: 'AppInitializer',
+      );
 
       // Initialize audit logging service (needed for DB logging)
       await auditLoggingService.initialize();
@@ -318,26 +323,36 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
 
       // Initialize critical services (must succeed)
       await databaseService.initialize();
-      troubleshootingLogger.info('Database service initialized',
-          tag: 'AppInitializer');
+      troubleshootingLogger.info(
+        'Database service initialized',
+        tag: 'AppInitializer',
+      );
 
       await encryptionService.initialize();
-      troubleshootingLogger.info('Encryption service initialized',
-          tag: 'AppInitializer');
+      troubleshootingLogger.info(
+        'Encryption service initialized',
+        tag: 'AppInitializer',
+      );
 
       await ocrService.initialize();
-      troubleshootingLogger.info('OCR service initialized',
-          tag: 'AppInitializer');
+      troubleshootingLogger.info(
+        'OCR service initialized',
+        tag: 'AppInitializer',
+      );
 
       await storageService.initialize();
-      troubleshootingLogger.info('Storage service initialized',
-          tag: 'AppInitializer');
+      troubleshootingLogger.info(
+        'Storage service initialized',
+        tag: 'AppInitializer',
+      );
 
       // Camera service is optional (may fail in CI/test environments)
       try {
         await cameraService.initialize();
-        troubleshootingLogger.info('Camera service initialized',
-            tag: 'AppInitializer');
+        troubleshootingLogger.info(
+          'Camera service initialized',
+          tag: 'AppInitializer',
+        );
       } catch (e) {
         // Log but don't fail app initialization if camera is unavailable
         // Camera features will be disabled, but app can still function
@@ -350,8 +365,10 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
         debugPrint('Warning: Camera service initialization failed: $e');
       }
 
-      troubleshootingLogger.info('App initialization completed successfully',
-          tag: 'AppInitializer');
+      troubleshootingLogger.info(
+        'App initialization completed successfully',
+        tag: 'AppInitializer',
+      );
 
       if (mounted) {
         setState(() {
@@ -400,11 +417,7 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red,
-              ),
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
               Text(
                 'Failed to initialize app',

@@ -15,11 +15,9 @@ class LogFileService extends BaseService implements ILogFileService {
   final ILogFormatter _formatter;
   final String? _logsDirectoryPathOverride;
 
-  LogFileService({
-    ILogFormatter? formatter,
-    String? logsDirectoryPathOverride,
-  })  : _formatter = formatter ?? const LogFormatterService(),
-        _logsDirectoryPathOverride = logsDirectoryPathOverride;
+  LogFileService({ILogFormatter? formatter, String? logsDirectoryPathOverride})
+    : _formatter = formatter ?? const LogFormatterService(),
+      _logsDirectoryPathOverride = logsDirectoryPathOverride;
 
   @override
   String get serviceName => 'LogFileService';

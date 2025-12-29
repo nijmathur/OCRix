@@ -157,8 +157,10 @@ class CameraService extends BaseService
   }
 
   @override
-  Future<String> processAndSaveImage(List<int> imageBytes,
-      {String? fileName}) async {
+  Future<String> processAndSaveImage(
+    List<int> imageBytes, {
+    String? fileName,
+  }) async {
     try {
       // Decode and process image
       final image = img.decodeImage(Uint8List.fromList(imageBytes));
@@ -272,8 +274,9 @@ class CameraService extends BaseService
   /// Toggle flash between OFF and ON (torch mode)
   @override
   Future<void> toggleFlash() async {
-    final newMode =
-        _currentFlashMode == FlashMode.off ? FlashMode.torch : FlashMode.off;
+    final newMode = _currentFlashMode == FlashMode.off
+        ? FlashMode.torch
+        : FlashMode.off;
     await setFlashMode(newMode);
   }
 

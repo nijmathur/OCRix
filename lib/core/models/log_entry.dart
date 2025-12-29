@@ -42,12 +42,12 @@ class LogEntry extends Equatable {
 
   @override
   List<Object?> get props => [
-        timestamp,
-        level,
-        message,
-        tag,
-        error,
-        stackTrace,
-        metadata,
-      ];
+    timestamp,
+    level,
+    message,
+    tag,
+    error,
+    stackTrace,
+    metadata,
+  ];
 }

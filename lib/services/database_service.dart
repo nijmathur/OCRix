@@ -64,15 +64,11 @@ class DatabaseService extends BaseService implements IDatabaseService {
   Future<void> setCurrentUserIdForTriggers(String userId) async {
     try {
       final db = await database;
-      await db.insert(
-        'user_settings',
-        {
-          'key': 'current_user_id',
-          'value': userId,
-          'updated_at': DateTime.now().millisecondsSinceEpoch,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await db.insert('user_settings', {
+        'key': 'current_user_id',
+        'value': userId,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     } catch (e) {
       logError('Failed to set current user ID for triggers', e);
       // Don't throw - this is not critical
@@ -109,7 +105,8 @@ class DatabaseService extends BaseService implements IDatabaseService {
       }
 
       // Mobile/Desktop platforms
-      final documentsPath = _databasePathOverride ??
+      final documentsPath =
+          _databasePathOverride ??
           (await getApplicationDocumentsDirectory()).path;
       final path = join(documentsPath, AppConfig.databaseName);
 
@@ -360,12 +357,15 @@ class DatabaseService extends BaseService implements IDatabaseService {
       try {
         await db.execute('ALTER TABLE documents ADD COLUMN image_data BLOB');
         await db.execute(
-            'ALTER TABLE documents ADD COLUMN image_format TEXT DEFAULT "jpeg"');
+          'ALTER TABLE documents ADD COLUMN image_format TEXT DEFAULT "jpeg"',
+        );
         await db.execute('ALTER TABLE documents ADD COLUMN image_size INTEGER');
-        await db
-            .execute('ALTER TABLE documents ADD COLUMN image_width INTEGER');
-        await db
-            .execute('ALTER TABLE documents ADD COLUMN image_height INTEGER');
+        await db.execute(
+          'ALTER TABLE documents ADD COLUMN image_width INTEGER',
+        );
+        await db.execute(
+          'ALTER TABLE documents ADD COLUMN image_height INTEGER',
+        );
         logInfo('Added image BLOB columns to documents table');
       } catch (e) {
         logError('Error adding image BLOB columns', e);
@@ -375,8 +375,9 @@ class DatabaseService extends BaseService implements IDatabaseService {
     if (oldVersion < 5) {
       // Add thumbnail_data column for performance optimization
       try {
-        await db
-            .execute('ALTER TABLE documents ADD COLUMN thumbnail_data BLOB');
+        await db.execute(
+          'ALTER TABLE documents ADD COLUMN thumbnail_data BLOB',
+        );
         logInfo('Added thumbnail_data column to documents table');
       } catch (e) {
         logError('Error adding thumbnail_data column', e);
@@ -436,9 +437,11 @@ class DatabaseService extends BaseService implements IDatabaseService {
       try {
         // Add new columns to documents table
         await db.execute(
-            'ALTER TABLE documents ADD COLUMN is_multi_page INTEGER NOT NULL DEFAULT 0');
+          'ALTER TABLE documents ADD COLUMN is_multi_page INTEGER NOT NULL DEFAULT 0',
+        );
         await db.execute(
-            'ALTER TABLE documents ADD COLUMN page_count INTEGER NOT NULL DEFAULT 1');
+          'ALTER TABLE documents ADD COLUMN page_count INTEGER NOT NULL DEFAULT 1',
+        );
         logInfo('Added multi-page columns to documents table');
 
         // Create document_pages table
@@ -495,7 +498,8 @@ class DatabaseService extends BaseService implements IDatabaseService {
       // and can properly implement tamper-proofing with checksums and chaining
 
       logInfo(
-          'Audit triggers skipped - using application-level logging for tamper-proofing');
+        'Audit triggers skipped - using application-level logging for tamper-proofing',
+      );
     } catch (e) {
       logError('Failed to create audit triggers', e);
       // Don't throw - triggers are nice-to-have, not critical
@@ -633,7 +637,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
             searchTerm,
             searchTerm,
             searchTerm,
-            searchTerm
+            searchTerm,
           ];
 
           if (type != null) {
@@ -808,15 +812,11 @@ class DatabaseService extends BaseService implements IDatabaseService {
       await db.transaction((txn) async {
         final settingsMap = settings.toJson();
         for (final entry in settingsMap.entries) {
-          await txn.insert(
-            'user_settings',
-            {
-              'key': entry.key,
-              'value': entry.value.toString(),
-              'updated_at': DateTime.now().millisecondsSinceEpoch,
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
+          await txn.insert('user_settings', {
+            'key': entry.key,
+            'value': entry.value.toString(),
+            'updated_at': DateTime.now().millisecondsSinceEpoch,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
         }
       });
 
@@ -899,7 +899,9 @@ class DatabaseService extends BaseService implements IDatabaseService {
 
     // Remove FTS5 boolean operators (case-insensitive)
     sanitized = sanitized.replaceAllMapped(
-        RegExp(r'\b(AND|OR|NOT)\b', caseSensitive: false), (match) => ' ');
+      RegExp(r'\b(AND|OR|NOT)\b', caseSensitive: false),
+      (match) => ' ',
+    );
 
     // Trim and collapse multiple spaces
     sanitized = sanitized.trim().replaceAll(RegExp(r'\s+'), ' ');
@@ -918,23 +920,29 @@ class DatabaseService extends BaseService implements IDatabaseService {
 
       // Try FTS5 search first
       try {
-        final maps = await db.rawQuery('''
+        final maps = await db.rawQuery(
+          '''
           SELECT d.* FROM documents d
           JOIN search_index s ON d.id = s.doc_id
           WHERE search_index MATCH ?
           ORDER BY rank
-        ''', [sanitizedQuery]);
+        ''',
+          [sanitizedQuery],
+        );
         return maps.map((map) => _mapToDocument(map)).toList();
       } catch (e) {
         logWarning('FTS5 search failed, using fallback: $e');
         // Fallback to LIKE search
         final searchTerm = '%$query%';
-        final maps = await db.rawQuery('''
+        final maps = await db.rawQuery(
+          '''
           SELECT d.* FROM documents d
           JOIN search_index s ON d.id = s.doc_id
           WHERE s.title LIKE ? OR s.extracted_text LIKE ? OR s.tags LIKE ? OR s.notes LIKE ?
           ORDER BY d.scan_date DESC
-        ''', [searchTerm, searchTerm, searchTerm, searchTerm]);
+        ''',
+          [searchTerm, searchTerm, searchTerm, searchTerm],
+        );
         return maps.map((map) => _mapToDocument(map)).toList();
       }
     } catch (e) {
@@ -1132,7 +1140,10 @@ class DatabaseService extends BaseService implements IDatabaseService {
       ),
       scanDate: DateTime.fromMillisecondsSinceEpoch(map['scan_date']),
       tags: (map['tags'] as String?)?.split(',') ?? [],
-      metadata: map['metadata'] != null && map['metadata'] is String && (map['metadata'] as String).isNotEmpty
+      metadata:
+          map['metadata'] != null &&
+              map['metadata'] is String &&
+              (map['metadata'] as String).isNotEmpty
           ? Map<String, dynamic>.from(jsonDecode(map['metadata'] as String))
           : const {},
       storageProvider: map['storage_provider'],
@@ -1232,25 +1243,21 @@ class DatabaseService extends BaseService implements IDatabaseService {
   Future<void> saveDocumentPage(DocumentPage page) async {
     try {
       final db = await database;
-      await db.insert(
-        'document_pages',
-        {
-          'id': page.id,
-          'document_id': page.documentId,
-          'page_number': page.pageNumber,
-          'image_data': page.imageData,
-          'thumbnail_data': page.thumbnailData,
-          'image_format': page.imageFormat,
-          'image_size': page.imageSize,
-          'image_width': page.imageWidth,
-          'image_height': page.imageHeight,
-          'extracted_text': page.extractedText,
-          'confidence_score': page.confidenceScore,
-          'created_at': page.createdAt.millisecondsSinceEpoch,
-          'updated_at': page.updatedAt.millisecondsSinceEpoch,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await db.insert('document_pages', {
+        'id': page.id,
+        'document_id': page.documentId,
+        'page_number': page.pageNumber,
+        'image_data': page.imageData,
+        'thumbnail_data': page.thumbnailData,
+        'image_format': page.imageFormat,
+        'image_size': page.imageSize,
+        'image_width': page.imageWidth,
+        'image_height': page.imageHeight,
+        'extracted_text': page.extractedText,
+        'confidence_score': page.confidenceScore,
+        'created_at': page.createdAt.millisecondsSinceEpoch,
+        'updated_at': page.updatedAt.millisecondsSinceEpoch,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     } catch (e) {
       logError('Failed to save document page', e);
       throw DatabaseException(
@@ -1285,7 +1292,9 @@ class DatabaseService extends BaseService implements IDatabaseService {
   /// Get a specific page by page number
   @override
   Future<DocumentPage?> getDocumentPage(
-      String documentId, int pageNumber) async {
+    String documentId,
+    int pageNumber,
+  ) async {
     try {
       final db = await database;
       final List<Map<String, dynamic>> maps = await db.query(
@@ -1344,11 +1353,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
   Future<void> deleteDocumentPage(String pageId) async {
     try {
       final db = await database;
-      await db.delete(
-        'document_pages',
-        where: 'id = ?',
-        whereArgs: [pageId],
-      );
+      await db.delete('document_pages', where: 'id = ?', whereArgs: [pageId]);
     } catch (e) {
       logError('Failed to delete document page', e);
       throw DatabaseException(
@@ -1437,8 +1442,9 @@ class _EncryptionServiceAdapter implements IEncryptionService {
 
   @override
   Future<String> decryptFileWithPassword(
-          String encryptedFilePath, String password) =>
-      _service.decryptFileWithPassword(encryptedFilePath, password);
+    String encryptedFilePath,
+    String password,
+  ) => _service.decryptFileWithPassword(encryptedFilePath, password);
 
   @override
   Future<bool> isBiometricAvailable() => _service.isBiometricAvailable();

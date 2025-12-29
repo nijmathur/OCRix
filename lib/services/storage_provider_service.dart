@@ -32,7 +32,7 @@ class LocalStorageProvider implements StorageProviderInterface {
   final String _basePath;
 
   LocalStorageProvider({String? basePath})
-      : _basePath = basePath ?? 'documents';
+    : _basePath = basePath ?? 'documents';
 
   @override
   Future<bool> initialize() async {
@@ -134,8 +134,10 @@ class LocalStorageProvider implements StorageProviderInterface {
       final files = <String>[];
       await for (final entity in storageDir.list(recursive: true)) {
         if (entity is File) {
-          final relativePath =
-              path.relative(entity.path, from: storageDir.path);
+          final relativePath = path.relative(
+            entity.path,
+            from: storageDir.path,
+          );
           if (prefix == null || relativePath.startsWith(prefix)) {
             files.add(relativePath);
           }
@@ -205,7 +207,8 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       _currentUser = user;
 
       // Get authorization for the scopes
-      final authorization = await user.authorizationClient.authorizationForScopes(_scopes);
+      final authorization = await user.authorizationClient
+          .authorizationForScopes(_scopes);
       if (authorization == null) {
         // Need to request authorization
         final newAuth = await user.authorizationClient.authorizeScopes(_scopes);
@@ -216,7 +219,9 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       }
 
       // Get fresh authorization token
-      final clientAuth = await user.authorizationClient.authorizationForScopes(_scopes);
+      final clientAuth = await user.authorizationClient.authorizationForScopes(
+        _scopes,
+      );
       if (clientAuth == null) {
         logger.e('Failed to get access token after authorization');
         return false;
@@ -225,8 +230,11 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       final authClient = authenticatedClient(
         http.Client(),
         AccessCredentials(
-          AccessToken('Bearer', clientAuth.accessToken,
-              DateTime.now().toUtc().add(const Duration(hours: 1))),
+          AccessToken(
+            'Bearer',
+            clientAuth.accessToken,
+            DateTime.now().toUtc().add(const Duration(hours: 1)),
+          ),
           null, // idToken is no longer available in the same way
           _scopes,
         ),
@@ -241,7 +249,9 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       if (e.code == GoogleSignInExceptionCode.canceled) {
         logger.w('User canceled sign-in');
       } else {
-        logger.e('Google Sign-In exception: ${e.description ?? e.code.toString()}');
+        logger.e(
+          'Google Sign-In exception: ${e.description ?? e.code.toString()}',
+        );
       }
       return false;
     } catch (e) {
@@ -289,10 +299,12 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
         throw Exception('Google Drive not initialized');
       }
 
-      final media = await _driveApi!.files.get(
-        remotePath,
-        downloadOptions: drive.DownloadOptions.fullMedia,
-      ) as drive.Media;
+      final media =
+          await _driveApi!.files.get(
+                remotePath,
+                downloadOptions: drive.DownloadOptions.fullMedia,
+              )
+              as drive.Media;
 
       final bytes = <int>[];
       await for (final chunk in media.stream) {
@@ -338,7 +350,8 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
         spaces: 'appDataFolder',
       );
 
-      final fileIds = files.files
+      final fileIds =
+          files.files
               ?.map((file) => file.id ?? '')
               .where((id) => id.isNotEmpty)
               .toList() ??
@@ -631,7 +644,9 @@ class StorageProviderService extends BaseService
         }
       }
 
-      logInfo('Cloud sync completed: $syncedCount/${unsyncedDocs.length} documents synced');
+      logInfo(
+        'Cloud sync completed: $syncedCount/${unsyncedDocs.length} documents synced',
+      );
     } catch (e) {
       logError('Failed to sync to cloud', e);
       throw StorageException(

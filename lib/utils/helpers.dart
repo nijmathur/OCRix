@@ -37,7 +37,9 @@ class FileHelper {
   }
 
   static Future<String> copyFile(
-      String sourcePath, String destinationPath) async {
+    String sourcePath,
+    String destinationPath,
+  ) async {
     final sourceFile = File(sourcePath);
 
     // Create destination directory if it doesn't exist
@@ -48,7 +50,9 @@ class FileHelper {
   }
 
   static Future<String> moveFile(
-      String sourcePath, String destinationPath) async {
+    String sourcePath,
+    String destinationPath,
+  ) async {
     final sourceFile = File(sourcePath);
 
     // Create destination directory if it doesn't exist
@@ -149,8 +153,10 @@ class DateHelper {
     return DateFormat(pattern).format(date);
   }
 
-  static String formatDateTime(DateTime date,
-      {String pattern = 'MMM dd, yyyy HH:mm'}) {
+  static String formatDateTime(
+    DateTime date, {
+    String pattern = 'MMM dd, yyyy HH:mm',
+  }) {
     return DateFormat(pattern).format(date);
   }
 

@@ -34,8 +34,9 @@ class AuditNavigationObserver extends RouteObserver<PageRoute<dynamic>> {
     if (auditService == null) return;
 
     final toScreen = _getScreenName(toRoute);
-    final fromScreen =
-        fromRoute != null ? _getScreenName(fromRoute) : 'unknown';
+    final fromScreen = fromRoute != null
+        ? _getScreenName(fromRoute)
+        : 'unknown';
 
     // Log navigation (VERBOSE level)
     auditService.logNavigation(

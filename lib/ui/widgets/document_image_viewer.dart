@@ -8,10 +8,7 @@ import '../../providers/document_provider.dart';
 class DocumentImageViewer extends ConsumerStatefulWidget {
   final Document document;
 
-  const DocumentImageViewer({
-    super.key,
-    required this.document,
-  });
+  const DocumentImageViewer({super.key, required this.document});
 
   @override
   ConsumerState<DocumentImageViewer> createState() =>
@@ -52,8 +49,9 @@ class _DocumentImageViewerState extends ConsumerState<DocumentImageViewer> {
       if (widget.document.isMultiPage) {
         // Load all pages from database
         final databaseService = ref.read(databaseServiceProvider);
-        final pages =
-            await databaseService.getDocumentPages(widget.document.id);
+        final pages = await databaseService.getDocumentPages(
+          widget.document.id,
+        );
 
         setState(() {
           _pages = pages;
@@ -106,10 +104,7 @@ class _DocumentImageViewerState extends ConsumerState<DocumentImageViewer> {
           children: [
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
-            Text(
-              'Error',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Error', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
               _error!,
@@ -139,10 +134,7 @@ class _DocumentImageViewerState extends ConsumerState<DocumentImageViewer> {
           children: [
             Icon(Icons.broken_image, size: 64, color: Colors.grey),
             SizedBox(height: 16),
-            Text(
-              'No image data available',
-              style: TextStyle(fontSize: 18),
-            ),
+            Text('No image data available', style: TextStyle(fontSize: 18)),
           ],
         ),
       );
@@ -216,10 +208,7 @@ class _DocumentImageViewerState extends ConsumerState<DocumentImageViewer> {
               child: Container(
                 color: Colors.black,
                 child: Center(
-                  child: Image.memory(
-                    page.imageData!,
-                    fit: BoxFit.contain,
-                  ),
+                  child: Image.memory(page.imageData!, fit: BoxFit.contain),
                 ),
               ),
             );

@@ -59,7 +59,7 @@ class DatabaseExportNotifier extends StateNotifier<DatabaseExportState> {
   final DatabaseExportService _exportService;
 
   DatabaseExportNotifier(this._exportService)
-      : super(const DatabaseExportState());
+    : super(const DatabaseExportState());
 
   /// Export database to Google Drive with password
   Future<String?> exportDatabase({
@@ -67,11 +67,7 @@ class DatabaseExportNotifier extends StateNotifier<DatabaseExportState> {
     String? customFileName,
   }) async {
     try {
-      state = state.copyWith(
-        isExporting: true,
-        progress: 0.0,
-        error: null,
-      );
+      state = state.copyWith(isExporting: true, progress: 0.0, error: null);
 
       final fileId = await _exportService.exportDatabaseToGoogleDrive(
         password: password,
@@ -92,10 +88,7 @@ class DatabaseExportNotifier extends StateNotifier<DatabaseExportState> {
 
       return fileId;
     } catch (e) {
-      state = state.copyWith(
-        isExporting: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isExporting: false, error: e.toString());
       return null;
     }
   }
@@ -107,11 +100,7 @@ class DatabaseExportNotifier extends StateNotifier<DatabaseExportState> {
     bool backupCurrent = true,
   }) async {
     try {
-      state = state.copyWith(
-        isImporting: true,
-        progress: 0.0,
-        error: null,
-      );
+      state = state.copyWith(isImporting: true, progress: 0.0, error: null);
 
       await _exportService.importDatabaseFromGoogleDrive(
         driveFileId: driveFileId,
@@ -122,17 +111,11 @@ class DatabaseExportNotifier extends StateNotifier<DatabaseExportState> {
         },
       );
 
-      state = state.copyWith(
-        isImporting: false,
-        progress: 1.0,
-      );
+      state = state.copyWith(isImporting: false, progress: 1.0);
 
       return true;
     } catch (e) {
-      state = state.copyWith(
-        isImporting: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isImporting: false, error: e.toString());
       return false;
     }
   }
@@ -168,6 +151,6 @@ class DatabaseExportNotifier extends StateNotifier<DatabaseExportState> {
 /// Provider for DatabaseExportNotifier
 final databaseExportNotifierProvider =
     StateNotifierProvider<DatabaseExportNotifier, DatabaseExportState>((ref) {
-  final exportService = ref.read(databaseExportServiceProvider);
-  return DatabaseExportNotifier(exportService);
-});
+      final exportService = ref.read(databaseExportServiceProvider);
+      return DatabaseExportNotifier(exportService);
+    });

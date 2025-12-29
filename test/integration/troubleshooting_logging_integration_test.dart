@@ -20,8 +20,9 @@ void main() {
     late Directory tempLogsDir;
 
     setUp(() async {
-      tempLogsDir =
-          await Directory.systemTemp.createTemp('troubleshoot_logs_test');
+      tempLogsDir = await Directory.systemTemp.createTemp(
+        'troubleshoot_logs_test',
+      );
 
       // Initialize services
       logFileService = LogFileService(
@@ -50,10 +51,16 @@ void main() {
       await logger.debug('Debug message', tag: 'Test');
       await logger.info('Info message', tag: 'Test');
       await logger.warning('Warning message', tag: 'Test');
-      await logger.error('Error message',
-          tag: 'Test', error: Exception('Test error'));
-      await logger.critical('Critical message',
-          tag: 'Test', error: Exception('Critical error'));
+      await logger.error(
+        'Error message',
+        tag: 'Test',
+        error: Exception('Test error'),
+      );
+      await logger.critical(
+        'Critical message',
+        tag: 'Test',
+        error: Exception('Critical error'),
+      );
 
       // Read log content
       final logContent = await logger.getLogContent();
@@ -106,16 +113,25 @@ void main() {
 
       // Verify rotation occurred (file should be smaller after rotation)
       final fileSize = await logFileService.getFileSize();
-      expect(fileSize, lessThan(1000000), // Less than 1MB
-          reason: 'Log file should be rotated when it gets large');
+      expect(
+        fileSize,
+        lessThan(1000000), // Less than 1MB
+        reason: 'Log file should be rotated when it gets large',
+      );
     });
 
     test('CRITICAL: Log export includes all necessary information', () async {
       // Write various log entries
-      await logger.info('Test info message',
-          tag: 'TestTag', metadata: {'key': 'value'});
-      await logger.error('Test error message',
-          tag: 'TestTag', error: Exception('Test error'));
+      await logger.info(
+        'Test info message',
+        tag: 'TestTag',
+        metadata: {'key': 'value'},
+      );
+      await logger.error(
+        'Test error message',
+        tag: 'TestTag',
+        error: Exception('Test error'),
+      );
 
       // Export logs
       final exportedLogs = await logger.exportLogs();
@@ -126,9 +142,10 @@ void main() {
       expect(exportedLogs, contains('Application Information'));
       expect(exportedLogs, contains('Platform:'));
       expect(
-          exportedLogs.contains('Test info message') ||
-              exportedLogs.contains('Test error message'),
-          isTrue);
+        exportedLogs.contains('Test info message') ||
+            exportedLogs.contains('Test error message'),
+        isTrue,
+      );
       expect(exportedLogs.contains('TestTag'), isTrue);
     });
 
@@ -147,10 +164,11 @@ void main() {
       // Read log content
       final logContent = await logger.getLogContent();
       expect(
-          logContent.contains('Caught exception') ||
-              logContent.contains('Test exception'),
-          isTrue,
-          reason: 'Error message should be in log');
+        logContent.contains('Caught exception') ||
+            logContent.contains('Test exception'),
+        isTrue,
+        reason: 'Error message should be in log',
+      );
     });
 
     test('CRITICAL: Log file size is tracked correctly', () async {
@@ -199,15 +217,25 @@ void main() {
 
       // Verify all levels are present (format may vary)
       expect(
-          logContent.contains('Debug') || logContent.contains('debug'), isTrue);
+        logContent.contains('Debug') || logContent.contains('debug'),
+        isTrue,
+      );
       expect(
-          logContent.contains('Info') || logContent.contains('info'), isTrue);
-      expect(logContent.contains('Warning') || logContent.contains('warning'),
-          isTrue);
+        logContent.contains('Info') || logContent.contains('info'),
+        isTrue,
+      );
       expect(
-          logContent.contains('Error') || logContent.contains('error'), isTrue);
-      expect(logContent.contains('Critical') || logContent.contains('critical'),
-          isTrue);
+        logContent.contains('Warning') || logContent.contains('warning'),
+        isTrue,
+      );
+      expect(
+        logContent.contains('Error') || logContent.contains('error'),
+        isTrue,
+      );
+      expect(
+        logContent.contains('Critical') || logContent.contains('critical'),
+        isTrue,
+      );
     });
 
     test('CRITICAL: Metadata is included in log entries', () async {
@@ -227,8 +255,10 @@ void main() {
 
       // Verify metadata is included
       expect(logContent, contains('Message with metadata'));
-      expect(logContent.contains('userId') || logContent.contains('user123'),
-          isTrue);
+      expect(
+        logContent.contains('userId') || logContent.contains('user123'),
+        isTrue,
+      );
     });
 
     test('CRITICAL: Logging failures do not break application', () async {
@@ -263,9 +293,10 @@ void main() {
       // Verify new logs are present
       final logContent = await logger.getLogContent();
       expect(
-          logContent.contains('Post-rotation') ||
-              logContent.contains('Post-rotation log'),
-          isTrue);
+        logContent.contains('Post-rotation') ||
+            logContent.contains('Post-rotation log'),
+        isTrue,
+      );
     });
 
     test('CRITICAL: Export includes recent in-memory entries', () async {
@@ -277,11 +308,13 @@ void main() {
       // Export should include recent entries
       final exported = await logger.exportLogs();
       expect(
-          exported.contains('Recent Log Entries') ||
-              exported.contains('Recent'),
-          isTrue);
-      expect(exported.contains('Recent log') || exported.contains('Recent'),
-          isTrue);
+        exported.contains('Recent Log Entries') || exported.contains('Recent'),
+        isTrue,
+      );
+      expect(
+        exported.contains('Recent log') || exported.contains('Recent'),
+        isTrue,
+      );
     });
   });
 }

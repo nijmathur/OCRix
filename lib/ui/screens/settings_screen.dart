@@ -26,7 +26,12 @@ class SettingsScreen extends ConsumerWidget {
       ),
       body: settingsAsync.when(
         data: (settings) => _buildSettingsContent(
-            context, ref, settings, encryptionState, biometricState),
+          context,
+          ref,
+          settings,
+          encryptionState,
+          biometricState,
+        ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
           child: Column(
@@ -60,7 +65,12 @@ class SettingsScreen extends ConsumerWidget {
       children: [
         _buildStorageSection(context, ref, settings),
         _buildSecuritySection(
-            context, ref, settings, encryptionState, biometricState),
+          context,
+          ref,
+          settings,
+          encryptionState,
+          biometricState,
+        ),
         _buildPrivacySection(context, ref, settings),
         _buildAppearanceSection(context, ref, settings),
         _buildScanningSection(context, ref, settings),
@@ -72,45 +82,46 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildStorageSection(
-      BuildContext context, WidgetRef ref, UserSettings settings) {
-    return _buildSection(
-      context,
-      'Storage',
-      Icons.storage,
-      [
-        SettingsTile(
-          title: 'Metadata Storage',
-          subtitle: _getStorageProviderName(settings.metadataStorageProvider),
-          icon: Icons.storage,
-          onTap: () => _showStorageProviderDialog(context, ref, 'metadata'),
+    BuildContext context,
+    WidgetRef ref,
+    UserSettings settings,
+  ) {
+    return _buildSection(context, 'Storage', Icons.storage, [
+      SettingsTile(
+        title: 'Metadata Storage',
+        subtitle: _getStorageProviderName(settings.metadataStorageProvider),
+        icon: Icons.storage,
+        onTap: () => _showStorageProviderDialog(context, ref, 'metadata'),
+      ),
+      SettingsTile(
+        title: 'File Storage',
+        subtitle: _getStorageProviderName(settings.fileStorageProvider),
+        icon: Icons.folder,
+        onTap: () => _showStorageProviderDialog(context, ref, 'file'),
+      ),
+      SettingsTile(
+        title: 'Auto Sync',
+        subtitle: settings.autoSync ? 'Enabled' : 'Disabled',
+        icon: Icons.sync,
+        trailing: Switch(
+          value: settings.autoSync,
+          onChanged: (value) {
+            ref.read(settingsNotifierProvider.notifier).toggleAutoSync();
+          },
         ),
+      ),
+      if (settings.autoSync)
         SettingsTile(
-          title: 'File Storage',
-          subtitle: _getStorageProviderName(settings.fileStorageProvider),
-          icon: Icons.folder,
-          onTap: () => _showStorageProviderDialog(context, ref, 'file'),
-        ),
-        SettingsTile(
-          title: 'Auto Sync',
-          subtitle: settings.autoSync ? 'Enabled' : 'Disabled',
-          icon: Icons.sync,
-          trailing: Switch(
-            value: settings.autoSync,
-            onChanged: (value) {
-              ref.read(settingsNotifierProvider.notifier).toggleAutoSync();
-            },
+          title: 'Sync Interval',
+          subtitle: '${settings.syncIntervalMinutes} minutes',
+          icon: Icons.schedule,
+          onTap: () => _showSyncIntervalDialog(
+            context,
+            ref,
+            settings.syncIntervalMinutes,
           ),
         ),
-        if (settings.autoSync)
-          SettingsTile(
-            title: 'Sync Interval',
-            subtitle: '${settings.syncIntervalMinutes} minutes',
-            icon: Icons.schedule,
-            onTap: () => _showSyncIntervalDialog(
-                context, ref, settings.syncIntervalMinutes),
-          ),
-      ],
-    );
+    ]);
   }
 
   Widget _buildSecuritySection(
@@ -120,292 +131,293 @@ class SettingsScreen extends ConsumerWidget {
     EncryptionState encryptionState,
     BiometricAuthState biometricState,
   ) {
-    return _buildSection(
-      context,
-      'Security',
-      Icons.security,
-      [
-        SettingsTile(
-          title: 'Encryption',
-          subtitle: settings.encryptionEnabled ? 'Enabled' : 'Disabled',
-          icon: Icons.lock,
-          trailing: Switch(
-            value: settings.encryptionEnabled,
-            onChanged: (value) {
-              ref.read(settingsNotifierProvider.notifier).toggleEncryption();
-            },
-          ),
+    return _buildSection(context, 'Security', Icons.security, [
+      SettingsTile(
+        title: 'Encryption',
+        subtitle: settings.encryptionEnabled ? 'Enabled' : 'Disabled',
+        icon: Icons.lock,
+        trailing: Switch(
+          value: settings.encryptionEnabled,
+          onChanged: (value) {
+            ref.read(settingsNotifierProvider.notifier).toggleEncryption();
+          },
         ),
-        if (settings.encryptionEnabled) ...[
-          if (encryptionState.isInitialized)
-            SettingsTile(
-              title: 'Change Encryption Key',
-              subtitle: 'Generate new encryption key',
-              icon: Icons.key,
-              onTap: () => _showChangeKeyDialog(context, ref),
-            ),
-        ],
-        // Biometric Sign-In for App
-        if (biometricState.isAvailable) ...[
-          const Divider(),
+      ),
+      if (settings.encryptionEnabled) ...[
+        if (encryptionState.isInitialized)
           SettingsTile(
-            title: 'Biometric Sign-In',
-            subtitle: biometricState.isEnabled
-                ? 'Use biometrics to sign in to app'
-                : 'Enable biometric sign-in for faster access',
-            icon: Icons.fingerprint,
-            trailing: Switch(
-              value: biometricState.isEnabled,
-              onChanged: biometricState.isLoading
-                  ? null
-                  : (value) async {
-                      if (value) {
-                        // Log attempt to enable
-                        final notifier =
-                            ref.read(biometricAuthNotifierProvider.notifier);
-                        final service = ref.read(biometricAuthServiceProvider);
-                        service.logInfo(
-                            'User attempting to enable biometric sign-in from settings');
-
-                        try {
-                          final success = await notifier.enableBiometricAuth();
-
-                          // Wait a bit for state to update
-                          await Future.delayed(
-                              const Duration(milliseconds: 100));
-
-                          if (!success && context.mounted) {
-                            final errorState =
-                                ref.read(biometricAuthNotifierProvider);
-                            final errorMessage = errorState.error ??
-                                'Failed to enable biometric sign-in';
-
-                            service.logError(
-                                'Biometric enable failed in UI: $errorMessage');
-                            service.logError(
-                                'Current state: isEnabled=${errorState.isEnabled}, isLoading=${errorState.isLoading}, error=${errorState.error}');
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(errorMessage),
-                                backgroundColor: Colors.red,
-                                duration: const Duration(seconds: 4),
-                              ),
-                            );
-                          } else if (success && context.mounted) {
-                            service.logInfo(
-                                'Biometric sign-in enabled successfully from settings');
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'Biometric sign-in enabled successfully'),
-                                backgroundColor: Colors.green,
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        } catch (e, stackTrace) {
-                          service.logError(
-                              'Exception caught in settings toggle handler',
-                              e,
-                              stackTrace);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error: ${e.toString()}'),
-                                backgroundColor: Colors.red,
-                                duration: const Duration(seconds: 4),
-                              ),
-                            );
-                          }
-                        }
-                      } else {
-                        final service = ref.read(biometricAuthServiceProvider);
-                        service.logInfo(
-                            'User disabling biometric sign-in from settings');
-                        await ref
-                            .read(biometricAuthNotifierProvider.notifier)
-                            .disableBiometricAuth();
-                      }
-                    },
-            ),
+            title: 'Change Encryption Key',
+            subtitle: 'Generate new encryption key',
+            icon: Icons.key,
+            onTap: () => _showChangeKeyDialog(context, ref),
           ),
-          if (biometricState.isEnabled)
-            SettingsTile(
-              title: 'Test Biometric',
-              subtitle: 'Test your biometric authentication',
-              icon: Icons.verified_user,
-              onTap: () async {
-                final success = await ref
-                    .read(biometricAuthNotifierProvider.notifier)
-                    .authenticate(reason: 'Test biometric authentication');
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(success
-                          ? 'Biometric authentication successful!'
-                          : 'Biometric authentication failed'),
-                      backgroundColor: success ? Colors.green : Colors.orange,
-                    ),
-                  );
-                }
-              },
-            ),
-        ],
+      ],
+      // Biometric Sign-In for App
+      if (biometricState.isAvailable) ...[
+        const Divider(),
         SettingsTile(
-          title: 'Privacy Audit',
-          subtitle: settings.privacyAuditEnabled ? 'Enabled' : 'Disabled',
-          icon: Icons.visibility,
+          title: 'Biometric Sign-In',
+          subtitle: biometricState.isEnabled
+              ? 'Use biometrics to sign in to app'
+              : 'Enable biometric sign-in for faster access',
+          icon: Icons.fingerprint,
           trailing: Switch(
-            value: settings.privacyAuditEnabled,
-            onChanged: (value) {
-              ref.read(settingsNotifierProvider.notifier).togglePrivacyAudit();
-            },
+            value: biometricState.isEnabled,
+            onChanged: biometricState.isLoading
+                ? null
+                : (value) async {
+                    if (value) {
+                      // Log attempt to enable
+                      final notifier = ref.read(
+                        biometricAuthNotifierProvider.notifier,
+                      );
+                      final service = ref.read(biometricAuthServiceProvider);
+                      service.logInfo(
+                        'User attempting to enable biometric sign-in from settings',
+                      );
+
+                      try {
+                        final success = await notifier.enableBiometricAuth();
+
+                        // Wait a bit for state to update
+                        await Future.delayed(const Duration(milliseconds: 100));
+
+                        if (!success && context.mounted) {
+                          final errorState = ref.read(
+                            biometricAuthNotifierProvider,
+                          );
+                          final errorMessage =
+                              errorState.error ??
+                              'Failed to enable biometric sign-in';
+
+                          service.logError(
+                            'Biometric enable failed in UI: $errorMessage',
+                          );
+                          service.logError(
+                            'Current state: isEnabled=${errorState.isEnabled}, isLoading=${errorState.isLoading}, error=${errorState.error}',
+                          );
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(errorMessage),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 4),
+                            ),
+                          );
+                        } else if (success && context.mounted) {
+                          service.logInfo(
+                            'Biometric sign-in enabled successfully from settings',
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Biometric sign-in enabled successfully',
+                              ),
+                              backgroundColor: Colors.green,
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      } catch (e, stackTrace) {
+                        service.logError(
+                          'Exception caught in settings toggle handler',
+                          e,
+                          stackTrace,
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error: ${e.toString()}'),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 4),
+                            ),
+                          );
+                        }
+                      }
+                    } else {
+                      final service = ref.read(biometricAuthServiceProvider);
+                      service.logInfo(
+                        'User disabling biometric sign-in from settings',
+                      );
+                      await ref
+                          .read(biometricAuthNotifierProvider.notifier)
+                          .disableBiometricAuth();
+                    }
+                  },
           ),
         ),
+        if (biometricState.isEnabled)
+          SettingsTile(
+            title: 'Test Biometric',
+            subtitle: 'Test your biometric authentication',
+            icon: Icons.verified_user,
+            onTap: () async {
+              final success = await ref
+                  .read(biometricAuthNotifierProvider.notifier)
+                  .authenticate(reason: 'Test biometric authentication');
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? 'Biometric authentication successful!'
+                          : 'Biometric authentication failed',
+                    ),
+                    backgroundColor: success ? Colors.green : Colors.orange,
+                  ),
+                );
+              }
+            },
+          ),
       ],
-    );
+      SettingsTile(
+        title: 'Privacy Audit',
+        subtitle: settings.privacyAuditEnabled ? 'Enabled' : 'Disabled',
+        icon: Icons.visibility,
+        trailing: Switch(
+          value: settings.privacyAuditEnabled,
+          onChanged: (value) {
+            ref.read(settingsNotifierProvider.notifier).togglePrivacyAudit();
+          },
+        ),
+      ),
+    ]);
   }
 
   Widget _buildPrivacySection(
-      BuildContext context, WidgetRef ref, UserSettings settings) {
-    return _buildSection(
-      context,
-      'Privacy',
-      Icons.privacy_tip,
-      [
-        SettingsTile(
-          title: 'Data Collection',
-          subtitle: 'Minimal data collection enabled',
-          icon: Icons.data_usage,
-          onTap: () => _showPrivacyInfoDialog(context),
-        ),
-        SettingsTile(
-          title: 'Local Processing',
-          subtitle: 'All processing done locally',
-          icon: Icons.computer,
-          onTap: () => _showLocalProcessingDialog(context),
-        ),
-        SettingsTile(
-          title: 'Audit Logs',
-          subtitle: 'View privacy audit logs',
-          icon: Icons.assignment,
-          onTap: () => _showAuditLogsDialog(context),
-        ),
-      ],
-    );
+    BuildContext context,
+    WidgetRef ref,
+    UserSettings settings,
+  ) {
+    return _buildSection(context, 'Privacy', Icons.privacy_tip, [
+      SettingsTile(
+        title: 'Data Collection',
+        subtitle: 'Minimal data collection enabled',
+        icon: Icons.data_usage,
+        onTap: () => _showPrivacyInfoDialog(context),
+      ),
+      SettingsTile(
+        title: 'Local Processing',
+        subtitle: 'All processing done locally',
+        icon: Icons.computer,
+        onTap: () => _showLocalProcessingDialog(context),
+      ),
+      SettingsTile(
+        title: 'Audit Logs',
+        subtitle: 'View privacy audit logs',
+        icon: Icons.assignment,
+        onTap: () => _showAuditLogsDialog(context),
+      ),
+    ]);
   }
 
   Widget _buildAppearanceSection(
-      BuildContext context, WidgetRef ref, UserSettings settings) {
-    return _buildSection(
-      context,
-      'Appearance',
-      Icons.palette,
-      [
-        SettingsTile(
-          title: 'Theme',
-          subtitle: _getThemeName(settings.theme),
-          icon: Icons.brightness_6,
-          onTap: () => _showThemeDialog(context, ref, settings.theme),
+    BuildContext context,
+    WidgetRef ref,
+    UserSettings settings,
+  ) {
+    return _buildSection(context, 'Appearance', Icons.palette, [
+      SettingsTile(
+        title: 'Theme',
+        subtitle: _getThemeName(settings.theme),
+        icon: Icons.brightness_6,
+        onTap: () => _showThemeDialog(context, ref, settings.theme),
+      ),
+      SettingsTile(
+        title: 'Language',
+        subtitle: _getLanguageName(settings.language),
+        icon: Icons.language,
+        onTap: () => _showLanguageDialog(context, ref, settings.language),
+      ),
+      SettingsTile(
+        title: 'Notifications',
+        subtitle: settings.notificationsEnabled ? 'Enabled' : 'Disabled',
+        icon: Icons.notifications,
+        trailing: Switch(
+          value: settings.notificationsEnabled,
+          onChanged: (value) {
+            ref.read(settingsNotifierProvider.notifier).toggleNotifications();
+          },
         ),
-        SettingsTile(
-          title: 'Language',
-          subtitle: _getLanguageName(settings.language),
-          icon: Icons.language,
-          onTap: () => _showLanguageDialog(context, ref, settings.language),
-        ),
-        SettingsTile(
-          title: 'Notifications',
-          subtitle: settings.notificationsEnabled ? 'Enabled' : 'Disabled',
-          icon: Icons.notifications,
-          trailing: Switch(
-            value: settings.notificationsEnabled,
-            onChanged: (value) {
-              ref.read(settingsNotifierProvider.notifier).toggleNotifications();
-            },
-          ),
-        ),
-      ],
-    );
+      ),
+    ]);
   }
 
   Widget _buildScanningSection(
-      BuildContext context, WidgetRef ref, UserSettings settings) {
-    return _buildSection(
-      context,
-      'Scanning',
-      Icons.document_scanner,
-      [
-        SettingsTile(
-          title: 'Default Document Type',
-          subtitle: _getDocumentTypeName(settings.defaultDocumentType),
-          icon: Icons.category,
-          onTap: () => _showDocumentTypeDialog(
-              context, ref, settings.defaultDocumentType),
+    BuildContext context,
+    WidgetRef ref,
+    UserSettings settings,
+  ) {
+    return _buildSection(context, 'Scanning', Icons.document_scanner, [
+      SettingsTile(
+        title: 'Default Document Type',
+        subtitle: _getDocumentTypeName(settings.defaultDocumentType),
+        icon: Icons.category,
+        onTap: () =>
+            _showDocumentTypeDialog(context, ref, settings.defaultDocumentType),
+      ),
+      SettingsTile(
+        title: 'Auto Categorization',
+        subtitle: settings.autoCategorization ? 'Enabled' : 'Disabled',
+        icon: Icons.auto_awesome,
+        trailing: Switch(
+          value: settings.autoCategorization,
+          onChanged: (value) {
+            ref
+                .read(settingsNotifierProvider.notifier)
+                .toggleAutoCategorization();
+          },
         ),
-        SettingsTile(
-          title: 'Auto Categorization',
-          subtitle: settings.autoCategorization ? 'Enabled' : 'Disabled',
-          icon: Icons.auto_awesome,
-          trailing: Switch(
-            value: settings.autoCategorization,
-            onChanged: (value) {
-              ref
-                  .read(settingsNotifierProvider.notifier)
-                  .toggleAutoCategorization();
-            },
-          ),
+      ),
+      SettingsTile(
+        title: 'OCR Confidence Threshold',
+        subtitle: '${(settings.ocrConfidenceThreshold * 100).toInt()}%',
+        icon: Icons.analytics,
+        onTap: () => _showConfidenceThresholdDialog(
+          context,
+          ref,
+          settings.ocrConfidenceThreshold,
         ),
-        SettingsTile(
-          title: 'OCR Confidence Threshold',
-          subtitle: '${(settings.ocrConfidenceThreshold * 100).toInt()}%',
-          icon: Icons.analytics,
-          onTap: () => _showConfidenceThresholdDialog(
-              context, ref, settings.ocrConfidenceThreshold),
-        ),
-      ],
-    );
+      ),
+    ]);
   }
 
   Widget _buildBackupSection(
-      BuildContext context, WidgetRef ref, UserSettings settings) {
-    return _buildSection(
-      context,
-      'Backup & Export',
-      Icons.backup,
-      [
-        SettingsTile(
-          title: 'Backup',
-          subtitle: settings.backupEnabled ? 'Enabled' : 'Disabled',
-          icon: Icons.backup,
-          trailing: Switch(
-            value: settings.backupEnabled,
-            onChanged: (value) {
-              ref.read(settingsNotifierProvider.notifier).toggleBackup();
-            },
-          ),
+    BuildContext context,
+    WidgetRef ref,
+    UserSettings settings,
+  ) {
+    return _buildSection(context, 'Backup & Export', Icons.backup, [
+      SettingsTile(
+        title: 'Backup',
+        subtitle: settings.backupEnabled ? 'Enabled' : 'Disabled',
+        icon: Icons.backup,
+        trailing: Switch(
+          value: settings.backupEnabled,
+          onChanged: (value) {
+            ref.read(settingsNotifierProvider.notifier).toggleBackup();
+          },
         ),
-        if (settings.backupEnabled && settings.lastBackupAt != null)
-          SettingsTile(
-            title: 'Last Backup',
-            subtitle: _formatDate(settings.lastBackupAt!),
-            icon: Icons.schedule,
-          ),
+      ),
+      if (settings.backupEnabled && settings.lastBackupAt != null)
         SettingsTile(
-          title: 'Export Database',
-          subtitle: 'Export entire database to Google Drive',
-          icon: Icons.cloud_upload,
-          onTap: () => _exportDatabase(context, ref),
+          title: 'Last Backup',
+          subtitle: _formatDate(settings.lastBackupAt!),
+          icon: Icons.schedule,
         ),
-        SettingsTile(
-          title: 'Import Database',
-          subtitle: 'Import database from Google Drive backup',
-          icon: Icons.cloud_download,
-          onTap: () => _importDatabase(context, ref),
-        ),
-      ],
-    );
+      SettingsTile(
+        title: 'Export Database',
+        subtitle: 'Export entire database to Google Drive',
+        icon: Icons.cloud_upload,
+        onTap: () => _exportDatabase(context, ref),
+      ),
+      SettingsTile(
+        title: 'Import Database',
+        subtitle: 'Import database from Google Drive backup',
+        icon: Icons.cloud_download,
+        onTap: () => _importDatabase(context, ref),
+      ),
+    ]);
   }
 
   Widget _buildAccountSection(BuildContext context, WidgetRef ref) {
@@ -421,10 +433,9 @@ class SettingsScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primaryContainer
-                    .withValues(alpha: 0.3),
+                color: Theme.of(
+                  context,
+                ).colorScheme.primaryContainer.withValues(alpha: 0.3),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(12),
                   topRight: Radius.circular(12),
@@ -442,8 +453,9 @@ class SettingsScreen extends ConsumerWidget {
                         ? Icon(
                             Icons.person,
                             size: 50,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           )
                         : null,
                   ),
@@ -453,8 +465,8 @@ class SettingsScreen extends ConsumerWidget {
                     Text(
                       user.displayName!,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 4),
                   ],
@@ -462,8 +474,8 @@ class SettingsScreen extends ConsumerWidget {
                   Text(
                     user.email,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -537,36 +549,31 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Widget _buildAboutSection(BuildContext context, WidgetRef ref) {
-    return _buildSection(
-      context,
-      'About',
-      Icons.info,
-      [
-        const SettingsTile(
-          title: 'Version',
-          subtitle: '1.0.0',
-          icon: Icons.info_outline,
-        ),
-        SettingsTile(
-          title: 'Privacy Policy',
-          subtitle: 'View privacy policy',
-          icon: Icons.privacy_tip_outlined,
-          onTap: () => _showPrivacyPolicyDialog(context),
-        ),
-        SettingsTile(
-          title: 'Terms of Service',
-          subtitle: 'View terms of service',
-          icon: Icons.description,
-          onTap: () => _showTermsDialog(context),
-        ),
-        SettingsTile(
-          title: 'Reset Settings',
-          subtitle: 'Reset all settings to default',
-          icon: Icons.restore,
-          onTap: () => _showResetDialog(context, ref),
-        ),
-      ],
-    );
+    return _buildSection(context, 'About', Icons.info, [
+      const SettingsTile(
+        title: 'Version',
+        subtitle: '1.0.0',
+        icon: Icons.info_outline,
+      ),
+      SettingsTile(
+        title: 'Privacy Policy',
+        subtitle: 'View privacy policy',
+        icon: Icons.privacy_tip_outlined,
+        onTap: () => _showPrivacyPolicyDialog(context),
+      ),
+      SettingsTile(
+        title: 'Terms of Service',
+        subtitle: 'View terms of service',
+        icon: Icons.description,
+        onTap: () => _showTermsDialog(context),
+      ),
+      SettingsTile(
+        title: 'Reset Settings',
+        subtitle: 'Reset all settings to default',
+        icon: Icons.restore,
+        onTap: () => _showResetDialog(context, ref),
+      ),
+    ]);
   }
 
   Widget _buildSection(
@@ -588,9 +595,9 @@ class SettingsScreen extends ConsumerWidget {
                 const SizedBox(width: 12),
                 Text(
                   title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -679,12 +686,18 @@ class SettingsScreen extends ConsumerWidget {
 
   // Dialog methods
   void _showStorageProviderDialog(
-      BuildContext context, WidgetRef ref, String type) {
+    BuildContext context,
+    WidgetRef ref,
+    String type,
+  ) {
     // Implementation for storage provider selection
   }
 
   void _showSyncIntervalDialog(
-      BuildContext context, WidgetRef ref, int currentInterval) {
+    BuildContext context,
+    WidgetRef ref,
+    int currentInterval,
+  ) {
     // Implementation for sync interval selection
   }
 
@@ -705,22 +718,34 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   void _showThemeDialog(
-      BuildContext context, WidgetRef ref, String currentTheme) {
+    BuildContext context,
+    WidgetRef ref,
+    String currentTheme,
+  ) {
     // Implementation for theme selection
   }
 
   void _showLanguageDialog(
-      BuildContext context, WidgetRef ref, String currentLanguage) {
+    BuildContext context,
+    WidgetRef ref,
+    String currentLanguage,
+  ) {
     // Implementation for language selection
   }
 
   void _showDocumentTypeDialog(
-      BuildContext context, WidgetRef ref, String currentType) {
+    BuildContext context,
+    WidgetRef ref,
+    String currentType,
+  ) {
     // Implementation for document type selection
   }
 
   void _showConfidenceThresholdDialog(
-      BuildContext context, WidgetRef ref, double currentThreshold) {
+    BuildContext context,
+    WidgetRef ref,
+    double currentThreshold,
+  ) {
     // Implementation for confidence threshold selection
   }
 
@@ -794,9 +819,7 @@ class SettingsScreen extends ConsumerWidget {
       final state = ref.read(databaseExportNotifierProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            state.error ?? 'Failed to export database',
-          ),
+          content: Text(state.error ?? 'Failed to export database'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 5),
         ),
@@ -824,9 +847,7 @@ class SettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     // Fetch available backups
@@ -923,9 +944,7 @@ class SettingsScreen extends ConsumerWidget {
       final errorState = ref.read(databaseExportNotifierProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            errorState.error ?? 'Failed to import database',
-          ),
+          content: Text(errorState.error ?? 'Failed to import database'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 5),
         ),
@@ -947,7 +966,8 @@ class SettingsScreen extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: const Text('Reset Settings'),
         content: const Text(
-            'Are you sure you want to reset all settings to default? This action cannot be undone.'),
+          'Are you sure you want to reset all settings to default? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -1070,7 +1090,8 @@ class _BackupSelectionDialog extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                      'Created: ${_formatDate(backup['createdAt'] as String?)}'),
+                    'Created: ${_formatDate(backup['createdAt'] as String?)}',
+                  ),
                   if (backup['size'] != null)
                     Text('Size: ${_formatSize(backup['size'] as int?)}'),
                 ],

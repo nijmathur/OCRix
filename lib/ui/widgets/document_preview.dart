@@ -138,10 +138,7 @@ class _DocumentPreviewState extends State<DocumentPreview> {
     return Container(
       width: 48,
       height: 48,
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: backgroundColor, shape: BoxShape.circle),
       child: IconButton(
         icon: Icon(icon, color: Colors.white),
         onPressed: onPressed,
@@ -163,9 +160,7 @@ class _DocumentPreviewState extends State<DocumentPreview> {
         backgroundColor: backgroundColor,
         foregroundColor: textColor,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       icon: Icon(icon),
       label: Text(label),

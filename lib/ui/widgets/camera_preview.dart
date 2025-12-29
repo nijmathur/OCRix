@@ -39,9 +39,7 @@ class CameraPreviewWidget extends ConsumerWidget {
     return Stack(
       children: [
         // Camera preview
-        Positioned.fill(
-          child: CameraPreview(cameraController),
-        ),
+        Positioned.fill(child: CameraPreview(cameraController)),
 
         // Top controls
         Positioned(
@@ -130,10 +128,7 @@ class CameraPreviewWidget extends ConsumerWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
-          border: Border.all(
-            color: Colors.white,
-            width: 4,
-          ),
+          border: Border.all(color: Colors.white, width: 4),
         ),
         child: isCapturing
             ? const Center(
@@ -147,11 +142,7 @@ class CameraPreviewWidget extends ConsumerWidget {
                 ),
               )
             : const Center(
-                child: Icon(
-                  Icons.camera_alt,
-                  color: Colors.grey,
-                  size: 32,
-                ),
+                child: Icon(Icons.camera_alt, color: Colors.grey, size: 32),
               ),
       ),
     );
@@ -231,7 +222,8 @@ class CameraPreviewWidget extends ConsumerWidget {
               leading: const Icon(Icons.flash_on),
               title: const Text('Flash'),
               trailing: Switch(
-                value: ref.watch(cameraServiceProvider).currentFlashMode !=
+                value:
+                    ref.watch(cameraServiceProvider).currentFlashMode !=
                     FlashMode.off,
                 onChanged: (value) async {
                   final cameraService = ref.read(cameraServiceProvider);

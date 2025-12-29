@@ -111,8 +111,9 @@ class LogRotationService extends BaseService implements ILogRotationService {
           .toList();
 
       // Sort by modification time (oldest first)
-      files
-          .sort((a, b) => a.lastModifiedSync().compareTo(b.lastModifiedSync()));
+      files.sort(
+        (a, b) => a.lastModifiedSync().compareTo(b.lastModifiedSync()),
+      );
 
       // Keep only last 5 archives
       const maxArchives = 5;

@@ -203,10 +203,7 @@ class _PasswordDialogState extends State<PasswordDialog> {
                   Expanded(
                     child: Text(
                       'IMPORTANT: If you forget this password, you will NOT be able to restore your database. Please store it safely!',
-                      style: TextStyle(
-                        color: Colors.orange[900],
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: Colors.orange[900], fontSize: 13),
                     ),
                   ),
                 ],
@@ -220,10 +217,7 @@ class _PasswordDialogState extends State<PasswordDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        ElevatedButton(
-          onPressed: _submit,
-          child: const Text('Continue'),
-        ),
+        ElevatedButton(onPressed: _submit, child: const Text('Continue')),
       ],
     );
   }

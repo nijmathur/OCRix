@@ -24,9 +24,9 @@ class DocumentListItem extends StatelessWidget {
         leading: _buildLeading(context),
         title: Text(
           document.title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -45,28 +45,26 @@ class DocumentListItem extends StatelessWidget {
                 Text(
                   document.type.displayName,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   '•',
                   style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.5),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   _formatDate(document.createdAt),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.6),
-                      ),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
                 ),
               ],
             ),
@@ -77,25 +75,28 @@ class DocumentListItem extends StatelessWidget {
                 runSpacing: 2,
                 children: document.tags
                     .take(3)
-                    .map((tag) => Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color:
-                                Theme.of(context).colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            tag,
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onPrimaryContainer,
-                                      fontSize: 10,
-                                    ),
-                          ),
-                        ))
+                    .map(
+                      (tag) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          tag,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimaryContainer,
+                                fontSize: 10,
+                              ),
+                        ),
+                      ),
+                    )
                     .toList(),
               ),
             ],
@@ -168,11 +169,7 @@ class DocumentListItem extends StatelessWidget {
                   color: Colors.green,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.lock,
-                  size: 8,
-                  color: Colors.white,
-                ),
+                child: const Icon(Icons.lock, size: 8, color: Colors.white),
               ),
             ),
         ],
@@ -188,17 +185,19 @@ class DocumentListItem extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: _getConfidenceColor(context, document.confidenceScore)
-                .withValues(alpha: 0.1),
+            color: _getConfidenceColor(
+              context,
+              document.confidenceScore,
+            ).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             '${(document.confidenceScore * 100).toInt()}%',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: _getConfidenceColor(context, document.confidenceScore),
-                  fontWeight: FontWeight.w500,
-                  fontSize: 10,
-                ),
+              color: _getConfidenceColor(context, document.confidenceScore),
+              fontWeight: FontWeight.w500,
+              fontSize: 10,
+            ),
           ),
         ),
         const SizedBox(width: 8),

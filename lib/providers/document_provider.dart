@@ -53,14 +53,18 @@ final documentListProvider = FutureProvider<List<Document>>((ref) async {
   return await databaseService.getAllDocuments();
 });
 
-final documentProvider =
-    FutureProvider.family<Document?, String>((ref, documentId) async {
+final documentProvider = FutureProvider.family<Document?, String>((
+  ref,
+  documentId,
+) async {
   final databaseService = ref.read(databaseServiceProvider);
   return await databaseService.getDocument(documentId);
 });
 
-final documentSearchProvider =
-    FutureProvider.family<List<Document>, String>((ref, query) async {
+final documentSearchProvider = FutureProvider.family<List<Document>, String>((
+  ref,
+  query,
+) async {
   final databaseService = ref.read(databaseServiceProvider);
   if (query.isEmpty) {
     return await databaseService.getAllDocuments();
@@ -70,9 +74,9 @@ final documentSearchProvider =
 
 final documentByTypeProvider =
     FutureProvider.family<List<Document>, DocumentType>((ref, type) async {
-  final databaseService = ref.read(databaseServiceProvider);
-  return await databaseService.getAllDocuments(type: type);
-});
+      final databaseService = ref.read(databaseServiceProvider);
+      return await databaseService.getAllDocuments(type: type);
+    });
 
 class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
   final IDatabaseService _databaseService;
@@ -94,11 +98,11 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
     IImageProcessingService? imageProcessingService,
     AuditLoggingService? auditLoggingService,
     ITroubleshootingLogger? troubleshootingLogger,
-  })  : _imageProcessingService =
-            imageProcessingService ?? ImageProcessingService(),
-        _auditLoggingService = auditLoggingService,
-        _troubleshootingLogger = troubleshootingLogger,
-        super(const AsyncValue.loading()) {
+  }) : _imageProcessingService =
+           imageProcessingService ?? ImageProcessingService(),
+       _auditLoggingService = auditLoggingService,
+       _troubleshootingLogger = troubleshootingLogger,
+       super(const AsyncValue.loading()) {
     _loadDocuments();
   }
 
@@ -204,10 +208,8 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       }
 
       // Process image for optimal storage using ImageProcessingService
-      final processedResult =
-          await _imageProcessingService.processImageForStorage(
-        imageBytes.toList(),
-      );
+      final processedResult = await _imageProcessingService
+          .processImageForStorage(imageBytes.toList());
 
       // Extract text using OCR from original image
       final ocrResult = await _ocrService.extractTextFromImage(imagePath);
@@ -307,14 +309,13 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       }
 
       // Combine extracted text from all pages
-      final combinedText =
-          pages.map((p) => p.extractedText).join('\n\n--- Page Break ---\n\n');
+      final combinedText = pages
+          .map((p) => p.extractedText)
+          .join('\n\n--- Page Break ---\n\n');
 
       // Use the first page's confidence score as overall confidence
-      final avgConfidence = pages.fold<double>(
-            0.0,
-            (sum, page) => sum + page.confidenceScore,
-          ) /
+      final avgConfidence =
+          pages.fold<double>(0.0, (sum, page) => sum + page.confidenceScore) /
           pages.length;
 
       // Categorize document based on combined text
@@ -350,9 +351,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
 
       // Update pages with document ID and save them
       for (int i = 0; i < pages.length; i++) {
-        final page = pages[i].copyWith(
-          documentId: documentId,
-        );
+        final page = pages[i].copyWith(documentId: documentId);
         await _databaseService.saveDocumentPage(page);
       }
 
@@ -392,9 +391,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
 
   Future<void> updateDocument(Document document) async {
     try {
-      final updatedDocument = document.copyWith(
-        updatedAt: DateTime.now(),
-      );
+      final updatedDocument = document.copyWith(updatedAt: DateTime.now());
 
       await _databaseService.updateDocument(updatedDocument);
 
@@ -454,9 +451,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       // Optimistic update: remove document from state directly
       if (state.hasValue) {
         final docs = state.value ?? [];
-        state = AsyncValue.data(
-          docs.where((d) => d.id != documentId).toList(),
-        );
+        state = AsyncValue.data(docs.where((d) => d.id != documentId).toList());
       } else {
         await refreshDocuments();
       }
@@ -526,25 +521,25 @@ final imageProcessingServiceProvider = Provider<IImageProcessingService>((ref) {
 
 final documentNotifierProvider =
     StateNotifierProvider<DocumentNotifier, AsyncValue<List<Document>>>((ref) {
-  final databaseService = ref.read(databaseServiceProvider);
-  final ocrService = ref.read(ocrServiceProvider);
-  final cameraService = ref.read(cameraServiceProvider);
-  final storageService = ref.read(storageProviderServiceProvider);
-  final imageProcessingService = ref.read(imageProcessingServiceProvider);
-  final auditLoggingService = ref.read(auditLoggingServiceProvider);
+      final databaseService = ref.read(databaseServiceProvider);
+      final ocrService = ref.read(ocrServiceProvider);
+      final cameraService = ref.read(cameraServiceProvider);
+      final storageService = ref.read(storageProviderServiceProvider);
+      final imageProcessingService = ref.read(imageProcessingServiceProvider);
+      final auditLoggingService = ref.read(auditLoggingServiceProvider);
 
-  final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
 
-  return DocumentNotifier(
-    databaseService,
-    ocrService,
-    cameraService,
-    storageService,
-    imageProcessingService: imageProcessingService,
-    auditLoggingService: auditLoggingService,
-    troubleshootingLogger: troubleshootingLogger,
-  );
-});
+      return DocumentNotifier(
+        databaseService,
+        ocrService,
+        cameraService,
+        storageService,
+        imageProcessingService: imageProcessingService,
+        auditLoggingService: auditLoggingService,
+        troubleshootingLogger: troubleshootingLogger,
+      );
+    });
 
 class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
   final IDatabaseService _databaseService;
@@ -553,8 +548,8 @@ class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
   DocumentDetailNotifier(
     this._databaseService, {
     ITroubleshootingLogger? troubleshootingLogger,
-  })  : _troubleshootingLogger = troubleshootingLogger,
-        super(const AsyncValue.loading());
+  }) : _troubleshootingLogger = troubleshootingLogger,
+       super(const AsyncValue.loading());
 
   Future<void> loadDocument(String documentId) async {
     try {
@@ -574,9 +569,7 @@ class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
 
   Future<void> updateDocument(Document document) async {
     try {
-      final updatedDocument = document.copyWith(
-        updatedAt: DateTime.now(),
-      );
+      final updatedDocument = document.copyWith(updatedAt: DateTime.now());
 
       await _databaseService.updateDocument(updatedDocument);
       state = AsyncValue.data(updatedDocument);
@@ -617,15 +610,19 @@ class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
   }
 }
 
-final documentDetailNotifierProvider = StateNotifierProvider.family<
-    DocumentDetailNotifier, AsyncValue<Document?>, String>((ref, documentId) {
-  final databaseService = ref.read(databaseServiceProvider);
-  final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
-  return DocumentDetailNotifier(
-    databaseService,
-    troubleshootingLogger: troubleshootingLogger,
-  );
-});
+final documentDetailNotifierProvider =
+    StateNotifierProvider.family<
+      DocumentDetailNotifier,
+      AsyncValue<Document?>,
+      String
+    >((ref, documentId) {
+      final databaseService = ref.read(databaseServiceProvider);
+      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+      return DocumentDetailNotifier(
+        databaseService,
+        troubleshootingLogger: troubleshootingLogger,
+      );
+    });
 
 class ScannerNotifier extends StateNotifier<ScannerState> {
   final ICameraService _cameraService;
@@ -636,8 +633,8 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
     this._cameraService,
     this._ocrService, {
     ITroubleshootingLogger? troubleshootingLogger,
-  })  : _troubleshootingLogger = troubleshootingLogger,
-        super(const ScannerState.initial());
+  }) : _troubleshootingLogger = troubleshootingLogger,
+       super(const ScannerState.initial());
 
   Future<void> initializeCamera() async {
     try {
@@ -662,10 +659,7 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
         tag: 'ScannerNotifier',
         error: e,
       );
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -692,10 +686,7 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
         tag: 'ScannerNotifier',
         error: e,
       );
-      state = state.copyWith(
-        isCapturing: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isCapturing: false, error: e.toString());
       return null;
     }
   }
@@ -723,10 +714,7 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
         tag: 'ScannerNotifier',
         error: e,
       );
-      state = state.copyWith(
-        isProcessing: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isProcessing: false, error: e.toString());
       return null;
     }
   }
@@ -746,15 +734,15 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
 
 final scannerNotifierProvider =
     StateNotifierProvider<ScannerNotifier, ScannerState>((ref) {
-  final cameraService = ref.read(cameraServiceProvider);
-  final ocrService = ref.read(ocrServiceProvider);
-  final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
-  return ScannerNotifier(
-    cameraService,
-    ocrService,
-    troubleshootingLogger: troubleshootingLogger,
-  );
-});
+      final cameraService = ref.read(cameraServiceProvider);
+      final ocrService = ref.read(ocrServiceProvider);
+      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+      return ScannerNotifier(
+        cameraService,
+        ocrService,
+        troubleshootingLogger: troubleshootingLogger,
+      );
+    });
 
 class ScannerState {
   final bool isLoading;

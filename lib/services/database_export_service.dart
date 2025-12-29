@@ -20,8 +20,8 @@ class DatabaseExportService extends BaseService {
     required DatabaseService databaseService,
     required IEncryptionService encryptionService,
     required IStorageProviderService storageProviderService,
-  })  : _databaseService = databaseService,
-        _encryptionService = encryptionService;
+  }) : _databaseService = databaseService,
+       _encryptionService = encryptionService;
 
   @override
   String get serviceName => 'DatabaseExportService';
@@ -83,11 +83,8 @@ class DatabaseExportService extends BaseService {
 
         // Step 4: Encrypt the database file with user password
         logInfo('Encrypting database file with password...');
-        final encryptedFilePath =
-            await _encryptionService.encryptFileWithPassword(
-          tempDbPath,
-          password,
-        );
+        final encryptedFilePath = await _encryptionService
+            .encryptFileWithPassword(tempDbPath, password);
         final encryptedFile = File(encryptedFilePath);
 
         if (!await encryptedFile.exists()) {
@@ -103,7 +100,8 @@ class DatabaseExportService extends BaseService {
         logInfo('Uploading encrypted database to Google Drive...');
 
         // Generate filename with timestamp
-        final fileName = customFileName ??
+        final fileName =
+            customFileName ??
             'ocrix_database_backup_${DateTime.now().toIso8601String().split('T')[0]}.db.enc';
 
         final remotePath = 'backups/$fileName';
@@ -122,14 +120,17 @@ class DatabaseExportService extends BaseService {
           final initialized = await provider.initialize();
           if (!initialized) {
             throw const StorageException(
-                'Failed to initialize Google Drive provider');
+              'Failed to initialize Google Drive provider',
+            );
           }
         }
 
         // Upload encrypted file to Google Drive
         // Note: Google Drive API uses HTTPS/TLS automatically (encryption in transit)
-        final driveFileId =
-            await provider.uploadFile(encryptedFilePath, remotePath);
+        final driveFileId = await provider.uploadFile(
+          encryptedFilePath,
+          remotePath,
+        );
 
         logInfo('Database uploaded to Google Drive: $driveFileId');
 
@@ -221,7 +222,8 @@ class DatabaseExportService extends BaseService {
         final initialized = await provider.initialize();
         if (!initialized) {
           throw const StorageException(
-              'Failed to initialize Google Drive provider');
+            'Failed to initialize Google Drive provider',
+          );
         }
       }
 
@@ -243,15 +245,13 @@ class DatabaseExportService extends BaseService {
       }
 
       logInfo(
-          'Encrypted database downloaded: ${encryptedFile.lengthSync()} bytes');
+        'Encrypted database downloaded: ${encryptedFile.lengthSync()} bytes',
+      );
 
       // Step 3: Decrypt the database file with user password
       logInfo('Decrypting database file with password...');
-      final decryptedFilePath =
-          await _encryptionService.decryptFileWithPassword(
-        encryptedFilePath,
-        password,
-      );
+      final decryptedFilePath = await _encryptionService
+          .decryptFileWithPassword(encryptedFilePath, password);
       final decryptedFile = File(decryptedFilePath);
 
       if (!await decryptedFile.exists()) {
@@ -370,14 +370,16 @@ class DatabaseExportService extends BaseService {
         final initialized = await provider.initialize();
         if (!initialized) {
           throw const StorageException(
-              'Failed to initialize Google Drive provider');
+            'Failed to initialize Google Drive provider',
+          );
         }
       }
 
       // Access Google Drive API directly to get file metadata
       if (provider is! GoogleDriveStorageProvider) {
         throw const StorageException(
-            'Provider is not GoogleDriveStorageProvider');
+          'Provider is not GoogleDriveStorageProvider',
+        );
       }
 
       final driveApi = provider.driveApi;
@@ -400,7 +402,8 @@ class DatabaseExportService extends BaseService {
             'fileId': file.id ?? '',
             'fileName': file.name ?? 'unknown.db.enc',
             'path': file.id ?? '',
-            'createdAt': file.createdTime?.toIso8601String() ??
+            'createdAt':
+                file.createdTime?.toIso8601String() ??
                 DateTime.now().toIso8601String(),
             'modifiedAt': file.modifiedTime?.toIso8601String(),
             'size': file.size,
@@ -437,7 +440,8 @@ class DatabaseExportService extends BaseService {
         final initialized = await provider.initialize();
         if (!initialized) {
           throw const StorageException(
-              'Failed to initialize Google Drive provider');
+            'Failed to initialize Google Drive provider',
+          );
         }
       }
 

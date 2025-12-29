@@ -80,8 +80,10 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
       throw const EncryptionException('Encryption not initialized');
     }
 
-    final encrypted =
-        _encrypter!.encryptBytes(Uint8List.fromList(bytes), iv: _iv!);
+    final encrypted = _encrypter!.encryptBytes(
+      Uint8List.fromList(bytes),
+      iv: _iv!,
+    );
     return encrypted.bytes;
   }
 
@@ -122,14 +124,18 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
 
   @override
   Future<String> encryptFileWithPassword(
-      String filePath, String password) async {
+    String filePath,
+    String password,
+  ) async {
     // Mock implementation - just use regular encrypt for testing
     return encryptFile(filePath);
   }
 
   @override
   Future<String> decryptFileWithPassword(
-      String encryptedFilePath, String password) async {
+    String encryptedFilePath,
+    String password,
+  ) async {
     // Mock implementation - just use regular decrypt for testing
     return decryptFile(encryptedFilePath);
   }

@@ -28,17 +28,18 @@ class StorageProvider extends Equatable {
   Map<String, dynamic> toJson() => _$StorageProviderToJson(this);
 
   @override
-  List<Object?> get props =>
-      [id, name, type, isEnabled, configuration, createdAt, updatedAt];
+  List<Object?> get props => [
+    id,
+    name,
+    type,
+    isEnabled,
+    configuration,
+    createdAt,
+    updatedAt,
+  ];
 }
 
-enum StorageProviderType {
-  local,
-  googleDrive,
-  oneDrive,
-  dropbox,
-  box,
-}
+enum StorageProviderType { local, googleDrive, oneDrive, dropbox, box }
 
 extension StorageProviderTypeExtension on StorageProviderType {
   String get displayName {

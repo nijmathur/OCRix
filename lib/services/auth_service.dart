@@ -78,7 +78,9 @@ class AuthService extends BaseService {
       } else {
         // Platform doesn't support authenticate (e.g., web)
         // For web, you would need to use renderButton from google_sign_in_web
-        throw AuthException('Platform does not support explicit authentication');
+        throw AuthException(
+          'Platform does not support explicit authentication',
+        );
       }
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) {
