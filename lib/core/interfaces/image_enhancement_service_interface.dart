@@ -10,8 +10,10 @@ class ImageEnhancementOptions {
   final bool binarize;
 
   // Enhancement parameters
-  final double contrastFactor; // 1.0 = no change, >1.0 = increase, <1.0 = decrease
-  final double brightnessFactor; // 1.0 = no change, >1.0 = brighter, <1.0 = darker
+  final double
+      contrastFactor; // 1.0 = no change, >1.0 = increase, <1.0 = decrease
+  final double
+      brightnessFactor; // 1.0 = no change, >1.0 = brighter, <1.0 = darker
   final int noiseReductionStrength; // 1-5, higher = more aggressive
   final int binarizationThreshold; // 0-255, for adaptive thresholding
 

@@ -1365,8 +1365,8 @@ class DatabaseService extends BaseService implements IDatabaseService {
         whereArgs: [pageId],
       );
 
-      await _logAudit(AuditAction.delete, 'document_page', pageId,
-          'Deleted document page');
+      await _logAudit(
+          AuditAction.delete, 'document_page', pageId, 'Deleted document page');
     } catch (e) {
       logError('Failed to delete document page', e);
       throw DatabaseException(

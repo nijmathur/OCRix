@@ -288,7 +288,8 @@ class ImageEnhancementService extends BaseService
     }
 
     final brightnessValue = ((factor - 1.0) * 100).round();
-    final adjusted = img.adjustColor(image, brightness: brightnessValue.toDouble());
+    final adjusted =
+        img.adjustColor(image, brightness: brightnessValue.toDouble());
     return Uint8List.fromList(img.encodeJpg(adjusted, quality: 90));
   }
 
@@ -382,7 +383,8 @@ class ImageEnhancementService extends BaseService
   Future<ImageEnhancementResult> autoEnhance(Uint8List imageBytes) async {
     // Apply smart defaults for document scanning
     const options = ImageEnhancementOptions(
-      perspectiveCorrection: false, // Disabled for now (needs better implementation)
+      perspectiveCorrection:
+          false, // Disabled for now (needs better implementation)
       deskew: true,
       adjustContrast: true,
       adjustBrightness: true,

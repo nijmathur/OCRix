@@ -14,7 +14,8 @@ class DocumentImageViewer extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<DocumentImageViewer> createState() => _DocumentImageViewerState();
+  ConsumerState<DocumentImageViewer> createState() =>
+      _DocumentImageViewerState();
 }
 
 class _DocumentImageViewerState extends ConsumerState<DocumentImageViewer> {
@@ -51,7 +52,8 @@ class _DocumentImageViewerState extends ConsumerState<DocumentImageViewer> {
       if (widget.document.isMultiPage) {
         // Load all pages from database
         final databaseService = ref.read(databaseServiceProvider);
-        final pages = await databaseService.getDocumentPages(widget.document.id);
+        final pages =
+            await databaseService.getDocumentPages(widget.document.id);
 
         setState(() {
           _pages = pages;
