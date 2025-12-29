@@ -22,6 +22,7 @@ import '../models/audit_log.dart';
 import 'audit_provider.dart';
 import 'troubleshooting_logger_provider.dart';
 import '../core/interfaces/troubleshooting_logger_interface.dart';
+import '../models/document_page.dart';
 
 // Service providers - using interfaces for dependency inversion
 final databaseServiceProvider = Provider<IDatabaseService>((ref) {
@@ -282,6 +283,104 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
     } catch (e, stackTrace) {
       _troubleshootingLogger?.error(
         'Failed to scan document',
+        tag: 'DocumentNotifier',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      state = AsyncValue.error(e, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<String> scanMultiPageDocument({
+    required List<DocumentPage> pages,
+    String? title,
+    List<String> tags = const [],
+    String? notes,
+    String? location,
+  }) async {
+    try {
+      state = const AsyncValue.loading();
+
+      if (pages.isEmpty) {
+        throw Exception('No pages provided for multi-page document');
+      }
+
+      // Combine extracted text from all pages
+      final combinedText =
+          pages.map((p) => p.extractedText).join('\n\n--- Page Break ---\n\n');
+
+      // Use the first page's confidence score as overall confidence
+      final avgConfidence = pages.fold<double>(
+            0.0,
+            (sum, page) => sum + page.confidenceScore,
+          ) /
+          pages.length;
+
+      // Categorize document based on combined text
+      final documentType = await _ocrService.categorizeDocument(combinedText);
+
+      // Get first page's image for thumbnail
+      final firstPage = pages.first;
+
+      // Create multi-page document
+      final document = Document.create(
+        title: title ?? _generateTitle(combinedText, documentType),
+        imageData: firstPage.imageData!,
+        thumbnailData: firstPage.thumbnailData,
+        imageFormat: 'jpg', // Default format
+        imageSize: firstPage.imageData!.length,
+        imageWidth: 0, // Will be calculated if needed
+        imageHeight: 0,
+        imagePath: '', // Not needed for multi-page
+        extractedText: combinedText,
+        type: documentType,
+        confidenceScore: avgConfidence,
+        detectedLanguage: '', // Could detect from combined text
+        deviceInfo: 'Flutter App',
+        notes: notes,
+        location: location,
+        tags: tags,
+        isMultiPage: true,
+        pageCount: pages.length,
+      );
+
+      // Save document to database
+      final documentId = await _databaseService.insertDocument(document);
+
+      // Update pages with document ID and save them
+      for (int i = 0; i < pages.length; i++) {
+        final page = pages[i].copyWith(
+          documentId: documentId,
+        );
+        await _databaseService.saveDocumentPage(page);
+      }
+
+      // Log user action (INFO level)
+      await _auditLoggingService?.logInfoAction(
+        action: AuditAction.create,
+        resourceType: 'document',
+        resourceId: documentId,
+        details:
+            'User scanned and created multi-page document: ${document.title} (${pages.length} pages)',
+      );
+
+      // Optimistic update: add new document to state without full reload
+      if (state.hasValue) {
+        final currentDocs = state.value ?? [];
+        state = AsyncValue.data([document, ...currentDocs]);
+      } else {
+        await refreshDocuments();
+      }
+
+      _troubleshootingLogger?.info(
+        'Multi-page document scanned and saved: $documentId (${pages.length} pages)',
+        tag: 'DocumentNotifier',
+      );
+      return documentId;
+    } catch (e, stackTrace) {
+      _troubleshootingLogger?.error(
+        'Failed to scan multi-page document',
         tag: 'DocumentNotifier',
         error: e,
         stackTrace: stackTrace,

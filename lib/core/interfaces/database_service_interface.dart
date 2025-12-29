@@ -1,5 +1,6 @@
 import '../../models/document.dart';
 import '../../models/document_summary.dart';
+import '../../models/document_page.dart';
 import '../../models/user_settings.dart';
 import '../../models/audit_log.dart';
 import 'dart:typed_data';
@@ -39,6 +40,21 @@ abstract class IDatabaseService {
 
   /// Search documents by query
   Future<List<Document>> searchDocuments(String query);
+
+  /// Save a document page
+  Future<void> saveDocumentPage(DocumentPage page);
+
+  /// Get all pages for a document
+  Future<List<DocumentPage>> getDocumentPages(String documentId);
+
+  /// Get a specific page
+  Future<DocumentPage?> getDocumentPage(String documentId, int pageNumber);
+
+  /// Update a document page
+  Future<void> updateDocumentPage(DocumentPage page);
+
+  /// Delete a document page
+  Future<void> deleteDocumentPage(String pageId);
 
   /// Get user settings
   Future<UserSettings> getUserSettings();
