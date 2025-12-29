@@ -468,23 +468,13 @@ class StorageProviderService extends BaseService
 
   @override
   Future<String> downloadDocument(String documentId, String localPath) async {
-    // Simplified - in production, fetch remotePath and isEncrypted from database
+    // Simplified - in production, fetch remotePath from database
     final providerType = await getCurrentProvider();
     final remotePath = 'documents/$documentId'; // Simplified
-    final isEncrypted = false; // Would need to fetch from document
 
     try {
       final provider = await getProvider(providerType);
       final downloadedPath = await provider.downloadFile(remotePath, localPath);
-
-      // Decrypt if needed
-      // ignore: dead_code
-      if (isEncrypted) {
-        final decryptedPath =
-            await encryptionService.decryptFile(downloadedPath);
-        logInfo('Document downloaded and decrypted: $documentId');
-        return decryptedPath;
-      }
 
       logInfo('Document downloaded: $documentId');
       return downloadedPath;

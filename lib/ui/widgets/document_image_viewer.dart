@@ -240,10 +240,8 @@ class _DocumentImageViewerState extends ConsumerState<DocumentImageViewer> {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  _pages[_currentPage].isEnhanced
-                      ? Icons.auto_fix_high
-                      : Icons.insert_drive_file,
+                const Icon(
+                  Icons.insert_drive_file,
                   color: Colors.white,
                   size: 16,
                 ),

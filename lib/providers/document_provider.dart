@@ -15,14 +15,12 @@ import '../core/interfaces/camera_service_interface.dart';
 import '../core/interfaces/encryption_service_interface.dart';
 import '../core/interfaces/storage_provider_service_interface.dart';
 import '../core/interfaces/image_processing_service_interface.dart';
-import '../core/interfaces/image_enhancement_service_interface.dart';
 import '../core/models/ocr_result.dart';
 import '../core/config/app_config.dart';
 import '../services/audit_logging_service.dart';
 import '../models/audit_log.dart';
 import 'audit_provider.dart';
 import 'troubleshooting_logger_provider.dart';
-import 'image_enhancement_provider.dart';
 import '../core/interfaces/troubleshooting_logger_interface.dart';
 import '../models/document_page.dart';
 import 'package:path/path.dart' as path;
@@ -82,7 +80,6 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
   final IDatabaseService _databaseService;
   final IOCRService _ocrService;
   final IImageProcessingService _imageProcessingService;
-  final IImageEnhancementService _imageEnhancementService;
   final AuditLoggingService? _auditLoggingService;
   final ITroubleshootingLogger? _troubleshootingLogger;
 
@@ -95,14 +92,12 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
     this._databaseService,
     this._ocrService,
     ICameraService cameraService,
-    IStorageProviderService storageService,
-    IImageEnhancementService imageEnhancementService, {
+    IStorageProviderService storageService, {
     IImageProcessingService? imageProcessingService,
     AuditLoggingService? auditLoggingService,
     ITroubleshootingLogger? troubleshootingLogger,
   })  : _imageProcessingService =
             imageProcessingService ?? ImageProcessingService(),
-        _imageEnhancementService = imageEnhancementService,
         _auditLoggingService = auditLoggingService,
         _troubleshootingLogger = troubleshootingLogger,
         super(const AsyncValue.loading()) {
@@ -538,7 +533,6 @@ final documentNotifierProvider =
   final cameraService = ref.read(cameraServiceProvider);
   final storageService = ref.read(storageProviderServiceProvider);
   final imageProcessingService = ref.read(imageProcessingServiceProvider);
-  final imageEnhancementService = ref.read(imageEnhancementServiceProvider);
   final auditLoggingService = ref.read(auditLoggingServiceProvider);
 
   final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
@@ -548,7 +542,6 @@ final documentNotifierProvider =
     ocrService,
     cameraService,
     storageService,
-    imageEnhancementService,
     imageProcessingService: imageProcessingService,
     auditLoggingService: auditLoggingService,
     troubleshootingLogger: troubleshootingLogger,
