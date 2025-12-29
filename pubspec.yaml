@@ -20,7 +20,7 @@ dependencies:
     path: ^1.8.3
     sqlite3_flutter_libs: ^0.5.41
     # Web-compatible database
-    sqflite_common_ffi: ^2.4.0
+    sqflite_common_ffi: ^2.3.6
     sqflite_common_ffi_web: ^0.4.5
 
     # Encryption & Security
