@@ -13,6 +13,7 @@ import '../core/interfaces/encryption_service_interface.dart';
 import '../core/base/base_service.dart';
 import '../core/exceptions/app_exceptions.dart';
 import 'encryption_service.dart';
+import 'database_service.dart';
 
 abstract class StorageProviderInterface {
   Future<bool> initialize();
@@ -164,15 +165,15 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
   // Note: This is not a service, so it doesn't extend BaseService
   // Using Logger directly for now
   final logger = Logger();
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: [
-      drive.DriveApi.driveFileScope,
-      'https://www.googleapis.com/auth/drive.appdata', // Required for appDataFolder access
-    ],
-  );
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  final List<String> _scopes = [
+    drive.DriveApi.driveFileScope,
+    'https://www.googleapis.com/auth/drive.appdata', // Required for appDataFolder access
+  ];
 
   drive.DriveApi? _driveApi;
   bool _isInitialized = false;
+  GoogleSignInAccount? _currentUser;
 
   // Expose driveApi for advanced operations (like getting file metadata)
   drive.DriveApi? get driveApi => _driveApi;
@@ -180,28 +181,54 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
   @override
   Future<bool> initialize() async {
     try {
-      final account = await _googleSignIn.signIn();
-      if (account == null) {
-        logger.w('Google Sign-In cancelled');
+      // Initialize GoogleSignIn if not already initialized
+      await _googleSignIn.initialize();
+
+      // Authenticate user
+      GoogleSignInAccount? user;
+      if (_googleSignIn.supportsAuthenticate()) {
+        user = await _googleSignIn.authenticate(scopeHint: _scopes);
+      } else {
+        // For platforms that don't support authenticate (e.g., web)
+        // Try lightweight authentication first
+        final result = _googleSignIn.attemptLightweightAuthentication();
+        if (result is Future<GoogleSignInAccount?>) {
+          user = await result;
+        }
+      }
+
+      if (user == null) {
+        logger.w('Google Sign-In cancelled or failed');
         return false;
       }
 
-      final auth = await account.authentication;
-      if (auth.accessToken == null) {
-        logger.e('Failed to get access token');
+      _currentUser = user;
+
+      // Get authorization for the scopes
+      final authorization = await user.authorizationClient.authorizationForScopes(_scopes);
+      if (authorization == null) {
+        // Need to request authorization
+        final newAuth = await user.authorizationClient.authorizeScopes(_scopes);
+        if (newAuth == null) {
+          logger.e('Failed to get authorization');
+          return false;
+        }
+      }
+
+      // Get fresh authorization token
+      final clientAuth = await user.authorizationClient.authorizationForScopes(_scopes);
+      if (clientAuth == null) {
+        logger.e('Failed to get access token after authorization');
         return false;
       }
 
       final authClient = authenticatedClient(
         http.Client(),
         AccessCredentials(
-          AccessToken('Bearer', auth.accessToken!,
+          AccessToken('Bearer', clientAuth.accessToken,
               DateTime.now().toUtc().add(const Duration(hours: 1))),
-          auth.idToken,
-          [
-            drive.DriveApi.driveFileScope,
-            'https://www.googleapis.com/auth/drive.appdata', // Required for appDataFolder access
-          ],
+          null, // idToken is no longer available in the same way
+          _scopes,
         ),
       );
 
@@ -210,6 +237,13 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
 
       logger.i('Google Drive storage provider initialized');
       return true;
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        logger.w('User canceled sign-in');
+      } else {
+        logger.e('Google Sign-In exception: ${e.description ?? e.code.toString()}');
+      }
+      return false;
     } catch (e) {
       logger.e('Failed to initialize Google Drive storage: $e');
       return false;
@@ -321,7 +355,7 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
   @override
   Future<bool> isConnected() async {
     try {
-      return _isInitialized && await _googleSignIn.isSignedIn();
+      return _isInitialized && _currentUser != null;
     } catch (e) {
       logger.e('Failed to check Google Drive connection: $e');
       return false;
@@ -334,6 +368,7 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       await _googleSignIn.signOut();
       _driveApi = null;
       _isInitialized = false;
+      _currentUser = null;
       logger.i('Disconnected from Google Drive');
     } catch (e) {
       logger.e('Failed to disconnect from Google Drive: $e');
@@ -551,14 +586,120 @@ class StorageProviderService extends BaseService
 
   @override
   Future<void> syncToCloud() async {
-    // TODO: Implement cloud sync
-    logInfo('Sync to cloud - not yet implemented');
+    try {
+      logInfo('Starting cloud sync (upload)');
+
+      // Check if cloud provider is configured
+      if (_currentProvider == StorageProviderType.local) {
+        logWarning('Cannot sync to cloud: No cloud provider configured');
+        return;
+      }
+
+      // Get database service to fetch unsynced documents
+      final dbService = DatabaseService();
+      final documents = await dbService.getAllDocuments();
+
+      // Filter unsynced documents
+      final unsyncedDocs = documents.where((doc) => !doc.isSynced).toList();
+
+      if (unsyncedDocs.isEmpty) {
+        logInfo('No documents to sync');
+        return;
+      }
+
+      logInfo('Found ${unsyncedDocs.length} documents to sync');
+
+      // Upload each unsynced document
+      int syncedCount = 0;
+      for (final doc in unsyncedDocs) {
+        try {
+          await uploadDocument(doc);
+
+          // Mark as synced in database
+          final updatedDoc = doc.copyWith(
+            updatedAt: DateTime.now(),
+            isSynced: true,
+          );
+
+          await dbService.updateDocument(updatedDoc);
+          syncedCount++;
+
+          logInfo('Synced document: ${doc.title}');
+        } catch (e) {
+          logError('Failed to sync document ${doc.title}', e);
+          // Continue with next document
+        }
+      }
+
+      logInfo('Cloud sync completed: $syncedCount/${unsyncedDocs.length} documents synced');
+    } catch (e) {
+      logError('Failed to sync to cloud', e);
+      throw StorageException(
+        'Failed to sync to cloud: ${e.toString()}',
+        originalError: e,
+      );
+    }
   }
 
   @override
   Future<void> syncFromCloud() async {
-    // TODO: Implement cloud sync
-    logInfo('Sync from cloud - not yet implemented');
+    try {
+      logInfo('Starting cloud sync (download)');
+
+      // Check if cloud provider is configured
+      if (_currentProvider == StorageProviderType.local) {
+        logWarning('Cannot sync from cloud: No cloud provider configured');
+        return;
+      }
+
+      // Get list of files from cloud
+      final provider = await getProvider(_currentProvider!);
+      final cloudFiles = await provider.listFiles(null);
+
+      if (cloudFiles.isEmpty) {
+        logInfo('No files found in cloud storage');
+        return;
+      }
+
+      logInfo('Found ${cloudFiles.length} files in cloud');
+
+      // Get database service to check existing documents
+      final dbService = DatabaseService();
+      final localDocs = await dbService.getAllDocuments();
+      final localFileNames = localDocs
+          .where((d) => d.imagePath != null)
+          .map((d) => path.basename(d.imagePath!))
+          .toSet();
+
+      // Download files that don't exist locally
+      int downloadedCount = 0;
+      final directory = await getApplicationDocumentsDirectory();
+
+      for (final cloudFile in cloudFiles) {
+        final fileName = path.basename(cloudFile);
+
+        if (!localFileNames.contains(fileName)) {
+          try {
+            final localPath = path.join(directory.path, 'downloads', fileName);
+            await provider.downloadFile(cloudFile, localPath);
+            downloadedCount++;
+
+            logInfo('Downloaded file from cloud: $fileName');
+          } catch (e) {
+            logError('Failed to download file $fileName', e);
+            // Continue with next file
+          }
+        }
+      }
+
+      logInfo('Cloud sync completed: $downloadedCount new files downloaded');
+    } catch (e) {
+      logError('Failed to sync from cloud', e);
+      throw StorageException(
+        'Failed to sync from cloud: ${e.toString()}',
+        originalError: e,
+      );
+    }
   }
 
   // Backward compatibility methods

@@ -81,7 +81,7 @@ class _SplashScreenState extends State<SplashScreen>
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
@@ -121,7 +121,7 @@ class _SplashScreenState extends State<SplashScreen>
                           'Secure • Private • Local',
                           style:
                               Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                   ),
                         ),
                       ],
@@ -150,8 +150,8 @@ class _SplashScreenState extends State<SplashScreen>
     return Column(
       children: [
         Shimmer.fromColors(
-          baseColor: Colors.white.withOpacity(0.3),
-          highlightColor: Colors.white.withOpacity(0.8),
+          baseColor: Colors.white.withValues(alpha: 0.3),
+          highlightColor: Colors.white.withValues(alpha: 0.8),
           child: Container(
             width: 200,
             height: 4,
@@ -165,7 +165,7 @@ class _SplashScreenState extends State<SplashScreen>
         Text(
           'Initializing secure environment...',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
               ),
         ),
       ],

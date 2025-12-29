@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:sqflite/sqflite.dart' hide DatabaseException;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -1131,7 +1132,9 @@ class DatabaseService extends BaseService implements IDatabaseService {
       ),
       scanDate: DateTime.fromMillisecondsSinceEpoch(map['scan_date']),
       tags: (map['tags'] as String?)?.split(',') ?? [],
-      metadata: const {}, // TODO: Parse metadata JSON
+      metadata: map['metadata'] != null && map['metadata'] is String && (map['metadata'] as String).isNotEmpty
+          ? Map<String, dynamic>.from(jsonDecode(map['metadata'] as String))
+          : const {},
       storageProvider: map['storage_provider'],
       isEncrypted: map['is_encrypted'] == 1,
       confidenceScore: map['confidence_score'],

@@ -4,7 +4,7 @@ publish_to: "none"
 version: 1.0.0+1
 
 environment:
-    sdk: ">=3.4.1 <4.0.0"
+    sdk: ">=3.8.0 <4.0.0"
 
 dependencies:
     flutter:
@@ -12,39 +12,39 @@ dependencies:
 
     # State Management
     provider: ^6.1.1
-    riverpod: ^2.4.9
-    flutter_riverpod: ^2.4.9
+    riverpod: ^2.6.1
+    flutter_riverpod: ^2.6.1
 
     # Database & Storage
-    sqflite: ^2.3.0
+    sqflite: ^2.4.2
     path: ^1.8.3
-    sqlite3_flutter_libs: ^0.5.18
+    sqlite3_flutter_libs: ^0.5.41
     # Web-compatible database
-    sqflite_common_ffi: ^2.3.0
-    sqflite_common_ffi_web: ^0.4.0
+    sqflite_common_ffi: ^2.4.0
+    sqflite_common_ffi_web: ^1.1.0
 
     # Encryption & Security
     encrypt: ^5.0.1
     crypto: ^3.0.3
-    local_auth: ^2.1.7
-    flutter_secure_storage: ^9.0.0
+    local_auth: ^3.0.0
+    flutter_secure_storage: ^10.0.0
 
     # OCR & Image Processing
     google_mlkit_text_recognition: ^0.15.0
-    image_picker: ^1.0.4
-    camera: ^0.10.5+5
-    image: ^4.1.3
+    image_picker: ^1.2.1
+    camera: ^0.11.3
+    image: ^4.7.2
 
     # Cloud Storage Providers
-    google_sign_in: ^6.2.1
-    googleapis: ^11.4.0
-    googleapis_auth: ^1.4.1
+    google_sign_in: ^7.2.0
+    googleapis: ^15.0.0
+    googleapis_auth: ^2.0.0
     # msal_flutter: ^2.0.1  # Temporarily disabled due to Kotlin version conflict
 
     # File Operations
     path_provider: ^2.1.1
-    file_picker: ^8.1.6
-    archive: ^3.4.10
+    file_picker: ^10.3.8
+    archive: ^4.0.7
 
     # UI Components
     cupertino_icons: ^1.0.6
@@ -54,8 +54,8 @@ dependencies:
 
     # Utilities
     uuid: ^4.2.1
-    intl: ^0.19.0
-    json_annotation: ^4.8.1
+    intl: ^0.20.2
+    json_annotation: ^4.9.0
     equatable: ^2.0.5
     logger: ^2.0.2+1
 
@@ -64,15 +64,15 @@ dependencies:
 
     # HTTP & Networking
     dio: ^5.4.0
-    connectivity_plus: ^5.0.2
+    connectivity_plus: ^7.0.0
     http: ^1.1.0
 
 dev_dependencies:
     flutter_test:
         sdk: flutter
-    flutter_lints: ^3.0.0
-    build_runner: ^2.4.7
-    json_serializable: ^6.7.1
+    flutter_lints: ^6.0.0
+    build_runner: ^2.10.4
+    json_serializable: ^6.8.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

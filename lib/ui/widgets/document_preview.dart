@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:math' as math;
+import 'package:image/image.dart' as img;
 
-class DocumentPreview extends StatelessWidget {
+class DocumentPreview extends StatefulWidget {
   final String imagePath;
   final VoidCallback? onRetake;
   final VoidCallback? onContinue;
@@ -14,16 +16,60 @@ class DocumentPreview extends StatelessWidget {
   });
 
   @override
+  State<DocumentPreview> createState() => _DocumentPreviewState();
+}
+
+class _DocumentPreviewState extends State<DocumentPreview> {
+  int _rotationAngle = 0; // 0, 90, 180, 270
+  bool _isRotating = false;
+
+  void _rotateImage() async {
+    if (_isRotating) return;
+
+    setState(() {
+      _isRotating = true;
+      _rotationAngle = (_rotationAngle + 90) % 360;
+    });
+
+    try {
+      // Read the image file
+      final imageFile = File(widget.imagePath);
+      final bytes = await imageFile.readAsBytes();
+      final image = img.decodeImage(bytes);
+
+      if (image != null) {
+        // Rotate the image 90 degrees clockwise
+        final rotated = img.copyRotate(image, angle: 90);
+
+        // Save the rotated image back to the file
+        await imageFile.writeAsBytes(img.encodeJpg(rotated));
+      }
+    } catch (e) {
+      debugPrint('Error rotating image: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRotating = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       color: Colors.black,
       child: Stack(
         children: [
-          // Image preview
+          // Image preview with rotation
           Positioned.fill(
-            child: Image.file(
-              File(imagePath),
-              fit: BoxFit.contain,
+            child: Transform.rotate(
+              angle: _rotationAngle * math.pi / 180,
+              child: Image.file(
+                File(widget.imagePath),
+                fit: BoxFit.contain,
+                key: ValueKey(_rotationAngle), // Force rebuild on rotation
+              ),
             ),
           ),
 
@@ -38,16 +84,14 @@ class DocumentPreview extends StatelessWidget {
                 _buildControlButton(
                   context,
                   Icons.close,
-                  Colors.black.withOpacity(0.5),
-                  onRetake,
+                  Colors.black.withValues(alpha: 0.5),
+                  widget.onRetake,
                 ),
                 _buildControlButton(
                   context,
-                  Icons.rotate_right,
-                  Colors.black.withOpacity(0.5),
-                  () {
-                    // TODO: Implement image rotation
-                  },
+                  _isRotating ? Icons.hourglass_empty : Icons.rotate_right,
+                  Colors.black.withValues(alpha: 0.5),
+                  _isRotating ? null : _rotateImage,
                 ),
               ],
             ),
@@ -66,8 +110,8 @@ class DocumentPreview extends StatelessWidget {
                   'Retake',
                   Icons.camera_alt,
                   Colors.white,
-                  Colors.black.withOpacity(0.7),
-                  onRetake,
+                  Colors.black.withValues(alpha: 0.7),
+                  widget.onRetake,
                 ),
                 _buildActionButton(
                   context,
@@ -75,7 +119,7 @@ class DocumentPreview extends StatelessWidget {
                   Icons.check,
                   Colors.green,
                   Colors.white,
-                  onContinue,
+                  widget.onContinue,
                 ),
               ],
             ),

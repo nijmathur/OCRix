@@ -157,11 +157,8 @@ class BiometricAuthService extends BaseService {
       logInfo('Requesting biometric authentication from system');
       final isAuthenticated = await _localAuth.authenticate(
         localizedReason: reason ?? 'Authenticate to access the app',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-          useErrorDialogs: true,
-        ),
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
       );
 
       if (isAuthenticated) {

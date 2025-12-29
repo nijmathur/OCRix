@@ -111,7 +111,7 @@ class CameraPreviewWidget extends ConsumerWidget {
       width: 48,
       height: 48,
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withValues(alpha: 0.5),
         shape: BoxShape.circle,
       ),
       child: IconButton(
@@ -162,8 +162,13 @@ class CameraPreviewWidget extends ConsumerWidget {
     await cameraService.toggleFlash();
   }
 
-  void _switchCamera(WidgetRef ref) {
-    // TODO: Implement camera switching
+  Future<void> _switchCamera(WidgetRef ref) async {
+    try {
+      final cameraService = ref.read(cameraServiceProvider);
+      await cameraService.switchCamera();
+    } catch (e) {
+      debugPrint('Error switching camera: $e');
+    }
   }
 
   void _pickFromGallery(BuildContext context) async {
@@ -241,7 +246,8 @@ class CameraPreviewWidget extends ConsumerWidget {
               title: const Text('Timer'),
               trailing: const Text('Off'),
               onTap: () {
-                // TODO: Show timer options
+                Navigator.pop(context);
+                _showTimerDialog(context);
               },
             ),
             ListTile(
@@ -249,8 +255,109 @@ class CameraPreviewWidget extends ConsumerWidget {
               title: const Text('Aspect Ratio'),
               trailing: const Text('4:3'),
               onTap: () {
-                // TODO: Show aspect ratio options
+                Navigator.pop(context);
+                _showAspectRatioDialog(context);
               },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTimerDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Camera Timer'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('Off'),
+              leading: Radio<int>(
+                value: 0,
+                groupValue: 0,
+                onChanged: (value) => Navigator.pop(context),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('3 seconds'),
+              leading: Radio<int>(
+                value: 3,
+                groupValue: 0,
+                onChanged: (value) => Navigator.pop(context),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('5 seconds'),
+              leading: Radio<int>(
+                value: 5,
+                groupValue: 0,
+                onChanged: (value) => Navigator.pop(context),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('10 seconds'),
+              leading: Radio<int>(
+                value: 10,
+                groupValue: 0,
+                onChanged: (value) => Navigator.pop(context),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAspectRatioDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Aspect Ratio'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('4:3 (Standard)'),
+              leading: Radio<String>(
+                value: '4:3',
+                groupValue: '4:3',
+                onChanged: (value) => Navigator.pop(context),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('16:9 (Widescreen)'),
+              leading: Radio<String>(
+                value: '16:9',
+                groupValue: '4:3',
+                onChanged: (value) => Navigator.pop(context),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('1:1 (Square)'),
+              leading: Radio<String>(
+                value: '1:1',
+                groupValue: '4:3',
+                onChanged: (value) => Navigator.pop(context),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('Full'),
+              leading: Radio<String>(
+                value: 'full',
+                groupValue: '4:3',
+                onChanged: (value) => Navigator.pop(context),
+              ),
+              onTap: () => Navigator.pop(context),
             ),
           ],
         ),

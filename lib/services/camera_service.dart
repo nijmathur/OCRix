@@ -325,6 +325,43 @@ class CameraService extends BaseService
     }
   }
 
+  /// Switch between available cameras
+  Future<void> switchCamera() async {
+    try {
+      if (_cameras.length <= 1) {
+        logWarning('Cannot switch camera: Only one camera available');
+        return;
+      }
+
+      // Get current camera index
+      int currentIndex = 0;
+      if (_controller != null) {
+        final currentDescription = _controller!.description;
+        currentIndex = _cameras.indexWhere((cam) => cam == currentDescription);
+      }
+
+      // Switch to next camera (cycle through available cameras)
+      final nextIndex = (currentIndex + 1) % _cameras.length;
+
+      // Dispose current controller
+      await _controller?.dispose();
+
+      // Initialize with new camera
+      await initializeController(cameraIndex: nextIndex);
+
+      logInfo('Switched to camera: ${_cameras[nextIndex].name}');
+    } catch (e) {
+      logError('Failed to switch camera', e);
+      throw CameraException(
+        'Failed to switch camera: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  /// Check if multiple cameras are available
+  bool get hasMultipleCameras => _cameras.length > 1;
+
   @override
   Future<void> dispose() async {
     try {

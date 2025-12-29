@@ -126,7 +126,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
           controller: _tabController,
           indicatorColor: Colors.white,
           labelColor: Colors.white,
-          unselectedLabelColor: Colors.white.withOpacity(0.7),
+          unselectedLabelColor: Colors.white.withValues(alpha: 0.7),
           tabs: const [
             Tab(icon: Icon(Icons.image), text: 'Image'),
             Tab(icon: Icon(Icons.text_fields), text: 'Text'),
@@ -215,7 +215,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
               ),
             ),
             child: Text(
@@ -347,7 +347,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withOpacity(0.7),
+                        .withValues(alpha: 0.7),
                   ),
             ),
           ),

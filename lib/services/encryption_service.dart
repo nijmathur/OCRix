@@ -318,10 +318,8 @@ class EncryptionService extends BaseService implements IEncryptionService {
       // Authenticate
       final isAuthenticated = await _localAuth.authenticate(
         localizedReason: reason ?? 'Authenticate to access encrypted documents',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-        ),
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
       );
 
       if (isAuthenticated) {

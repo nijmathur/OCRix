@@ -14,6 +14,8 @@ class DocumentListScreen extends ConsumerStatefulWidget {
   ConsumerState<DocumentListScreen> createState() => _DocumentListScreenState();
 }
 
+enum SortOption { date, name, type }
+
 class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
@@ -23,6 +25,8 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
   bool _isGridView = true;
   DocumentType? _selectedType;
   bool _isLoadingMore = false;
+  SortOption _currentSort = SortOption.date;
+  bool _sortDescending = true;
 
   @override
   void initState() {
@@ -89,17 +93,34 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
-              switch (value) {
-                case 'sort_date':
-                  // TODO: Implement sorting
-                  break;
-                case 'sort_name':
-                  // TODO: Implement sorting
-                  break;
-                case 'sort_type':
-                  // TODO: Implement sorting
-                  break;
-              }
+              setState(() {
+                switch (value) {
+                  case 'sort_date':
+                    if (_currentSort == SortOption.date) {
+                      _sortDescending = !_sortDescending;
+                    } else {
+                      _currentSort = SortOption.date;
+                      _sortDescending = true;
+                    }
+                    break;
+                  case 'sort_name':
+                    if (_currentSort == SortOption.name) {
+                      _sortDescending = !_sortDescending;
+                    } else {
+                      _currentSort = SortOption.name;
+                      _sortDescending = false;
+                    }
+                    break;
+                  case 'sort_type':
+                    if (_currentSort == SortOption.type) {
+                      _sortDescending = !_sortDescending;
+                    } else {
+                      _currentSort = SortOption.type;
+                      _sortDescending = false;
+                    }
+                    break;
+                }
+              });
             },
             itemBuilder: (context) => [
               const PopupMenuItem(
@@ -163,7 +184,7 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
                       borderSide: BorderSide.none,
                     ),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.9),
+                    fillColor: Colors.white.withValues(alpha: 0.9),
                   ),
                   onChanged: (value) {
                     setState(() {
@@ -188,7 +209,7 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
                 isScrollable: true,
                 indicatorColor: Colors.white,
                 labelColor: Colors.white,
-                unselectedLabelColor: Colors.white.withOpacity(0.7),
+                unselectedLabelColor: Colors.white.withValues(alpha: 0.7),
                 onTap: (index) {
                   final newType =
                       index == 0 ? null : DocumentType.values[index - 1];
@@ -232,11 +253,45 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
     );
   }
 
+  List<Document> _sortDocuments(List<Document> documents) {
+    final sorted = List<Document>.from(documents);
+
+    switch (_currentSort) {
+      case SortOption.date:
+        sorted.sort((a, b) => _sortDescending
+            ? b.scanDate.compareTo(a.scanDate)
+            : a.scanDate.compareTo(b.scanDate));
+        break;
+      case SortOption.name:
+        sorted.sort((a, b) => _sortDescending
+            ? b.title.toLowerCase().compareTo(a.title.toLowerCase())
+            : a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        break;
+      case SortOption.type:
+        sorted.sort((a, b) {
+          final comparison = _sortDescending
+              ? b.type.name.compareTo(a.type.name)
+              : a.type.name.compareTo(b.type.name);
+          // If types are the same, sort by date as secondary
+          if (comparison == 0) {
+            return b.scanDate.compareTo(a.scanDate);
+          }
+          return comparison;
+        });
+        break;
+    }
+
+    return sorted;
+  }
+
   Widget _buildDocumentList(List<Document> documents) {
     // Documents are already filtered by database query
     if (documents.isEmpty) {
       return _buildEmptyState();
     }
+
+    // Apply sorting
+    final sortedDocuments = _sortDocuments(documents);
 
     final notifier = ref.read(documentNotifierProvider.notifier);
     final hasMore = notifier.hasMore;
@@ -253,7 +308,7 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
           return false;
         },
         child: DocumentGrid(
-          documents: documents,
+          documents: sortedDocuments,
           onDocumentTap: _navigateToDocumentDetail,
         ),
       );
@@ -261,9 +316,9 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
       return ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.all(16),
-        itemCount: documents.length + (hasMore ? 1 : 0),
+        itemCount: sortedDocuments.length + (hasMore ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index >= documents.length) {
+          if (index >= sortedDocuments.length) {
             // Loading more indicator
             return const Center(
               child: Padding(
@@ -272,7 +327,7 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
               ),
             );
           }
-          final document = documents[index];
+          final document = sortedDocuments[index];
           return DocumentListItem(
             document: document,
             onTap: () => _navigateToDocumentDetail(document),
@@ -291,7 +346,7 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
           Icon(
             Icons.folder_open,
             size: 64,
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -305,7 +360,7 @@ class _DocumentListScreenState extends ConsumerState<DocumentListScreen>
                 : 'Start by scanning your first document',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
           ),
           if (_searchQuery.isEmpty) ...[

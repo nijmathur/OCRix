@@ -87,7 +87,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           controller: _tabController,
           indicatorColor: Colors.white,
           labelColor: Colors.white,
-          unselectedLabelColor: Colors.white.withOpacity(0.7),
+          unselectedLabelColor: Colors.white.withValues(alpha: 0.7),
           tabs: const [
             Tab(icon: Icon(Icons.home), text: 'Home'),
             Tab(icon: Icon(Icons.document_scanner), text: 'Scanner'),
@@ -173,7 +173,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           Text(
             'Your documents are secure and private. Start scanning to organize your important papers.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                 ),
           ),
         ],
@@ -344,7 +344,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             Icon(
               Icons.document_scanner_outlined,
               size: 64,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
@@ -358,7 +358,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withOpacity(0.6),
+                        .withValues(alpha: 0.6),
                   ),
             ),
             const SizedBox(height: 16),
