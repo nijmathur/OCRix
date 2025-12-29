@@ -21,7 +21,7 @@ dependencies:
     sqlite3_flutter_libs: ^0.5.41
     # Web-compatible database
     sqflite_common_ffi: ^2.4.0
-    sqflite_common_ffi_web: ^1.1.0
+    sqflite_common_ffi_web: ^0.4.5
 
     # Encryption & Security
     encrypt: ^5.0.1
