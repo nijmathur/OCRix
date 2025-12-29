@@ -20,15 +20,9 @@ class ImageEnhancementDialog extends StatefulWidget {
 class _ImageEnhancementDialogState extends State<ImageEnhancementDialog> {
   bool _perspectiveCorrection = false;
   bool _deskew = true;
-  bool _adjustContrast = true;
-  bool _adjustBrightness = true;
   bool _reduceNoise = true;
-  bool _binarize = false;
 
-  double _contrastFactor = 1.3;
-  double _brightnessFactor = 1.1;
   int _noiseStrength = 2;
-  int _binarizationThreshold = 128;
 
   bool _isProcessing = false;
   Uint8List? _previewImage;
@@ -164,21 +158,6 @@ class _ImageEnhancementDialogState extends State<ImageEnhancementDialog> {
           _deskew,
           (value) => setState(() => _deskew = value ?? false),
         ),
-        _buildCheckboxOption(
-          'Adjust Contrast',
-          'Enhance text clarity',
-          _adjustContrast,
-          (value) => setState(() => _adjustContrast = value ?? false),
-        ),
-        if (_adjustContrast) _buildContrastSlider(),
-
-        _buildCheckboxOption(
-          'Adjust Brightness',
-          'Optimize lighting',
-          _adjustBrightness,
-          (value) => setState(() => _adjustBrightness = value ?? false),
-        ),
-        if (_adjustBrightness) _buildBrightnessSlider(),
 
         _buildCheckboxOption(
           'Reduce Noise',
@@ -187,14 +166,6 @@ class _ImageEnhancementDialogState extends State<ImageEnhancementDialog> {
           (value) => setState(() => _reduceNoise = value ?? false),
         ),
         if (_reduceNoise) _buildNoiseSlider(),
-
-        _buildCheckboxOption(
-          'Binarize',
-          'Convert to black and white',
-          _binarize,
-          (value) => setState(() => _binarize = value ?? false),
-        ),
-        if (_binarize) _buildThresholdSlider(),
 
         _buildCheckboxOption(
           'Perspective Correction',
@@ -221,46 +192,6 @@ class _ImageEnhancementDialogState extends State<ImageEnhancementDialog> {
     );
   }
 
-  Widget _buildContrastSlider() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Contrast: ${_contrastFactor.toStringAsFixed(1)}x'),
-          Slider(
-            value: _contrastFactor,
-            min: 0.5,
-            max: 3.0,
-            divisions: 25,
-            label: _contrastFactor.toStringAsFixed(1),
-            onChanged: (value) => setState(() => _contrastFactor = value),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBrightnessSlider() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Brightness: ${_brightnessFactor.toStringAsFixed(1)}x'),
-          Slider(
-            value: _brightnessFactor,
-            min: 0.5,
-            max: 2.0,
-            divisions: 15,
-            label: _brightnessFactor.toStringAsFixed(1),
-            onChanged: (value) => setState(() => _brightnessFactor = value),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildNoiseSlider() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -276,27 +207,6 @@ class _ImageEnhancementDialogState extends State<ImageEnhancementDialog> {
             label: _noiseStrength.toString(),
             onChanged: (value) =>
                 setState(() => _noiseStrength = value.round()),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildThresholdSlider() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Threshold: $_binarizationThreshold'),
-          Slider(
-            value: _binarizationThreshold.toDouble(),
-            min: 50,
-            max: 200,
-            divisions: 150,
-            label: _binarizationThreshold.toString(),
-            onChanged: (value) =>
-                setState(() => _binarizationThreshold = value.round()),
           ),
         ],
       ),
@@ -351,13 +261,8 @@ class _ImageEnhancementDialogState extends State<ImageEnhancementDialog> {
     // Auto-enhance with smart defaults
     setState(() {
       _deskew = true;
-      _adjustContrast = true;
-      _adjustBrightness = true;
       _reduceNoise = true;
-      _binarize = false;
       _perspectiveCorrection = false;
-      _contrastFactor = 1.3;
-      _brightnessFactor = 1.1;
       _noiseStrength = 2;
     });
 
@@ -371,14 +276,8 @@ class _ImageEnhancementDialogState extends State<ImageEnhancementDialog> {
       final options = ImageEnhancementOptions(
         perspectiveCorrection: _perspectiveCorrection,
         deskew: _deskew,
-        adjustContrast: _adjustContrast,
-        adjustBrightness: _adjustBrightness,
         reduceNoise: _reduceNoise,
-        binarize: _binarize,
-        contrastFactor: _contrastFactor,
-        brightnessFactor: _brightnessFactor,
         noiseReductionStrength: _noiseStrength,
-        binarizationThreshold: _binarizationThreshold,
       );
 
       // Close dialog and return the enhancement options

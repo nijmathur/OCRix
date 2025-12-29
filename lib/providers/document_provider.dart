@@ -37,7 +37,7 @@ final ocrServiceProvider = Provider<IOCRService>((ref) {
   return OCRService();
 });
 
-final cameraServiceProvider = Provider<ICameraService>((ref) {
+final cameraServiceProvider = ChangeNotifierProvider<CameraService>((ref) {
   return CameraService();
 });
 
@@ -189,44 +189,6 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
 
   bool get hasMore => _hasMore;
 
-  /// Apply auto-enhancement to image and return path to enhanced temp file
-  Future<String> _applyAutoEnhancement(
-      String originalPath, Uint8List imageBytes) async {
-    try {
-      _troubleshootingLogger?.info(
-        'Applying automatic image enhancement for better OCR accuracy',
-        tag: 'DocumentNotifier',
-      );
-
-      // Apply auto-enhancement
-      final enhancementResult =
-          await _imageEnhancementService.autoEnhance(imageBytes);
-
-      // Save enhanced image to temporary file
-      final tempDir = await getTemporaryDirectory();
-      final enhancedPath = path.join(
-        tempDir.path,
-        'enhanced_${path.basename(originalPath)}',
-      );
-      final enhancedFile = File(enhancedPath);
-      await enhancedFile.writeAsBytes(enhancementResult.enhancedImageBytes);
-
-      _troubleshootingLogger?.info(
-        'Auto-enhancement applied: ${enhancementResult.appliedEnhancements}',
-        tag: 'DocumentNotifier',
-      );
-
-      return enhancedPath;
-    } catch (e) {
-      _troubleshootingLogger?.warning(
-        'Failed to apply auto-enhancement, using original image',
-        tag: 'DocumentNotifier',
-        error: e,
-      );
-      // Return original path if enhancement fails
-      return originalPath;
-    }
-  }
 
   Future<String> scanDocument({
     required String imagePath,
@@ -235,7 +197,6 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
     String? notes,
     String? location,
   }) async {
-    String? enhancedImagePath;
     try {
       state = const AsyncValue.loading();
 
@@ -250,18 +211,15 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         throw Exception('Image file is empty');
       }
 
-      // Apply auto-enhancement for better OCR accuracy
-      enhancedImagePath = await _applyAutoEnhancement(imagePath, imageBytes);
-
       // Process image for optimal storage using ImageProcessingService
       final processedResult =
           await _imageProcessingService.processImageForStorage(
         imageBytes.toList(),
       );
 
-      // Extract text using OCR from enhanced image
+      // Extract text using OCR from original image
       final ocrResult =
-          await _ocrService.extractTextFromImage(enhancedImagePath);
+          await _ocrService.extractTextFromImage(imagePath);
 
       // Categorize document
       final documentType = await _ocrService.categorizeDocument(ocrResult.text);
@@ -340,26 +298,6 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       );
       state = AsyncValue.error(e, stackTrace);
       rethrow;
-    } finally {
-      // Clean up enhanced temporary file
-      if (enhancedImagePath != null && enhancedImagePath != imagePath) {
-        try {
-          final enhancedFile = File(enhancedImagePath);
-          if (await enhancedFile.exists()) {
-            await enhancedFile.delete();
-            _troubleshootingLogger?.debug(
-              'Cleaned up enhanced temporary file: $enhancedImagePath',
-              tag: 'DocumentNotifier',
-            );
-          }
-        } catch (e) {
-          _troubleshootingLogger?.warning(
-            'Failed to cleanup enhanced temp file',
-            tag: 'DocumentNotifier',
-            error: e,
-          );
-        }
-      }
     }
   }
 

@@ -9,13 +9,17 @@ import '../core/interfaces/camera_service_interface.dart';
 import '../core/base/base_service.dart';
 import '../core/exceptions/app_exceptions.dart';
 
-class CameraService extends BaseService implements ICameraService {
+class CameraService extends BaseService with ChangeNotifier implements ICameraService {
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
   bool _isInitialized = false;
+  FlashMode _currentFlashMode = FlashMode.off; // Default to OFF, not auto
 
   @override
   String get serviceName => 'CameraService';
+
+  /// Get current flash mode
+  FlashMode get currentFlashMode => _currentFlashMode;
 
   @override
   List<CameraDescription> get cameras => _cameras;
@@ -75,6 +79,10 @@ class CameraService extends BaseService implements ICameraService {
       );
 
       await _controller!.initialize();
+
+      // Set flash mode to OFF to prevent auto-flash behavior
+      await _controller!.setFlashMode(_currentFlashMode);
+
       logInfo('Camera controller initialized for ${camera.name}');
     } catch (e) {
       logError('Failed to initialize camera controller', e);
@@ -251,11 +259,21 @@ class CameraService extends BaseService implements ICameraService {
     try {
       if (_controller != null && _controller!.value.isInitialized) {
         await _controller!.setFlashMode(mode);
+        _currentFlashMode = mode; // Track current mode
+        notifyListeners(); // Notify UI of flash mode change
         logInfo('Flash mode set to: $mode');
       }
     } catch (e) {
       logError('Failed to set flash mode: $e');
     }
+  }
+
+  /// Toggle flash between OFF and ON (torch mode)
+  Future<void> toggleFlash() async {
+    final newMode = _currentFlashMode == FlashMode.off
+        ? FlashMode.torch
+        : FlashMode.off;
+    await setFlashMode(newMode);
   }
 
   @override

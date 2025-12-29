@@ -5,14 +5,11 @@ import 'dart:typed_data';
 import 'package:uuid/uuid.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../providers/document_provider.dart';
-import '../../providers/image_enhancement_provider.dart';
 import '../../models/document.dart';
 import '../../models/captured_page.dart';
 import '../../models/document_page.dart';
-import '../../core/interfaces/image_enhancement_service_interface.dart';
 import '../widgets/camera_preview.dart';
 import '../widgets/document_preview.dart';
-import '../widgets/image_enhancement_dialog.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
@@ -446,6 +443,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       setState(() {
         _capturedImagePath = imagePath;
       });
+      // Switch to details tab to show the captured image
+      _tabController.animateTo(1);
     }
   }
 
@@ -517,25 +516,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
           Positioned(
             top: 4,
             right: 4,
-            child: Row(
-              children: [
-                // Enhancement button
-                GestureDetector(
-                  onTap: () => _showEnhancementDialog(page),
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Icon(
-                      Icons.auto_fix_high,
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
+            child:
                 // Delete button
                 GestureDetector(
                   onTap: () => _deletePageFromMultiPage(index),
@@ -552,8 +533,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                     ),
                   ),
                 ),
-              ],
-            ),
           ),
         ],
       ),
@@ -564,6 +543,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     final imagePath =
         await ref.read(scannerNotifierProvider.notifier).captureImage();
     if (imagePath != null) {
+      // Add the captured image as a page
       final page = CapturedPage(
         id: _uuid.v4(),
         pageNumber: _capturedPages.length + 1,
@@ -596,41 +576,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     });
   }
 
-  Future<void> _showEnhancementDialog(CapturedPage page) async {
-    // Load image bytes if not already loaded
-    if (page.imageBytes == null) {
-      final file = File(page.imagePath);
-      page.imageBytes = await file.readAsBytes();
-    }
-
-    if (!mounted) return;
-
-    final result = await showDialog<ImageEnhancementOptions>(
-      context: context,
-      builder: (context) => ImageEnhancementDialog(
-        imageBytes: page.imageBytes!,
-        onEnhance: (enhancedImage, metadata) {
-          // This callback is not used anymore - we get the result from showDialog
-        },
-      ),
-    );
-
-    if (result != null) {
-      // Apply enhancement
-      final enhancementService = ref.read(imageEnhancementServiceProvider);
-      final enhancementResult =
-          await enhancementService.enhanceImage(page.imageBytes!, result);
-
-      setState(() {
-        final index = _capturedPages.indexOf(page);
-        _capturedPages[index] = page.copyWith(
-          enhancedImageBytes: enhancementResult.enhancedImageBytes,
-          isEnhanced: true,
-          enhancementOptions: result,
-        );
-      });
-    }
-  }
 
   Future<void> _saveDocument() async {
     if (_capturedImagePath == null) return;
@@ -710,31 +655,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                 'Image bytes are empty for page ${capturedPage.pageNumber}');
           }
 
-          // Prepare image for OCR
-          Uint8List imageForOCR;
-
-          if (capturedPage.enhancedImageBytes != null) {
-            // Use manually enhanced image
-            imageForOCR = capturedPage.enhancedImageBytes!;
-          } else {
-            // Apply auto-enhancement for better OCR accuracy
-            final enhancementService =
-                ref.read(imageEnhancementServiceProvider);
-            final enhancementResult =
-                await enhancementService.autoEnhance(capturedPage.imageBytes!);
-            imageForOCR = enhancementResult.enhancedImageBytes;
-          }
-
-          // Save enhanced bytes to temp file for OCR
+          // Save image bytes to temp file for OCR
           final tempDir = await getTemporaryDirectory();
           tempEnhancedPath =
               '${tempDir.path}/ocr_temp_page_${capturedPage.pageNumber}.jpg';
-          await File(tempEnhancedPath).writeAsBytes(imageForOCR);
+          await File(tempEnhancedPath).writeAsBytes(capturedPage.imageBytes!);
 
-          // Use enhanced image if available, otherwise original
-          final imageToProcess = capturedPage.enhancedImageBytes ?? imageForOCR;
-
-          // Perform OCR using enhanced image
+          // Perform OCR using original image
           final ocrService = ref.read(ocrServiceProvider);
           final ocrResult =
               await ocrService.extractTextFromImage(tempEnhancedPath);
@@ -743,16 +670,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
           final documentPage = DocumentPage.create(
             documentId: '', // Will be set when document is created
             pageNumber: capturedPage.pageNumber,
-            imageData: imageToProcess,
-            originalImageData: capturedPage.enhancedImageBytes != null
-                ? capturedPage.imageBytes
-                : null,
+            imageData: capturedPage.imageBytes!,
+            originalImageData: null,
             thumbnailData: null, // Will be generated by service
             extractedText: ocrResult.text,
             confidenceScore: ocrResult.confidence,
-            isEnhanced: capturedPage.isEnhanced,
-            enhancementMetadata:
-                capturedPage.enhancementOptions?.toJson() ?? {},
+            isEnhanced: false,
+            enhancementMetadata: {},
           );
 
           documentPages.add(documentPage);
@@ -774,15 +698,12 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
             documentId: '',
             pageNumber: capturedPage.pageNumber,
             imageData: capturedPage.imageBytes ?? Uint8List(0),
-            originalImageData: capturedPage.enhancedImageBytes != null
-                ? capturedPage.imageBytes
-                : null,
+            originalImageData: null,
             thumbnailData: null,
             extractedText: '[OCR failed: ${pageError.toString()}]',
             confidenceScore: 0.0,
-            isEnhanced: capturedPage.isEnhanced,
-            enhancementMetadata:
-                capturedPage.enhancementOptions?.toJson() ?? {},
+            isEnhanced: false,
+            enhancementMetadata: {},
           );
           documentPages.add(documentPage);
         } finally {

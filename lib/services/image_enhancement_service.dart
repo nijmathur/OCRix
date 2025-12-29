@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import '../core/interfaces/image_enhancement_service_interface.dart';
@@ -77,35 +78,6 @@ class ImageEnhancementService extends BaseService
       image = _reduceNoiseInIsolate(image, options.noiseReductionStrength);
       appliedEnhancements['noiseReduction'] = true;
       appliedEnhancements['noiseStrength'] = options.noiseReductionStrength;
-    }
-
-    // 4. Sharpening (if enabled) - improves text clarity for OCR
-    if (options.sharpen) {
-      image = _sharpenImage(image);
-      appliedEnhancements['sharpen'] = true;
-    }
-
-    // 5. Contrast adjustment (if enabled)
-    if (options.adjustContrast) {
-      image = img.adjustColor(image, contrast: options.contrastFactor);
-      appliedEnhancements['contrastAdjustment'] = true;
-      appliedEnhancements['contrastFactor'] = options.contrastFactor;
-    }
-
-    // 6. Brightness adjustment (if enabled)
-    if (options.adjustBrightness) {
-      final brightnessValue = ((options.brightnessFactor - 1.0) * 100).round();
-      image = img.adjustColor(image, brightness: brightnessValue.toDouble());
-      appliedEnhancements['brightnessAdjustment'] = true;
-      appliedEnhancements['brightnessFactor'] = options.brightnessFactor;
-    }
-
-    // 7. Binarization (if enabled) - should be last
-    if (options.binarize) {
-      image = _binarizeImageInIsolate(image, options.binarizationThreshold);
-      appliedEnhancements['binarization'] = true;
-      appliedEnhancements['binarizationThreshold'] =
-          options.binarizationThreshold;
     }
 
     final enhancedBytes = Uint8List.fromList(img.encodeJpg(image, quality: 90));
@@ -384,71 +356,6 @@ class ImageEnhancementService extends BaseService
   }
 
   @override
-  Future<Uint8List> adjustContrast(Uint8List imageBytes, double factor) async {
-    try {
-      final result = await compute(
-        _adjustContrastWrapper,
-        {'imageBytes': imageBytes, 'factor': factor},
-      );
-      return result;
-    } catch (e, stackTrace) {
-      logError('Failed to adjust contrast', e);
-      throw ImageProcessingException(
-        'Failed to adjust contrast: ${e.toString()}',
-        originalError: e,
-        stackTrace: stackTrace,
-      );
-    }
-  }
-
-  static Uint8List _adjustContrastWrapper(Map<String, dynamic> params) {
-    final imageBytes = params['imageBytes'] as Uint8List;
-    final factor = params['factor'] as double;
-
-    final image = img.decodeImage(imageBytes);
-    if (image == null) {
-      throw Exception('Failed to decode image');
-    }
-
-    final adjusted = img.adjustColor(image, contrast: factor);
-    return Uint8List.fromList(img.encodeJpg(adjusted, quality: 90));
-  }
-
-  @override
-  Future<Uint8List> adjustBrightness(
-      Uint8List imageBytes, double factor) async {
-    try {
-      final result = await compute(
-        _adjustBrightnessWrapper,
-        {'imageBytes': imageBytes, 'factor': factor},
-      );
-      return result;
-    } catch (e, stackTrace) {
-      logError('Failed to adjust brightness', e);
-      throw ImageProcessingException(
-        'Failed to adjust brightness: ${e.toString()}',
-        originalError: e,
-        stackTrace: stackTrace,
-      );
-    }
-  }
-
-  static Uint8List _adjustBrightnessWrapper(Map<String, dynamic> params) {
-    final imageBytes = params['imageBytes'] as Uint8List;
-    final factor = params['factor'] as double;
-
-    final image = img.decodeImage(imageBytes);
-    if (image == null) {
-      throw Exception('Failed to decode image');
-    }
-
-    final brightnessValue = ((factor - 1.0) * 100).round();
-    final adjusted =
-        img.adjustColor(image, brightness: brightnessValue.toDouble());
-    return Uint8List.fromList(img.encodeJpg(adjusted, quality: 90));
-  }
-
-  @override
   Future<Uint8List> reduceNoise(Uint8List imageBytes, int strength) async {
     try {
       final result = await compute(
@@ -487,153 +394,92 @@ class ImageEnhancementService extends BaseService
   }
 
   @override
-  Future<Uint8List> binarizeImage(Uint8List imageBytes, int threshold) async {
-    try {
-      final result = await compute(
-        _binarizeImageWrapper,
-        {'imageBytes': imageBytes, 'threshold': threshold},
-      );
-      return result;
-    } catch (e, stackTrace) {
-      logError('Failed to binarize image', e);
-      throw ImageProcessingException(
-        'Failed to binarize image: ${e.toString()}',
-        originalError: e,
-        stackTrace: stackTrace,
-      );
-    }
-  }
-
-  static Uint8List _binarizeImageWrapper(Map<String, dynamic> params) {
-    final imageBytes = params['imageBytes'] as Uint8List;
-    final threshold = params['threshold'] as int;
-
-    final image = img.decodeImage(imageBytes);
-    if (image == null) {
-      throw Exception('Failed to decode image');
-    }
-
-    final binarized = _binarizeImageInIsolate(image, threshold);
-    return Uint8List.fromList(img.encodeJpg(binarized, quality: 90));
-  }
-
-  static img.Image _binarizeImageInIsolate(img.Image image, int threshold) {
-    // Convert to grayscale first
-    final gray = img.grayscale(image);
-
-    // If threshold is 0, use Otsu's method for automatic threshold detection
-    final finalThreshold =
-        threshold == 0 ? _calculateOtsuThreshold(gray) : threshold;
-
-    // Apply threshold
-    for (var y = 0; y < gray.height; y++) {
-      for (var x = 0; x < gray.width; x++) {
-        final pixel = gray.getPixel(x, y);
-        final luminance = img.getLuminance(pixel);
-        final newValue = luminance > finalThreshold ? 255 : 0;
-        gray.setPixelRgba(x, y, newValue, newValue, newValue, 255);
-      }
-    }
-
-    return gray;
-  }
-
-  static int _calculateOtsuThreshold(img.Image image) {
-    // Otsu's method for automatic threshold calculation
-    // Calculate histogram
-    final histogram = List<int>.filled(256, 0);
-    for (var y = 0; y < image.height; y++) {
-      for (var x = 0; x < image.width; x++) {
-        final pixel = image.getPixel(x, y);
-        final luminance = img.getLuminance(pixel).toInt();
-        histogram[luminance]++;
-      }
-    }
-
-    final totalPixels = image.width * image.height;
-
-    // Calculate sum of all intensities
-    double sum = 0;
-    for (var i = 0; i < 256; i++) {
-      sum += i * histogram[i];
-    }
-
-    double sumBackground = 0;
-    int weightBackground = 0;
-    int weightForeground = 0;
-
-    double maxVariance = 0;
-    int threshold = 0;
-
-    // Try all possible thresholds
-    for (var t = 0; t < 256; t++) {
-      weightBackground += histogram[t];
-      if (weightBackground == 0) continue;
-
-      weightForeground = totalPixels - weightBackground;
-      if (weightForeground == 0) break;
-
-      sumBackground += t * histogram[t];
-
-      final meanBackground = sumBackground / weightBackground;
-      final meanForeground = (sum - sumBackground) / weightForeground;
-
-      // Calculate between-class variance
-      final variance = weightBackground.toDouble() *
-          weightForeground.toDouble() *
-          math.pow(meanBackground - meanForeground, 2);
-
-      // Check if new maximum found
-      if (variance > maxVariance) {
-        maxVariance = variance;
-        threshold = t;
-      }
-    }
-
-    return threshold;
-  }
-
-  @override
   Future<ImageEnhancementResult> autoEnhance(Uint8List imageBytes) async {
     // Apply smart defaults for OCR document scanning
     const options = ImageEnhancementOptions(
       perspectiveCorrection: true, // Now implemented with edge detection
       deskew: true, // Now uses projection profile method
-      adjustContrast: true,
-      adjustBrightness: true,
       reduceNoise: true,
-      sharpen: true, // Improves text clarity for OCR
-      binarize:
-          false, // User preference (can use Otsu if enabled with threshold: 0)
-      contrastFactor: 1.4, // Increased for better text clarity
-      brightnessFactor: 1.05, // Slight brightness boost
       noiseReductionStrength: 2, // Moderate noise reduction
     );
 
     return enhanceImage(imageBytes, options);
   }
 
-  /// Apply sharpening filter to improve text clarity for OCR
-  static img.Image _sharpenImage(img.Image image) {
-    // Unsharp mask kernel for sharpening (3x3 matrix)
-    // This enhances edges and text clarity
-    final sharpened = img.convolution(
-      image,
-      filter: [
-        -1,
-        -1,
-        -1,
-        -1,
-        9,
-        -1,
-        -1,
-        -1,
-        -1,
-      ],
-      div: 1,
-      offset: 0,
-    );
+  @override
+  Future<List<math.Point<int>>?> detectDocumentCorners(Uint8List imageBytes) async {
+    try {
+      logInfo('Detecting document corners');
 
-    return sharpened;
+      final result = await compute(
+        _detectCornersInIsolate,
+        imageBytes,
+      );
+
+      logInfo('Corner detection completed');
+      return result;
+    } catch (e, stackTrace) {
+      logError('Failed to detect corners', e);
+      return null; // Return null on error, caller will use default corners
+    }
+  }
+
+  static List<math.Point<int>>? _detectCornersInIsolate(Uint8List imageBytes) {
+    var image = img.decodeImage(imageBytes);
+    if (image == null) return null;
+
+    // Use the existing edge detection
+    final edges = _detectEdges(image);
+    final corners = _findDocumentCorners(edges);
+
+    return corners;
+  }
+
+  @override
+  Future<Uint8List> applyPerspectiveTransform(
+    Uint8List imageBytes,
+    List<Offset> corners,
+  ) async {
+    try {
+      logInfo('Applying perspective transform');
+
+      final result = await compute(
+        _perspectiveTransformInIsolate,
+        {
+          'imageBytes': imageBytes,
+          'corners': corners.map((c) => {'x': c.dx, 'y': c.dy}).toList(),
+        },
+      );
+
+      logInfo('Perspective transform completed');
+      return result;
+    } catch (e, stackTrace) {
+      logError('Failed to apply perspective transform', e);
+      throw ImageProcessingException(
+        'Failed to apply perspective transform: ${e.toString()}',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  static Uint8List _perspectiveTransformInIsolate(Map<String, dynamic> params) {
+    final imageBytes = params['imageBytes'] as Uint8List;
+    final cornerMaps = params['corners'] as List;
+
+    final corners = cornerMaps.map((c) =>
+      math.Point<int>(c['x'].toInt(), c['y'].toInt())
+    ).toList();
+
+    var image = img.decodeImage(imageBytes);
+    if (image == null) {
+      throw Exception('Failed to decode image');
+    }
+
+    // Apply the perspective transform
+    final transformed = _applyPerspectiveTransform(image, corners);
+
+    // Encode back to bytes
+    return Uint8List.fromList(img.encodeJpg(transformed, quality: 95));
   }
 }

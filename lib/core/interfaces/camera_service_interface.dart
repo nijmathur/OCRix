@@ -40,6 +40,12 @@ abstract class ICameraService {
   /// Set flash mode
   Future<void> setFlashMode(FlashMode mode);
 
+  /// Get current flash mode
+  FlashMode get currentFlashMode;
+
+  /// Toggle flash between OFF and ON (torch mode)
+  Future<void> toggleFlash();
+
   /// Set focus mode
   Future<void> setFocusMode(FocusMode mode);
 

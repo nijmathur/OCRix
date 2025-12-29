@@ -53,7 +53,9 @@ class CameraPreviewWidget extends ConsumerWidget {
             children: [
               _buildControlButton(
                 context,
-                Icons.flash_off,
+                ref.watch(cameraServiceProvider).currentFlashMode == FlashMode.off
+                    ? Icons.flash_off
+                    : Icons.flash_on,
                 () => _toggleFlash(ref),
               ),
               _buildControlButton(
@@ -154,8 +156,9 @@ class CameraPreviewWidget extends ConsumerWidget {
     );
   }
 
-  void _toggleFlash(WidgetRef ref) {
-    // TODO: Implement flash toggle
+  Future<void> _toggleFlash(WidgetRef ref) async {
+    final cameraService = ref.read(cameraServiceProvider);
+    await cameraService.toggleFlash();
   }
 
   void _switchCamera(WidgetRef ref) {
@@ -222,9 +225,12 @@ class CameraPreviewWidget extends ConsumerWidget {
               leading: const Icon(Icons.flash_on),
               title: const Text('Flash'),
               trailing: Switch(
-                value: false, // TODO: Get from state
-                onChanged: (value) {
-                  // TODO: Toggle flash
+                value: ref.watch(cameraServiceProvider).currentFlashMode != FlashMode.off,
+                onChanged: (value) async {
+                  final cameraService = ref.read(cameraServiceProvider);
+                  await cameraService.setFlashMode(
+                    value ? FlashMode.torch : FlashMode.off,
+                  );
                 },
               ),
             ),
