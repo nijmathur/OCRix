@@ -153,8 +153,7 @@ void main() {
     test('CRITICAL: Database write operations are logged (COMPULSORY)',
         () async {
       // Set audit logging service in database service
-      (mainDatabaseService as DatabaseService)
-          .setAuditLoggingService(auditLoggingService);
+      (mainDatabaseService).setAuditLoggingService(auditLoggingService);
 
       // Perform a database operation (we'll need to create a test document)
       // For now, just verify that the logging service is set up correctly
@@ -183,8 +182,7 @@ void main() {
     test('CRITICAL: Database read operations are logged (COMPULSORY)',
         () async {
       // Set audit logging service
-      (mainDatabaseService as DatabaseService)
-          .setAuditLoggingService(auditLoggingService);
+      (mainDatabaseService).setAuditLoggingService(auditLoggingService);
 
       // Log a database read
       await auditLoggingService.logDatabaseRead(

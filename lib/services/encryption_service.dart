@@ -82,7 +82,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       }
 
       if (_encrypter == null || _key == null) {
-        throw EncryptionException('Encryption not initialized');
+        throw const EncryptionException('Encryption not initialized');
       }
 
       // Generate a unique IV for this encryption operation
@@ -118,7 +118,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       }
 
       if (_encrypter == null || _key == null) {
-        throw EncryptionException('Encryption not initialized');
+        throw const EncryptionException('Encryption not initialized');
       }
 
       // Decode base64 to get [IV (16 bytes)][Encrypted Data]
@@ -162,7 +162,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       }
 
       if (_encrypter == null || _key == null) {
-        throw EncryptionException('Encryption not initialized');
+        throw const EncryptionException('Encryption not initialized');
       }
 
       // Generate a unique IV for this encryption operation
@@ -202,7 +202,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       }
 
       if (_encrypter == null || _key == null) {
-        throw EncryptionException('Encryption not initialized');
+        throw const EncryptionException('Encryption not initialized');
       }
 
       // Encrypted data format: [IV (16 bytes)][Encrypted Data]

@@ -32,12 +32,10 @@ class AuthService extends BaseService {
       _currentUser = _googleSignIn.currentUser;
 
       // If not signed in, try to restore previous session
-      if (_currentUser == null) {
-        _currentUser = await _googleSignIn.signInSilently();
-      }
+      _currentUser ??= await _googleSignIn.signInSilently();
 
       _isInitialized = true;
-      logInfo('Auth service initialized. Signed in: ${isSignedIn}');
+      logInfo('Auth service initialized. Signed in: $isSignedIn');
     } catch (e) {
       logError('Failed to initialize auth service', e);
       // Don't throw - allow app to show login screen

@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import '../core/interfaces/image_processing_service_interface.dart';
@@ -104,7 +103,7 @@ class ImageProcessingService extends BaseService
     try {
       final image = img.decodeImage(Uint8List.fromList(imageBytes));
       if (image == null) {
-        throw ImageProcessingException('Failed to decode image');
+        throw const ImageProcessingException('Failed to decode image');
       }
 
       if (image.width <= maxWidth && image.height <= maxHeight) {
@@ -157,7 +156,7 @@ class ImageProcessingService extends BaseService
     try {
       final image = img.decodeImage(Uint8List.fromList(imageBytes));
       if (image == null) {
-        throw ImageProcessingException('Failed to decode image');
+        throw const ImageProcessingException('Failed to decode image');
       }
 
       final compressed = img.encodeJpg(image, quality: quality);

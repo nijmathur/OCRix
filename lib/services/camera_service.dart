@@ -21,6 +21,7 @@ class CameraService extends BaseService
   String get serviceName => 'CameraService';
 
   /// Get current flash mode
+  @override
   FlashMode get currentFlashMode => _currentFlashMode;
 
   @override
@@ -41,7 +42,7 @@ class CameraService extends BaseService
     try {
       _cameras = await availableCameras();
       if (_cameras.isEmpty) {
-        throw CameraException('No cameras available');
+        throw const CameraException('No cameras available');
       }
       _isInitialized = true;
       logInfo('Camera service initialized with ${_cameras.length} cameras');
@@ -57,6 +58,7 @@ class CameraService extends BaseService
     }
   }
 
+  @override
   Future<void> initializeController({
     int cameraIndex = 0,
     ResolutionPreset resolution = ResolutionPreset.high,
@@ -102,7 +104,7 @@ class CameraService extends BaseService
   Future<String> captureImage() async {
     try {
       if (_controller == null || !_controller!.value.isInitialized) {
-        throw CameraException('Camera controller not initialized');
+        throw const CameraException('Camera controller not initialized');
       }
 
       final XFile image = await _controller!.takePicture();
@@ -134,7 +136,7 @@ class CameraService extends BaseService
   Future<List<int>> captureImageBytes() async {
     try {
       if (_controller == null || !_controller!.value.isInitialized) {
-        throw CameraException('Camera controller not initialized');
+        throw const CameraException('Camera controller not initialized');
       }
 
       final XFile image = await _controller!.takePicture();
@@ -161,7 +163,7 @@ class CameraService extends BaseService
       // Decode and process image
       final image = img.decodeImage(Uint8List.fromList(imageBytes));
       if (image == null) {
-        throw CameraException('Failed to decode image');
+        throw const CameraException('Failed to decode image');
       }
 
       // Apply image processing
@@ -220,7 +222,7 @@ class CameraService extends BaseService
   Future<void> startPreview() async {
     try {
       if (_controller == null || !_controller!.value.isInitialized) {
-        throw CameraException('Camera controller not initialized');
+        throw const CameraException('Camera controller not initialized');
       }
       await _controller!.startImageStream(_onImageStream);
       logInfo('Camera preview started');
@@ -268,6 +270,7 @@ class CameraService extends BaseService
   }
 
   /// Toggle flash between OFF and ON (torch mode)
+  @override
   Future<void> toggleFlash() async {
     final newMode =
         _currentFlashMode == FlashMode.off ? FlashMode.torch : FlashMode.off;

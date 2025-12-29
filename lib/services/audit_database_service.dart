@@ -96,12 +96,13 @@ class AuditDatabaseService extends BaseService
     try {
       // Verify entry checksum before inserting
       if (!entry.verifyChecksum()) {
-        throw DatabaseException('Audit entry checksum verification failed');
+        throw const DatabaseException(
+            'Audit entry checksum verification failed');
       }
 
       // Verify chain integrity if not first entry
       if (_lastEntryId != null && !entry.verifyChain(_lastChecksum)) {
-        throw DatabaseException('Audit entry chain verification failed');
+        throw const DatabaseException('Audit entry chain verification failed');
       }
 
       // Insert entry

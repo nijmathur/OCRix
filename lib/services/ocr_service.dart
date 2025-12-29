@@ -169,7 +169,7 @@ class OCRService extends BaseService implements IOCRService {
       final image = img.decodeImage(bytes);
 
       if (image == null) {
-        throw OCRException('Failed to decode image');
+        throw const OCRException('Failed to decode image');
       }
 
       // Apply image preprocessing

@@ -29,7 +29,7 @@ class LogFormatterService implements ILogFormatter {
     if (_includeEmoji) {
       buffer.write('${entry.level.emoji} ');
     }
-    buffer.write('${entry.level.name}');
+    buffer.write(entry.level.name);
 
     // Tag
     if (entry.tag != null) {

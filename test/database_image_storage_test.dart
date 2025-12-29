@@ -1,8 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqflite/sqflite.dart';
-import '../lib/models/document.dart';
+import 'package:ocrix/models/document.dart';
 
 void main() {
   // Initialize FFI for testing (allows running on desktop/CI without device)

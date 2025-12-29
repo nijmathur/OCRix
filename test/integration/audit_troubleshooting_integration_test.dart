@@ -53,15 +53,12 @@ void main() {
       // Set up mock encryption service (doesn't require flutter_secure_storage)
       final mockEncryptionService = MockEncryptionService();
       await mockEncryptionService.initialize();
-      (databaseService as DatabaseService)
-          .setEncryptionService(mockEncryptionService);
-      (databaseService as DatabaseService)
-          .setDatabasePathOverride(tempDbDir.path);
+      (databaseService).setEncryptionService(mockEncryptionService);
+      (databaseService).setDatabasePathOverride(tempDbDir.path);
 
       // Set up relationships
       auditDatabaseService.setMainDatabaseService(databaseService);
-      (databaseService as DatabaseService)
-          .setAuditLoggingService(auditLoggingService);
+      (databaseService).setAuditLoggingService(auditLoggingService);
 
       // Initialize services
       await databaseService.initialize();

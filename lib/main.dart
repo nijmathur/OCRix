@@ -9,7 +9,6 @@ import 'providers/troubleshooting_logger_provider.dart';
 import 'services/database_service.dart';
 import 'services/encryption_service.dart';
 import 'services/ocr_service.dart';
-import 'services/camera_service.dart';
 import 'services/storage_provider_service.dart';
 import 'utils/navigation_observer.dart';
 import 'utils/error_handler.dart';
@@ -268,28 +267,21 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
 
       // Inject troubleshooting logger into all services
       if (databaseService is DatabaseService) {
-        (databaseService as DatabaseService)
-            .setTroubleshootingLogger(troubleshootingLogger);
+        (databaseService).setTroubleshootingLogger(troubleshootingLogger);
       }
 
       if (encryptionService is EncryptionService) {
-        (encryptionService as EncryptionService)
-            .setTroubleshootingLogger(troubleshootingLogger);
+        (encryptionService).setTroubleshootingLogger(troubleshootingLogger);
       }
 
       if (ocrService is OCRService) {
-        (ocrService as OCRService)
-            .setTroubleshootingLogger(troubleshootingLogger);
+        (ocrService).setTroubleshootingLogger(troubleshootingLogger);
       }
 
-      if (cameraService is CameraService) {
-        (cameraService as CameraService)
-            .setTroubleshootingLogger(troubleshootingLogger);
-      }
+      (cameraService).setTroubleshootingLogger(troubleshootingLogger);
 
       if (storageService is StorageProviderService) {
-        (storageService as StorageProviderService)
-            .setTroubleshootingLogger(troubleshootingLogger);
+        (storageService).setTroubleshootingLogger(troubleshootingLogger);
       }
 
       // Initialize error handler
@@ -305,8 +297,7 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
       // Set audit logging service in database service for COMPULSORY logging
       // Cast to concrete type to access setAuditLoggingService
       if (databaseService is DatabaseService) {
-        (databaseService as DatabaseService)
-            .setAuditLoggingService(auditLoggingService);
+        (databaseService).setAuditLoggingService(auditLoggingService);
       }
 
       // Get current user ID for audit logging
@@ -319,8 +310,7 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
 
         // Set user ID in database for SQLite triggers
         if (databaseService is DatabaseService) {
-          await (databaseService as DatabaseService)
-              .setCurrentUserIdForTriggers(userId);
+          await (databaseService).setCurrentUserIdForTriggers(userId);
         }
       }
 

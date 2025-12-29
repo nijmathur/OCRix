@@ -23,8 +23,6 @@ import 'audit_provider.dart';
 import 'troubleshooting_logger_provider.dart';
 import '../core/interfaces/troubleshooting_logger_interface.dart';
 import '../models/document_page.dart';
-import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 
 // Service providers - using interfaces for dependency inversion
 final databaseServiceProvider = Provider<IDatabaseService>((ref) {
@@ -122,7 +120,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         _currentSearchQuery = searchQuery ?? _currentSearchQuery;
       }
 
-      final limit = AppConfig.documentsPerPage;
+      const limit = AppConfig.documentsPerPage;
       final offset = _currentPage * limit;
 
       final documents = await _databaseService.getAllDocuments(

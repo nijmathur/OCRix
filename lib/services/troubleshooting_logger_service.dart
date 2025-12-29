@@ -178,7 +178,7 @@ class TroubleshootingLoggerService extends BaseService
       if (_inMemoryBuffer.isNotEmpty) {
         buffer.writeln('Recent Log Entries (Last ${_inMemoryBuffer.length}):');
         buffer.writeln('-' * 80);
-        final formatter = LogFormatterService();
+        const formatter = LogFormatterService();
         for (final entry in _inMemoryBuffer.reversed) {
           buffer.writeln(formatter.format(entry));
           buffer.writeln();

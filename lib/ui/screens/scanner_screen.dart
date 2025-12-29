@@ -192,7 +192,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                       }
                     });
                   },
-                  style: ButtonStyle(
+                  style: const ButtonStyle(
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
@@ -320,7 +320,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<DocumentType>(
-          value: _selectedType,
+          initialValue: _selectedType,
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
             contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -640,9 +640,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
           }
 
           // Load image bytes for storage
-          if (capturedPage.imageBytes == null) {
-            capturedPage.imageBytes = await file.readAsBytes();
-          }
+          capturedPage.imageBytes ??= await file.readAsBytes();
 
           // Validate image bytes
           if (capturedPage.imageBytes == null ||

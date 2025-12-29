@@ -1,5 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:sqflite/sqflite.dart' hide DatabaseException;
 import 'package:path/path.dart';
@@ -504,6 +502,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   // Document operations
+  @override
   Future<String> insertDocument(Document document) async {
     final db = await database;
     try {
@@ -540,6 +539,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
   Future<Document?> getDocument(String id) async {
     final db = await database;
     try {
@@ -570,6 +570,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
   Future<List<Document>> getAllDocuments({
     int? limit,
     int? offset,
@@ -684,6 +685,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
   Future<void> updateDocument(Document document) async {
     final db = await database;
     try {
@@ -728,6 +730,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
   Future<void> deleteDocument(String id) async {
     final db = await database;
     try {
@@ -769,6 +772,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
   Future<UserSettings> getUserSettings() async {
     final db = await database;
     try {
@@ -796,6 +800,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
   Future<void> updateUserSettings(UserSettings settings) async {
     final db = await database;
     try {
@@ -829,6 +834,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
   // The AuditLoggingService properly tracks user IDs via setUserId()
   // and provides level-based logging (COMPULSORY, DISCRETIONARY, etc.)
 
+  @override
   Future<List<AuditLog>> getAuditLogs({
     int? limit,
     int? offset,
@@ -884,16 +890,15 @@ class DatabaseService extends BaseService implements IDatabaseService {
     // Remove or escape FTS5 special characters
     // FTS5 special chars: " - ( ) * AND OR NOT
     sanitized = sanitized
-        .replaceAll('"', '""')  // Escape quotes by doubling them
-        .replaceAll('(', '')    // Remove grouping operators
+        .replaceAll('"', '""') // Escape quotes by doubling them
+        .replaceAll('(', '') // Remove grouping operators
         .replaceAll(')', '')
-        .replaceAll('*', '')    // Remove wildcard operators
-        .replaceAll('-', ' ');  // Replace NOT operator with space
+        .replaceAll('*', '') // Remove wildcard operators
+        .replaceAll('-', ' '); // Replace NOT operator with space
 
     // Remove FTS5 boolean operators (case-insensitive)
-    sanitized = sanitized
-        .replaceAllMapped(RegExp(r'\b(AND|OR|NOT)\b', caseSensitive: false),
-                         (match) => ' ');
+    sanitized = sanitized.replaceAllMapped(
+        RegExp(r'\b(AND|OR|NOT)\b', caseSensitive: false), (match) => ' ');
 
     // Trim and collapse multiple spaces
     sanitized = sanitized.trim().replaceAll(RegExp(r'\s+'), ' ');
@@ -903,6 +908,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     return '"$sanitized"';
   }
 
+  @override
   Future<List<Document>> searchDocuments(String query) async {
     final db = await database;
     try {
@@ -1125,7 +1131,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
       ),
       scanDate: DateTime.fromMillisecondsSinceEpoch(map['scan_date']),
       tags: (map['tags'] as String?)?.split(',') ?? [],
-      metadata: {}, // TODO: Parse metadata JSON
+      metadata: const {}, // TODO: Parse metadata JSON
       storageProvider: map['storage_provider'],
       isEncrypted: map['is_encrypted'] == 1,
       confidenceScore: map['confidence_score'],
@@ -1219,6 +1225,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
   // ============================================================================
 
   /// Save a document page
+  @override
   Future<void> saveDocumentPage(DocumentPage page) async {
     try {
       final db = await database;
@@ -1251,6 +1258,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   /// Get all pages for a document
+  @override
   Future<List<DocumentPage>> getDocumentPages(String documentId) async {
     try {
       final db = await database;
@@ -1272,6 +1280,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   /// Get a specific page by page number
+  @override
   Future<DocumentPage?> getDocumentPage(
       String documentId, int pageNumber) async {
     try {
@@ -1298,6 +1307,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   /// Update a document page
+  @override
   Future<void> updateDocumentPage(DocumentPage page) async {
     try {
       final db = await database;
@@ -1327,6 +1337,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   /// Delete a document page
+  @override
   Future<void> deleteDocumentPage(String pageId) async {
     try {
       final db = await database;

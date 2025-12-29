@@ -48,7 +48,7 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
     }
 
     if (_encrypter == null || _iv == null) {
-      throw EncryptionException('Encryption not initialized');
+      throw const EncryptionException('Encryption not initialized');
     }
 
     final encrypted = _encrypter!.encrypt(text, iv: _iv!);
@@ -62,7 +62,7 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
     }
 
     if (_encrypter == null || _iv == null) {
-      throw EncryptionException('Encryption not initialized');
+      throw const EncryptionException('Encryption not initialized');
     }
 
     final encrypted = Encrypted.fromBase64(encryptedText);
@@ -77,7 +77,7 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
     }
 
     if (_encrypter == null || _iv == null) {
-      throw EncryptionException('Encryption not initialized');
+      throw const EncryptionException('Encryption not initialized');
     }
 
     final encrypted =
@@ -92,7 +92,7 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
     }
 
     if (_encrypter == null || _iv == null) {
-      throw EncryptionException('Encryption not initialized');
+      throw const EncryptionException('Encryption not initialized');
     }
 
     final encrypted = Encrypted(Uint8List.fromList(encryptedBytes));

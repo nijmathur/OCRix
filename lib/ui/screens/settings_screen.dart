@@ -542,7 +542,7 @@ class SettingsScreen extends ConsumerWidget {
       'About',
       Icons.info,
       [
-        SettingsTile(
+        const SettingsTile(
           title: 'Version',
           subtitle: '1.0.0',
           icon: Icons.info_outline,
@@ -773,7 +773,7 @@ class SettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => _ExportProgressDialog(),
+      builder: (context) => const _ExportProgressDialog(),
     );
 
     // Perform export with password
@@ -899,7 +899,7 @@ class SettingsScreen extends ConsumerWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => _ImportProgressDialog(),
+      builder: (context) => const _ImportProgressDialog(),
     );
 
     // Perform import with password

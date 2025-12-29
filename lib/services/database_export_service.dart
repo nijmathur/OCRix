@@ -91,7 +91,7 @@ class DatabaseExportService extends BaseService {
         final encryptedFile = File(encryptedFilePath);
 
         if (!await encryptedFile.exists()) {
-          throw EncryptionException('Encrypted file was not created');
+          throw const EncryptionException('Encrypted file was not created');
         }
 
         final encryptedFileSize = await encryptedFile.length();
@@ -121,7 +121,7 @@ class DatabaseExportService extends BaseService {
         if (!await provider.isConnected()) {
           final initialized = await provider.initialize();
           if (!initialized) {
-            throw StorageException(
+            throw const StorageException(
                 'Failed to initialize Google Drive provider');
           }
         }
@@ -220,7 +220,8 @@ class DatabaseExportService extends BaseService {
       if (!await provider.isConnected()) {
         final initialized = await provider.initialize();
         if (!initialized) {
-          throw StorageException('Failed to initialize Google Drive provider');
+          throw const StorageException(
+              'Failed to initialize Google Drive provider');
         }
       }
 
@@ -238,7 +239,7 @@ class DatabaseExportService extends BaseService {
       final encryptedFile = File(encryptedFilePath);
 
       if (!await encryptedFile.exists()) {
-        throw StorageException('Downloaded file does not exist');
+        throw const StorageException('Downloaded file does not exist');
       }
 
       logInfo(
@@ -254,7 +255,7 @@ class DatabaseExportService extends BaseService {
       final decryptedFile = File(decryptedFilePath);
 
       if (!await decryptedFile.exists()) {
-        throw EncryptionException('Decrypted file was not created');
+        throw const EncryptionException('Decrypted file was not created');
       }
 
       logInfo(
@@ -368,18 +369,20 @@ class DatabaseExportService extends BaseService {
       if (!await provider.isConnected()) {
         final initialized = await provider.initialize();
         if (!initialized) {
-          throw StorageException('Failed to initialize Google Drive provider');
+          throw const StorageException(
+              'Failed to initialize Google Drive provider');
         }
       }
 
       // Access Google Drive API directly to get file metadata
       if (provider is! GoogleDriveStorageProvider) {
-        throw StorageException('Provider is not GoogleDriveStorageProvider');
+        throw const StorageException(
+            'Provider is not GoogleDriveStorageProvider');
       }
 
       final driveApi = provider.driveApi;
       if (driveApi == null) {
-        throw StorageException('Google Drive API not initialized');
+        throw const StorageException('Google Drive API not initialized');
       }
 
       // Query Google Drive API for files in appDataFolder
@@ -433,7 +436,8 @@ class DatabaseExportService extends BaseService {
       if (!await provider.isConnected()) {
         final initialized = await provider.initialize();
         if (!initialized) {
-          throw StorageException('Failed to initialize Google Drive provider');
+          throw const StorageException(
+              'Failed to initialize Google Drive provider');
         }
       }
 
