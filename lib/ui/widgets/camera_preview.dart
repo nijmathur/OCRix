@@ -53,7 +53,8 @@ class CameraPreviewWidget extends ConsumerWidget {
             children: [
               _buildControlButton(
                 context,
-                ref.watch(cameraServiceProvider).currentFlashMode == FlashMode.off
+                ref.watch(cameraServiceProvider).currentFlashMode ==
+                        FlashMode.off
                     ? Icons.flash_off
                     : Icons.flash_on,
                 () => _toggleFlash(ref),
@@ -225,7 +226,8 @@ class CameraPreviewWidget extends ConsumerWidget {
               leading: const Icon(Icons.flash_on),
               title: const Text('Flash'),
               trailing: Switch(
-                value: ref.watch(cameraServiceProvider).currentFlashMode != FlashMode.off,
+                value: ref.watch(cameraServiceProvider).currentFlashMode !=
+                    FlashMode.off,
                 onChanged: (value) async {
                   final cameraService = ref.read(cameraServiceProvider);
                   await cameraService.setFlashMode(

@@ -407,7 +407,8 @@ class ImageEnhancementService extends BaseService
   }
 
   @override
-  Future<List<math.Point<int>>?> detectDocumentCorners(Uint8List imageBytes) async {
+  Future<List<math.Point<int>>?> detectDocumentCorners(
+      Uint8List imageBytes) async {
     try {
       logInfo('Detecting document corners');
 
@@ -467,9 +468,9 @@ class ImageEnhancementService extends BaseService
     final imageBytes = params['imageBytes'] as Uint8List;
     final cornerMaps = params['corners'] as List;
 
-    final corners = cornerMaps.map((c) =>
-      math.Point<int>(c['x'].toInt(), c['y'].toInt())
-    ).toList();
+    final corners = cornerMaps
+        .map((c) => math.Point<int>(c['x'].toInt(), c['y'].toInt()))
+        .toList();
 
     var image = img.decodeImage(imageBytes);
     if (image == null) {

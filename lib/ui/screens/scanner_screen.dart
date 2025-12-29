@@ -519,20 +519,20 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
             child:
                 // Delete button
                 GestureDetector(
-                  onTap: () => _deletePageFromMultiPage(index),
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Icon(
-                      Icons.close,
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                  ),
+              onTap: () => _deletePageFromMultiPage(index),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(4),
                 ),
+                child: const Icon(
+                  Icons.close,
+                  size: 16,
+                  color: Colors.white,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -575,7 +575,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       }
     });
   }
-
 
   Future<void> _saveDocument() async {
     if (_capturedImagePath == null) return;

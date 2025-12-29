@@ -9,7 +9,9 @@ import '../core/interfaces/camera_service_interface.dart';
 import '../core/base/base_service.dart';
 import '../core/exceptions/app_exceptions.dart';
 
-class CameraService extends BaseService with ChangeNotifier implements ICameraService {
+class CameraService extends BaseService
+    with ChangeNotifier
+    implements ICameraService {
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
   bool _isInitialized = false;
@@ -270,9 +272,8 @@ class CameraService extends BaseService with ChangeNotifier implements ICameraSe
 
   /// Toggle flash between OFF and ON (torch mode)
   Future<void> toggleFlash() async {
-    final newMode = _currentFlashMode == FlashMode.off
-        ? FlashMode.torch
-        : FlashMode.off;
+    final newMode =
+        _currentFlashMode == FlashMode.off ? FlashMode.torch : FlashMode.off;
     await setFlashMode(newMode);
   }
 

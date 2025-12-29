@@ -189,7 +189,6 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
 
   bool get hasMore => _hasMore;
 
-
   Future<String> scanDocument({
     required String imagePath,
     String? title,
@@ -218,8 +217,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       );
 
       // Extract text using OCR from original image
-      final ocrResult =
-          await _ocrService.extractTextFromImage(imagePath);
+      final ocrResult = await _ocrService.extractTextFromImage(imagePath);
 
       // Categorize document
       final documentType = await _ocrService.categorizeDocument(ocrResult.text);
