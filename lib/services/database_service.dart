@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:sqflite/sqflite.dart' hide DatabaseException;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/document.dart';
+import '../models/document_page.dart';
 import '../models/document_summary.dart';
 import '../models/user_settings.dart';
 import '../models/audit_log.dart';
@@ -160,8 +162,41 @@ class DatabaseService extends BaseService implements IDatabaseService {
           updated_at INTEGER NOT NULL,
           is_synced INTEGER NOT NULL DEFAULT 0,
           cloud_id TEXT,
-          last_synced_at INTEGER
+          last_synced_at INTEGER,
+          is_multi_page INTEGER NOT NULL DEFAULT 0,
+          page_count INTEGER NOT NULL DEFAULT 1
         )
+      ''');
+
+      // Create document_pages table for multi-page document support
+      await db.execute('''
+        CREATE TABLE document_pages (
+          id TEXT PRIMARY KEY,
+          document_id TEXT NOT NULL,
+          page_number INTEGER NOT NULL,
+          image_data BLOB,
+          original_image_data BLOB,
+          thumbnail_data BLOB,
+          image_format TEXT DEFAULT 'jpeg',
+          image_size INTEGER,
+          image_width INTEGER,
+          image_height INTEGER,
+          extracted_text TEXT NOT NULL,
+          confidence_score REAL NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          is_enhanced INTEGER NOT NULL DEFAULT 0,
+          enhancement_metadata TEXT,
+          FOREIGN KEY (document_id) REFERENCES documents (id) ON DELETE CASCADE
+        )
+      ''');
+
+      // Create index for efficient page lookup
+      await db.execute('''
+        CREATE INDEX idx_document_pages_doc_id ON document_pages(document_id)
+      ''');
+      await db.execute('''
+        CREATE INDEX idx_document_pages_page_num ON document_pages(document_id, page_number)
       ''');
 
       // Create search index table with FTS5 (if available)
@@ -397,6 +432,53 @@ class DatabaseService extends BaseService implements IDatabaseService {
         logInfo('Added audit_entries table to main database');
       } catch (e) {
         logError('Error adding audit_entries table', e);
+      }
+    }
+
+    if (oldVersion < 7) {
+      // Add multi-page document support and image enhancement
+      try {
+        // Add new columns to documents table
+        await db.execute(
+            'ALTER TABLE documents ADD COLUMN is_multi_page INTEGER NOT NULL DEFAULT 0');
+        await db.execute(
+            'ALTER TABLE documents ADD COLUMN page_count INTEGER NOT NULL DEFAULT 1');
+        logInfo('Added multi-page columns to documents table');
+
+        // Create document_pages table
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS document_pages (
+            id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL,
+            page_number INTEGER NOT NULL,
+            image_data BLOB,
+            original_image_data BLOB,
+            thumbnail_data BLOB,
+            image_format TEXT DEFAULT 'jpeg',
+            image_size INTEGER,
+            image_width INTEGER,
+            image_height INTEGER,
+            extracted_text TEXT NOT NULL,
+            confidence_score REAL NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            is_enhanced INTEGER NOT NULL DEFAULT 0,
+            enhancement_metadata TEXT,
+            FOREIGN KEY (document_id) REFERENCES documents (id) ON DELETE CASCADE
+          )
+        ''');
+        logInfo('Created document_pages table');
+
+        // Create indexes for document_pages
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_document_pages_doc_id ON document_pages(document_id)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_document_pages_page_num ON document_pages(document_id, page_number)
+        ''');
+        logInfo('Created indexes for document_pages table');
+      } catch (e) {
+        logError('Error adding multi-page support', e);
       }
     }
   }
@@ -1133,6 +1215,207 @@ class DatabaseService extends BaseService implements IDatabaseService {
     String? details,
   ) async {
     await _logAudit(action, resourceType, resourceId, details);
+  }
+
+  // ============================================================================
+  // Document Pages Methods (Multi-page document support)
+  // ============================================================================
+
+  /// Save a document page
+  Future<void> saveDocumentPage(DocumentPage page) async {
+    try {
+      final db = await database;
+      await db.insert(
+        'document_pages',
+        {
+          'id': page.id,
+          'document_id': page.documentId,
+          'page_number': page.pageNumber,
+          'image_data': page.imageData,
+          'original_image_data': page.originalImageData,
+          'thumbnail_data': page.thumbnailData,
+          'image_format': page.imageFormat,
+          'image_size': page.imageSize,
+          'image_width': page.imageWidth,
+          'image_height': page.imageHeight,
+          'extracted_text': page.extractedText,
+          'confidence_score': page.confidenceScore,
+          'created_at': page.createdAt.millisecondsSinceEpoch,
+          'updated_at': page.updatedAt.millisecondsSinceEpoch,
+          'is_enhanced': page.isEnhanced ? 1 : 0,
+          'enhancement_metadata': page.enhancementMetadata.isNotEmpty
+              ? jsonEncode(page.enhancementMetadata)
+              : null,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      await _logAudit(AuditAction.create, 'document_page', page.id,
+          'Created page ${page.pageNumber} for document ${page.documentId}');
+    } catch (e) {
+      logError('Failed to save document page', e);
+      throw DatabaseException(
+        'Failed to save document page: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  /// Get all pages for a document
+  Future<List<DocumentPage>> getDocumentPages(String documentId) async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'document_pages',
+        where: 'document_id = ?',
+        whereArgs: [documentId],
+        orderBy: 'page_number ASC',
+      );
+
+      await _logAudit(AuditAction.read, 'document_page', documentId,
+          'Retrieved ${maps.length} pages');
+
+      return List.generate(maps.length, (i) => _documentPageFromMap(maps[i]));
+    } catch (e) {
+      logError('Failed to get document pages', e);
+      throw DatabaseException(
+        'Failed to get document pages: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  /// Get a specific page by page number
+  Future<DocumentPage?> getDocumentPage(
+      String documentId, int pageNumber) async {
+    try {
+      final db = await database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'document_pages',
+        where: 'document_id = ? AND page_number = ?',
+        whereArgs: [documentId, pageNumber],
+        limit: 1,
+      );
+
+      if (maps.isEmpty) {
+        return null;
+      }
+
+      await _logAudit(AuditAction.read, 'document_page', documentId,
+          'Retrieved page $pageNumber');
+
+      return _documentPageFromMap(maps.first);
+    } catch (e) {
+      logError('Failed to get document page', e);
+      throw DatabaseException(
+        'Failed to get document page: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  /// Update a document page
+  Future<void> updateDocumentPage(DocumentPage page) async {
+    try {
+      final db = await database;
+      await db.update(
+        'document_pages',
+        {
+          'image_data': page.imageData,
+          'original_image_data': page.originalImageData,
+          'thumbnail_data': page.thumbnailData,
+          'image_format': page.imageFormat,
+          'image_size': page.imageSize,
+          'image_width': page.imageWidth,
+          'image_height': page.imageHeight,
+          'extracted_text': page.extractedText,
+          'confidence_score': page.confidenceScore,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+          'is_enhanced': page.isEnhanced ? 1 : 0,
+          'enhancement_metadata': page.enhancementMetadata.isNotEmpty
+              ? jsonEncode(page.enhancementMetadata)
+              : null,
+        },
+        where: 'id = ?',
+        whereArgs: [page.id],
+      );
+
+      await _logAudit(AuditAction.update, 'document_page', page.id,
+          'Updated page ${page.pageNumber}');
+    } catch (e) {
+      logError('Failed to update document page', e);
+      throw DatabaseException(
+        'Failed to update document page: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  /// Delete a document page
+  Future<void> deleteDocumentPage(String pageId) async {
+    try {
+      final db = await database;
+      await db.delete(
+        'document_pages',
+        where: 'id = ?',
+        whereArgs: [pageId],
+      );
+
+      await _logAudit(AuditAction.delete, 'document_page', pageId,
+          'Deleted document page');
+    } catch (e) {
+      logError('Failed to delete document page', e);
+      throw DatabaseException(
+        'Failed to delete document page: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  /// Delete all pages for a document
+  Future<void> deleteDocumentPages(String documentId) async {
+    try {
+      final db = await database;
+      final count = await db.delete(
+        'document_pages',
+        where: 'document_id = ?',
+        whereArgs: [documentId],
+      );
+
+      await _logAudit(AuditAction.delete, 'document_page', documentId,
+          'Deleted $count pages');
+    } catch (e) {
+      logError('Failed to delete document pages', e);
+      throw DatabaseException(
+        'Failed to delete document pages: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  /// Helper method to convert database map to DocumentPage
+  DocumentPage _documentPageFromMap(Map<String, dynamic> map) {
+    return DocumentPage(
+      id: map['id'] as String,
+      documentId: map['document_id'] as String,
+      pageNumber: map['page_number'] as int,
+      imageData: map['image_data'] as Uint8List?,
+      originalImageData: map['original_image_data'] as Uint8List?,
+      thumbnailData: map['thumbnail_data'] as Uint8List?,
+      imageFormat: map['image_format'] as String? ?? 'jpeg',
+      imageSize: map['image_size'] as int?,
+      imageWidth: map['image_width'] as int?,
+      imageHeight: map['image_height'] as int?,
+      extractedText: map['extracted_text'] as String,
+      confidenceScore: map['confidence_score'] as double,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
+      isEnhanced: (map['is_enhanced'] as int) == 1,
+      enhancementMetadata: map['enhancement_metadata'] != null
+          ? jsonDecode(map['enhancement_metadata'] as String)
+              as Map<String, dynamic>
+          : {},
+    );
   }
 }
 
