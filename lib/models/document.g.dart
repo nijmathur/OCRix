@@ -37,6 +37,8 @@ Document _$DocumentFromJson(Map<String, dynamic> json) => Document(
       lastSyncedAt: json['lastSyncedAt'] == null
           ? null
           : DateTime.parse(json['lastSyncedAt'] as String),
+      isMultiPage: json['isMultiPage'] as bool? ?? false,
+      pageCount: (json['pageCount'] as num?)?.toInt() ?? 1,
     );
 
 Map<String, dynamic> _$DocumentToJson(Document instance) => <String, dynamic>{
@@ -67,6 +69,8 @@ Map<String, dynamic> _$DocumentToJson(Document instance) => <String, dynamic>{
       'isSynced': instance.isSynced,
       'cloudId': instance.cloudId,
       'lastSyncedAt': instance.lastSyncedAt?.toIso8601String(),
+      'isMultiPage': instance.isMultiPage,
+      'pageCount': instance.pageCount,
     };
 
 const _$DocumentTypeEnumMap = {

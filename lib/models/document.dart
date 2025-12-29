@@ -52,6 +52,8 @@ class Document extends Equatable {
   final bool isSynced;
   final String? cloudId;
   final DateTime? lastSyncedAt;
+  final bool isMultiPage;
+  final int pageCount;
 
   const Document({
     required this.id,
@@ -80,6 +82,8 @@ class Document extends Equatable {
     required this.isSynced,
     this.cloudId,
     this.lastSyncedAt,
+    this.isMultiPage = false,
+    this.pageCount = 1,
   });
 
   factory Document.create({
@@ -102,6 +106,8 @@ class Document extends Equatable {
     Map<String, dynamic> metadata = const {},
     String storageProvider = 'local',
     bool isEncrypted = false, // Changed to false since we're storing in DB now
+    bool isMultiPage = false,
+    int pageCount = 1,
   }) {
     final now = DateTime.now();
     return Document(
@@ -129,6 +135,8 @@ class Document extends Equatable {
       createdAt: now,
       updatedAt: now,
       isSynced: false,
+      isMultiPage: isMultiPage,
+      pageCount: pageCount,
     );
   }
 
@@ -159,6 +167,8 @@ class Document extends Equatable {
     bool? isSynced,
     String? cloudId,
     DateTime? lastSyncedAt,
+    bool? isMultiPage,
+    int? pageCount,
   }) {
     return Document(
       id: id ?? this.id,
@@ -187,6 +197,8 @@ class Document extends Equatable {
       isSynced: isSynced ?? this.isSynced,
       cloudId: cloudId ?? this.cloudId,
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      isMultiPage: isMultiPage ?? this.isMultiPage,
+      pageCount: pageCount ?? this.pageCount,
     );
   }
 
@@ -222,6 +234,8 @@ class Document extends Equatable {
         isSynced,
         cloudId,
         lastSyncedAt,
+        isMultiPage,
+        pageCount,
       ];
 }
 
