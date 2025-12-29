@@ -213,9 +213,6 @@ class CameraService extends BaseService
     // Enhance contrast
     image = img.contrast(image, contrast: 1.2);
 
-    // Apply sharpening - simplified version
-    // image = img.convolution(image, [0, -1, 0, -1, 5, -1, 0, -1, 0]);
-
     return image;
   }
 
