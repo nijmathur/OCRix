@@ -620,9 +620,15 @@ class ImageEnhancementService extends BaseService
     final sharpened = img.convolution(
       image,
       filter: [
-        -1, -1, -1,
-        -1, 9, -1,
-        -1, -1, -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        9,
+        -1,
+        -1,
+        -1,
+        -1,
       ],
       div: 1,
       offset: 0,
