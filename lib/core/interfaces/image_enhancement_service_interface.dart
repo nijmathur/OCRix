@@ -1,50 +1,29 @@
 import 'dart:typed_data';
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
 
 /// Options for image enhancement
 class ImageEnhancementOptions {
   final bool perspectiveCorrection;
   final bool deskew;
-  final bool adjustContrast;
-  final bool adjustBrightness;
   final bool reduceNoise;
-  final bool sharpen;
-  final bool binarize;
 
   // Enhancement parameters
-  final double
-      contrastFactor; // 1.0 = no change, >1.0 = increase, <1.0 = decrease
-  final double
-      brightnessFactor; // 1.0 = no change, >1.0 = brighter, <1.0 = darker
   final int noiseReductionStrength; // 1-5, higher = more aggressive
-  final int binarizationThreshold; // 0-255, 0 = use Otsu's automatic threshold
 
   const ImageEnhancementOptions({
     this.perspectiveCorrection = false,
     this.deskew = false,
-    this.adjustContrast = false,
-    this.adjustBrightness = false,
     this.reduceNoise = false,
-    this.sharpen = false,
-    this.binarize = false,
-    this.contrastFactor = 1.2,
-    this.brightnessFactor = 1.1,
     this.noiseReductionStrength = 2,
-    this.binarizationThreshold = 128,
   });
 
   Map<String, dynamic> toJson() {
     return {
       'perspectiveCorrection': perspectiveCorrection,
       'deskew': deskew,
-      'adjustContrast': adjustContrast,
-      'adjustBrightness': adjustBrightness,
       'reduceNoise': reduceNoise,
-      'sharpen': sharpen,
-      'binarize': binarize,
-      'contrastFactor': contrastFactor,
-      'brightnessFactor': brightnessFactor,
       'noiseReductionStrength': noiseReductionStrength,
-      'binarizationThreshold': binarizationThreshold,
     };
   }
 
@@ -52,15 +31,8 @@ class ImageEnhancementOptions {
     return ImageEnhancementOptions(
       perspectiveCorrection: json['perspectiveCorrection'] ?? false,
       deskew: json['deskew'] ?? false,
-      adjustContrast: json['adjustContrast'] ?? false,
-      adjustBrightness: json['adjustBrightness'] ?? false,
       reduceNoise: json['reduceNoise'] ?? false,
-      sharpen: json['sharpen'] ?? false,
-      binarize: json['binarize'] ?? false,
-      contrastFactor: json['contrastFactor'] ?? 1.2,
-      brightnessFactor: json['brightnessFactor'] ?? 1.1,
       noiseReductionStrength: json['noiseReductionStrength'] ?? 2,
-      binarizationThreshold: json['binarizationThreshold'] ?? 128,
     );
   }
 }
@@ -96,18 +68,20 @@ abstract class IImageEnhancementService {
   /// Detect and correct skew (rotation)
   Future<Uint8List> deskewImage(Uint8List imageBytes);
 
-  /// Adjust image contrast
-  Future<Uint8List> adjustContrast(Uint8List imageBytes, double factor);
-
-  /// Adjust image brightness
-  Future<Uint8List> adjustBrightness(Uint8List imageBytes, double factor);
-
   /// Reduce image noise
   Future<Uint8List> reduceNoise(Uint8List imageBytes, int strength);
 
-  /// Convert image to black and white (binarization)
-  Future<Uint8List> binarizeImage(Uint8List imageBytes, int threshold);
-
   /// Auto-enhance image (apply smart defaults)
   Future<ImageEnhancementResult> autoEnhance(Uint8List imageBytes);
+
+  /// Detect document corners in an image
+  /// Returns null if corners cannot be detected reliably
+  Future<List<math.Point<int>>?> detectDocumentCorners(Uint8List imageBytes);
+
+  /// Apply perspective transformation based on corner points
+  /// Corners should be in order: top-left, top-right, bottom-right, bottom-left
+  Future<Uint8List> applyPerspectiveTransform(
+    Uint8List imageBytes,
+    List<Offset> corners,
+  );
 }
