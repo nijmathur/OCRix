@@ -1,0 +1,219 @@
+@startuml OCRix Services
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+
+title OCRix - Service Layer Class Diagram
+
+package "Service Interfaces" {
+    interface IDatabaseService {
+        +Future<int> insertDocument(Document)
+        +Future<Document?> getDocument(int id)
+        +Future<List<Document>> getAllDocuments()
+        +Future<List<Document>> searchDocuments(String query)
+        +Future<void> updateDocument(Document)
+        +Future<void> deleteDocument(int id)
+        +Future<void> saveDocumentPage(DocumentPage)
+        +Future<List<DocumentPage>> getDocumentPages(int documentId)
+    }
+
+    interface IOCRService {
+        +Future<String> extractTextFromImage(String imagePath)
+        +Future<DocumentType> categorizeDocument(String text)
+    }
+
+    interface ICameraService {
+        +Future<void> initialize()
+        +Future<String> captureImage()
+        +Future<void> dispose()
+        +void setFlashMode(FlashMode mode)
+        +void setFocusMode(FocusMode mode)
+    }
+
+    interface IEncryptionService {
+        +Future<Uint8List> encrypt(Uint8List data, String keyId)
+        +Future<Uint8List> decrypt(Uint8List data, String keyId)
+        +Future<String> generateKey()
+        +Future<void> deleteKey(String keyId)
+    }
+
+    interface IStorageProviderService {
+        +Future<void> uploadDocument(Document doc)
+        +Future<void> downloadDocument(String docId)
+        +Future<void> syncDocuments()
+        +Future<bool> isConnected()
+    }
+
+    interface IImageProcessingService {
+        +Future<Uint8List> processImageForStorage(String imagePath)
+        +Future<Uint8List> generateThumbnail(Uint8List imageData)
+        +Future<Uint8List> compressImage(Uint8List imageData)
+    }
+}
+
+package "Service Implementations" {
+    class DatabaseService {
+        -Database? _database
+        -static final DatabaseService _instance
+        --
+        +factory DatabaseService()
+        -DatabaseService._internal()
+        +Future<void> initDatabase()
+        +Future<int> insertDocument(Document)
+        +Future<Document?> getDocument(int id)
+        +Future<List<Document>> getAllDocuments(int limit, int offset)
+        +Future<List<Document>> searchDocuments(String query)
+        +Future<void> updateDocument(Document)
+        +Future<void> deleteDocument(int id)
+        +Future<void> saveDocumentPage(DocumentPage)
+        +Future<List<DocumentPage>> getDocumentPages(int documentId)
+        +Future<void> close()
+    }
+
+    class OCRService {
+        -TextRecognizer? _textRecognizer
+        --
+        +Future<String> extractTextFromImage(String imagePath)
+        +Future<DocumentType> categorizeDocument(String text)
+        -Map<String, DocumentType> _categoryKeywords
+        +Future<void> dispose()
+    }
+
+    class CameraService {
+        -CameraController? _controller
+        -List<CameraDescription> _cameras
+        --
+        +Future<void> initialize()
+        +CameraController? get controller
+        +Future<String> captureImage()
+        +void setFlashMode(FlashMode mode)
+        +void setFocusMode(FocusMode mode)
+        +Future<void> dispose()
+    }
+
+    class EncryptionService {
+        -FlutterSecureStorage _secureStorage
+        -static final EncryptionService _instance
+        --
+        +factory EncryptionService()
+        -EncryptionService._internal()
+        +Future<Uint8List> encrypt(Uint8List data, String keyId)
+        +Future<Uint8List> decrypt(Uint8List data, String keyId)
+        +Future<String> generateKey()
+        +Future<String?> getKey(String keyId)
+        +Future<void> deleteKey(String keyId)
+        -Uint8List _generateIV()
+    }
+
+    class StorageProviderService {
+        -GoogleSignIn _googleSignIn
+        -DriveApi? _driveApi
+        --
+        +Future<void> initialize()
+        +Future<void> uploadDocument(Document doc)
+        +Future<void> downloadDocument(String docId)
+        +Future<void> syncDocuments()
+        +Future<bool> isConnected()
+        -Future<void> _authenticateWithGoogle()
+    }
+
+    class ImageProcessingService {
+        +Future<Uint8List> processImageForStorage(String imagePath)
+        +Future<Uint8List> generateThumbnail(Uint8List imageData)
+        +Future<Uint8List> compressImage(Uint8List imageData)
+        +Future<Uint8List> optimizeForOCR(Uint8List imageData)
+        -Future<img.Image> _loadImage(String path)
+    }
+
+    class AuditLoggingService {
+        -IDatabaseService _databaseService
+        -AuditLevel _currentLevel
+        --
+        +AuditLoggingService(IDatabaseService)
+        +Future<void> logCompulsoryAction(AuditAction, String? details)
+        +Future<void> logInfoAction(AuditAction, String? details)
+        +Future<void> logDebugAction(AuditAction, String? details)
+        +Future<void> logTraceAction(AuditAction, String? details)
+        +Future<void> setLogLevel(AuditLevel)
+        -Future<void> _log(AuditAction, AuditLevel, String? details)
+        -Future<AuditLog?> _getLastAuditEntry()
+    }
+
+    class AuthService {
+        -GoogleSignIn _googleSignIn
+        -AuthUser? _currentUser
+        --
+        +Future<AuthUser> signIn()
+        +Future<void> signOut()
+        +AuthUser? get currentUser
+        +bool get isSignedIn
+        +Stream<AuthUser?> get authStateChanges
+    }
+}
+
+package "External Dependencies" {
+    class TextRecognizer <<Google ML Kit>> {
+        +Future<RecognizedText> processImage(InputImage)
+    }
+
+    class CameraController <<Flutter Camera>> {
+        +Future<void> initialize()
+        +Future<XFile> takePicture()
+        +Future<void> setFlashMode(FlashMode)
+    }
+
+    class FlutterSecureStorage <<Flutter Secure Storage>> {
+        +Future<void> write(String key, String value)
+        +Future<String?> read(String key)
+        +Future<void> delete(String key)
+    }
+
+    class GoogleSignIn <<Google Sign-In>> {
+        +Future<GoogleSignInAccount?> signIn()
+        +Future<void> signOut()
+        +Stream<GoogleSignInAccount?> onCurrentUserChanged
+    }
+
+    class DriveApi <<Google Drive API>> {
+        +Future<File> create(File, Stream<List<int>>)
+        +Future<File> get(String fileId)
+        +Future<void> delete(String fileId)
+    }
+}
+
+' Interface implementations
+IDatabaseService <|.. DatabaseService
+IOCRService <|.. OCRService
+ICameraService <|.. CameraService
+IEncryptionService <|.. EncryptionService
+IStorageProviderService <|.. StorageProviderService
+IImageProcessingService <|.. ImageProcessingService
+
+' Dependencies
+OCRService ..> TextRecognizer : uses
+CameraService ..> CameraController : uses
+EncryptionService ..> FlutterSecureStorage : uses
+AuthService ..> GoogleSignIn : uses
+StorageProviderService ..> GoogleSignIn : uses
+StorageProviderService ..> DriveApi : uses
+AuditLoggingService ..> IDatabaseService : depends on
+
+' Singleton pattern
+note right of DatabaseService
+    Singleton pattern with
+    factory constructor
+end note
+
+note right of EncryptionService
+    Singleton pattern with
+    factory constructor
+end note
+
+note bottom of AuditLoggingService
+    Cross-cutting concern that
+    logs all user actions with
+    chain linking for tamper
+    detection
+end note
+
+@enduml

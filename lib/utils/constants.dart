@@ -79,10 +79,13 @@ class AppConstants {
     'box': 'Box',
   };
 
-  // Privacy
-  static const String privacyPolicyUrl = 'https://example.com/privacy';
-  static const String termsOfServiceUrl = 'https://example.com/terms';
-  static const String supportEmail = 'support@example.com';
+  // Privacy & Support
+  // TODO: Configure these URLs before enabling privacy policy/terms features
+  // These are intentionally not set to prevent users from being misled by
+  // placeholder URLs. Uncomment and set real values before using.
+  // static const String privacyPolicyUrl = 'https://yourwebsite.com/privacy';
+  // static const String termsOfServiceUrl = 'https://yourwebsite.com/terms';
+  // static const String supportEmail = 'support@yourapp.com';
 
   // Sync
   static const int defaultSyncIntervalMinutes = 60;

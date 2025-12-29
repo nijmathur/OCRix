@@ -1,0 +1,167 @@
+@startuml OCRix State Management
+!theme plain
+skinparam shadowing false
+
+title OCRix - State Management (Riverpod) Diagram
+
+package "Presentation Layer (UI)" {
+    [HomeScreen]
+    [ScannerScreen]
+    [DocumentDetailScreen]
+    [LoginScreen]
+    [SettingsScreen]
+}
+
+package "State Management Layer (Riverpod)" {
+    package "Notifiers (StateNotifier)" {
+        class DocumentNotifier {
+            -IDatabaseService _databaseService
+            -AuditLoggingService _auditService
+            -List<Document> _documents
+            -int _currentPage
+            -bool _hasMore
+            --
+            +Future<void> loadDocuments()
+            +Future<void> loadMore()
+            +Future<void> scanDocument(...)
+            +Future<void> scanMultiPageDocument(...)
+            +Future<void> updateDocument(Document)
+            +Future<void> deleteDocument(int id)
+            +void filterDocuments(String query)
+            +void sortDocuments(SortOption)
+        }
+
+        class ScannerNotifier {
+            -ICameraService _cameraService
+            -bool _isMultiPageMode
+            -List<CapturedPage> _capturedPages
+            --
+            +Future<void> initializeCamera()
+            +Future<void> captureImage()
+            +void setMultiPageMode(bool)
+            +void addPage(CapturedPage)
+            +void removePage(int index)
+            +void resetMultiPageCapture()
+            +Future<void> dispose()
+        }
+
+        class AuthNotifier {
+            -AuthService _authService
+            -AuthUser? _currentUser
+            --
+            +Future<void> signIn()
+            +Future<void> signOut()
+            +Future<void> checkAuthStatus()
+            +bool get isAuthenticated
+            +AuthUser? get currentUser
+        }
+
+        class BiometricAuthNotifier {
+            -LocalAuthentication _localAuth
+            -bool _isAuthenticated
+            -bool _isBiometricAvailable
+            --
+            +Future<void> checkBiometricAvailability()
+            +Future<bool> authenticate()
+            +Future<void> enableBiometric()
+            +Future<void> disableBiometric()
+        }
+
+        class SettingsNotifier {
+            -IDatabaseService _databaseService
+            -UserSettings? _settings
+            --
+            +Future<void> loadSettings()
+            +Future<void> updateSettings(UserSettings)
+            +Future<void> toggleEncryption()
+            +Future<void> toggleBiometric()
+            +Future<void> changeStorageProvider(String)
+        }
+    }
+
+    package "Providers (Provider)" {
+        () databaseProvider
+        () ocrServiceProvider
+        () cameraServiceProvider
+        () encryptionServiceProvider
+        () auditLoggingProvider
+        () authServiceProvider
+    }
+
+    package "State Notifier Providers" {
+        () documentNotifierProvider
+        () scannerNotifierProvider
+        () authNotifierProvider
+        () biometricAuthNotifierProvider
+        () settingsNotifierProvider
+    }
+}
+
+package "Business Logic Layer (Services)" {
+    [DatabaseService]
+    [OCRService]
+    [CameraService]
+    [EncryptionService]
+    [AuditLoggingService]
+    [AuthService]
+}
+
+' UI depends on State Notifier Providers
+[HomeScreen] ..> documentNotifierProvider : watch
+[ScannerScreen] ..> scannerNotifierProvider : watch
+[LoginScreen] ..> authNotifierProvider : watch
+[SettingsScreen] ..> settingsNotifierProvider : watch
+
+' State Notifier Providers create Notifiers
+documentNotifierProvider ..> DocumentNotifier : provides
+scannerNotifierProvider ..> ScannerNotifier : provides
+authNotifierProvider ..> AuthNotifier : provides
+biometricAuthNotifierProvider ..> BiometricAuthNotifier : provides
+settingsNotifierProvider ..> SettingsNotifier : provides
+
+' Notifiers depend on Service Providers
+DocumentNotifier ..> databaseProvider : read
+DocumentNotifier ..> auditLoggingProvider : read
+ScannerNotifier ..> cameraServiceProvider : read
+AuthNotifier ..> authServiceProvider : read
+SettingsNotifier ..> databaseProvider : read
+SettingsNotifier ..> encryptionServiceProvider : read
+
+' Service Providers provide Services
+databaseProvider ..> [DatabaseService] : provides
+ocrServiceProvider ..> [OCRService] : provides
+cameraServiceProvider ..> [CameraService] : provides
+encryptionServiceProvider ..> [EncryptionService] : provides
+auditLoggingProvider ..> [AuditLoggingService] : provides
+authServiceProvider ..> [AuthService] : provides
+
+note right of DocumentNotifier
+    Manages document list state
+    Handles pagination (20 items per page)
+    Supports filtering and sorting
+    Emits AsyncValue<List<Document>>
+end note
+
+note right of ScannerNotifier
+    Manages camera and capture state
+    Supports multi-page scanning
+    Coordinates with OCRService
+    Emits ScannerState
+end note
+
+note right of AuthNotifier
+    Manages authentication state
+    Handles Google Sign-In flow
+    Persists auth tokens
+    Emits AsyncValue<AuthUser?>
+end note
+
+note bottom of databaseProvider
+    Providers are used for
+    dependency injection.
+    Riverpod automatically
+    handles lifecycle and
+    disposal.
+end note
+
+@enduml

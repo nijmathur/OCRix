@@ -1,0 +1,122 @@
+@startuml OCRix Deployment
+!theme plain
+skinparam shadowing false
+
+title OCRix - Deployment Diagram
+
+node "User Device" {
+    component "Flutter App" {
+        package "UI Layer" {
+            [Screens & Widgets]
+        }
+
+        package "State Management" {
+            [Riverpod Providers]
+        }
+
+        package "Business Logic" {
+            [Services]
+        }
+
+        package "Data Access" {
+            [Database Layer]
+            [File System Access]
+        }
+    }
+
+    database "Local SQLite DB" {
+        [documents]
+        [document_pages]
+        [audit_entries]
+        [user_settings]
+    }
+
+    folder "Local File System" {
+        file "Document Images" as docs
+        file "Thumbnails" as thumbs
+        file "Temp Files" as temp
+    }
+
+    database "Secure Storage" {
+        [Encryption Keys]
+        [Auth Tokens]
+    }
+
+    component "Google ML Kit" {
+        [Text Recognition]
+    }
+
+    component "Camera" {
+        [Camera Hardware API]
+    }
+
+    component "Biometric Hardware" {
+        [Fingerprint Sensor]
+        [Face ID / Face Recognition]
+    }
+}
+
+cloud "Google Cloud Platform" {
+    component "Google Identity" {
+        [OAuth 2.0]
+        [Google Sign-In API]
+    }
+
+    component "Google Drive" {
+        [Drive API v3]
+        [File Storage]
+    }
+}
+
+' Internal connections
+[Screens & Widgets] --> [Riverpod Providers]
+[Riverpod Providers] --> [Services]
+[Services] --> [Database Layer]
+[Database Layer] --> [Local SQLite DB]
+[Services] --> [File System Access]
+[File System Access] --> docs
+[File System Access] --> thumbs
+[File System Access] --> temp
+[Services] --> [Secure Storage]
+[Services] --> [Google ML Kit]
+[Services] --> [Camera]
+[Services] --> [Biometric Hardware]
+
+' External connections
+[Flutter App] ..> [Google Identity] : HTTPS
+[Flutter App] ..> [Google Drive] : HTTPS (REST API)
+
+note right of [Local SQLite DB]
+    SQLCipher for encryption
+    FTS5 for full-text search
+    Pragma foreign_keys=ON
+end note
+
+note right of [Secure Storage]
+    Platform-specific secure storage:
+    - Android: EncryptedSharedPreferences
+    - iOS: Keychain
+    - Desktop: libsecret/Windows Credentials
+end note
+
+note right of [Google ML Kit]
+    On-device ML processing
+    No data sent to cloud
+    Privacy-preserving
+end note
+
+note bottom of [Google Identity]
+    OAuth 2.0 authentication
+    Scopes:
+    - email
+    - profile
+    - drive.file
+end note
+
+note bottom of [Google Drive]
+    Optional cloud sync
+    Documents stored in appDataFolder
+    End-to-end encryption option
+end note
+
+@enduml

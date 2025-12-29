@@ -415,10 +415,8 @@ class EncryptionService extends BaseService implements IEncryptionService {
   /// Derive an encryption key from a password using PBKDF2
   /// Returns: [Key, Salt] - both are needed for encryption/decryption
   List<Uint8List> _deriveKeyFromPassword(String password, Uint8List? salt) {
-    // Use provided salt or generate new one
-    final keySalt = salt ??
-        Uint8List.fromList(List<int>.generate(
-            32, (i) => DateTime.now().millisecondsSinceEpoch % 256 + i));
+    // Use provided salt or generate cryptographically secure random salt
+    final keySalt = salt ?? IV.fromSecureRandom(32).bytes;
 
     // PBKDF2 parameters
     const iterations = 100000; // High iteration count for security

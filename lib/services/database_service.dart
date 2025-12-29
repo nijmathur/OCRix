@@ -521,10 +521,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         });
       });
 
-      // Log audit (old system - keep for backward compatibility)
-      await _logAudit(
-          AuditAction.create, 'document', document.id, 'Document created');
-
       // Log to audit database (COMPULSORY level)
       await _auditLoggingService?.logDatabaseWrite(
         action: AuditAction.create,
@@ -592,13 +588,16 @@ class DatabaseService extends BaseService implements IDatabaseService {
       // If there's a search query, use JOIN with search_index (FTS5)
       if (searchQuery != null && searchQuery.isNotEmpty) {
         try {
+          // Sanitize the query to prevent FTS5 injection
+          final sanitizedQuery = _sanitizeFTS5Query(searchQuery);
+
           // Try FTS5 search with JOIN
           String query = '''
             SELECT DISTINCT d.* FROM documents d
             JOIN search_index s ON d.id = s.doc_id
             WHERE search_index MATCH ?
           ''';
-          List<dynamic> queryArgs = [searchQuery];
+          List<dynamic> queryArgs = [sanitizedQuery];
 
           if (type != null) {
             query += ' AND d.type = ?';
@@ -711,10 +710,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         );
       });
 
-      // Log audit (old system)
-      await _logAudit(
-          AuditAction.update, 'document', document.id, 'Document updated');
-
       // Log to audit database (COMPULSORY level)
       await _auditLoggingService?.logDatabaseWrite(
         action: AuditAction.update,
@@ -743,9 +738,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         // Delete document
         await txn.delete('documents', where: 'id = ?', whereArgs: [id]);
       });
-
-      // Log audit (old system)
-      await _logAudit(AuditAction.delete, 'document', id, 'Document deleted');
 
       // Log to audit database (COMPULSORY level)
       await _auditLoggingService?.logDatabaseWrite(
@@ -822,10 +814,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         }
       });
 
-      // Log audit
-      await _logAudit(
-          AuditAction.update, 'user_settings', 'global', 'Settings updated');
-
       logInfo('User settings updated');
     } catch (e) {
       logError('Failed to update user settings', e);
@@ -837,25 +825,9 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   // Audit log operations
-  Future<void> _logAudit(AuditAction action, String resourceType,
-      String resourceId, String? details) async {
-    try {
-      final auditLog = AuditLog.create(
-        action: action,
-        resourceType: resourceType,
-        resourceId: resourceId,
-        userId: 'current_user', // TODO: Get actual user ID
-        details: details,
-        deviceInfo: Platform.operatingSystem,
-      );
-
-      final db = await database;
-      await db.insert('audit_log', _auditLogToMap(auditLog));
-    } catch (e) {
-      logError('Failed to log audit', e);
-      // Don't throw - audit logging failures shouldn't break the app
-    }
-  }
+  // Deprecated: _logAudit method removed - use _auditLoggingService instead
+  // The AuditLoggingService properly tracks user IDs via setUserId()
+  // and provides level-based logging (COMPULSORY, DISCRETIONARY, etc.)
 
   Future<List<AuditLog>> getAuditLogs({
     int? limit,
@@ -899,9 +871,44 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   // Search operations
+
+  /// Sanitize FTS5 query to prevent injection attacks
+  /// Escapes special FTS5 characters and limits query length
+  String _sanitizeFTS5Query(String query) {
+    // Limit query length to prevent DoS
+    const maxQueryLength = 200;
+    String sanitized = query.length > maxQueryLength
+        ? query.substring(0, maxQueryLength)
+        : query;
+
+    // Remove or escape FTS5 special characters
+    // FTS5 special chars: " - ( ) * AND OR NOT
+    sanitized = sanitized
+        .replaceAll('"', '""')  // Escape quotes by doubling them
+        .replaceAll('(', '')    // Remove grouping operators
+        .replaceAll(')', '')
+        .replaceAll('*', '')    // Remove wildcard operators
+        .replaceAll('-', ' ');  // Replace NOT operator with space
+
+    // Remove FTS5 boolean operators (case-insensitive)
+    sanitized = sanitized
+        .replaceAllMapped(RegExp(r'\b(AND|OR|NOT)\b', caseSensitive: false),
+                         (match) => ' ');
+
+    // Trim and collapse multiple spaces
+    sanitized = sanitized.trim().replaceAll(RegExp(r'\s+'), ' ');
+
+    // Wrap the sanitized query in quotes for exact phrase matching
+    // This prevents FTS5 syntax interpretation
+    return '"$sanitized"';
+  }
+
   Future<List<Document>> searchDocuments(String query) async {
     final db = await database;
     try {
+      // Sanitize the query to prevent FTS5 injection
+      final sanitizedQuery = _sanitizeFTS5Query(query);
+
       // Try FTS5 search first
       try {
         final maps = await db.rawQuery('''
@@ -909,7 +916,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
           JOIN search_index s ON d.id = s.doc_id
           WHERE search_index MATCH ?
           ORDER BY rank
-        ''', [query]);
+        ''', [sanitizedQuery]);
         return maps.map((map) => _mapToDocument(map)).toList();
       } catch (e) {
         logWarning('FTS5 search failed, using fallback: $e');
@@ -954,17 +961,20 @@ class DatabaseService extends BaseService implements IDatabaseService {
       // Handle search query
       if (searchQuery != null && searchQuery.isNotEmpty) {
         try {
+          // Sanitize the query to prevent FTS5 injection
+          final sanitizedQuery = _sanitizeFTS5Query(searchQuery);
+
           // Try FTS5 search with JOIN
           query = '''
-            SELECT DISTINCT 
-              d.id, d.title, d.thumbnail_data, d.image_format, d.type, 
-              d.scan_date, d.tags, d.confidence_score, d.detected_language, 
+            SELECT DISTINCT
+              d.id, d.title, d.thumbnail_data, d.image_format, d.type,
+              d.scan_date, d.tags, d.confidence_score, d.detected_language,
               d.created_at, d.updated_at, d.is_encrypted
             FROM documents d
             JOIN search_index s ON d.id = s.doc_id
             WHERE search_index MATCH ?
           ''';
-          queryArgs = [searchQuery];
+          queryArgs = [sanitizedQuery];
 
           if (type != null) {
             query += ' AND d.type = ?';
@@ -1135,21 +1145,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     );
   }
 
-  Map<String, dynamic> _auditLogToMap(AuditLog auditLog) {
-    return {
-      'id': auditLog.id,
-      'action': auditLog.action.name,
-      'resource_type': auditLog.resourceType,
-      'resource_id': auditLog.resourceId,
-      'user_id': auditLog.userId,
-      'timestamp': auditLog.timestamp.millisecondsSinceEpoch,
-      'details': auditLog.details,
-      'location': auditLog.location,
-      'device_info': auditLog.deviceInfo,
-      'is_success': auditLog.isSuccess ? 1 : 0,
-      'error_message': auditLog.errorMessage,
-    };
-  }
+  // Removed _auditLogToMap - no longer needed after deprecating old audit system
 
   AuditLog _mapToAuditLog(Map<String, dynamic> map) {
     return AuditLog(
@@ -1206,13 +1202,16 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   /// Public method to log audit entries (for use by other services)
+  /// DEPRECATED: Use AuditLoggingService instead
+  @Deprecated('Use AuditLoggingService for proper user tracking')
   Future<void> logAudit(
     AuditAction action,
     String resourceType,
     String resourceId,
     String? details,
   ) async {
-    await _logAudit(action, resourceType, resourceId, details);
+    // No-op: This method is deprecated
+    // Use _auditLoggingService instead for proper user ID tracking
   }
 
   // ============================================================================
@@ -1242,9 +1241,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
-
-      await _logAudit(AuditAction.create, 'document_page', page.id,
-          'Created page ${page.pageNumber} for document ${page.documentId}');
     } catch (e) {
       logError('Failed to save document page', e);
       throw DatabaseException(
@@ -1264,9 +1260,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         whereArgs: [documentId],
         orderBy: 'page_number ASC',
       );
-
-      await _logAudit(AuditAction.read, 'document_page', documentId,
-          'Retrieved ${maps.length} pages');
 
       return List.generate(maps.length, (i) => _documentPageFromMap(maps[i]));
     } catch (e) {
@@ -1293,9 +1286,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
       if (maps.isEmpty) {
         return null;
       }
-
-      await _logAudit(AuditAction.read, 'document_page', documentId,
-          'Retrieved page $pageNumber');
 
       return _documentPageFromMap(maps.first);
     } catch (e) {
@@ -1327,9 +1317,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         where: 'id = ?',
         whereArgs: [page.id],
       );
-
-      await _logAudit(AuditAction.update, 'document_page', page.id,
-          'Updated page ${page.pageNumber}');
     } catch (e) {
       logError('Failed to update document page', e);
       throw DatabaseException(
@@ -1348,9 +1335,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         where: 'id = ?',
         whereArgs: [pageId],
       );
-
-      await _logAudit(
-          AuditAction.delete, 'document_page', pageId, 'Deleted document page');
     } catch (e) {
       logError('Failed to delete document page', e);
       throw DatabaseException(
@@ -1369,9 +1353,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         where: 'document_id = ?',
         whereArgs: [documentId],
       );
-
-      await _logAudit(AuditAction.delete, 'document_page', documentId,
-          'Deleted $count pages');
     } catch (e) {
       logError('Failed to delete document pages', e);
       throw DatabaseException(
