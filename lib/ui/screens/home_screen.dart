@@ -8,7 +8,6 @@ import 'document_list_screen.dart';
 import 'ai_search_screen.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/database_service_provider.dart';
 import '../../models/document.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {

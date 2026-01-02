@@ -7,12 +7,12 @@ import 'package:flutter/foundation.dart';
 import '../../services/llm_search/llm_search_service.dart';
 import '../../services/llm_search/input_sanitizer.dart';
 import '../../services/llm_search/rate_limiter.dart';
-import '../../services/database_service.dart';
+import '../../core/interfaces/database_service_interface.dart';
 import '../../models/document.dart';
 import '../widgets/document_card.dart';
 
 class AISearchScreen extends StatefulWidget {
-  final DatabaseService databaseService;
+  final IDatabaseService databaseService;
 
   const AISearchScreen({
     super.key,

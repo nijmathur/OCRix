@@ -3,16 +3,15 @@
 library;
 
 import 'dart:async';
-import 'package:sqflite/sqflite.dart';
 import 'input_sanitizer.dart';
 import 'sql_validator.dart';
 import 'rate_limiter.dart';
 import 'read_only_database_service.dart';
 import 'natural_language_processor.dart';
-import '../database_service.dart';
+import '../../core/interfaces/database_service_interface.dart';
 
 class LLMSearchService {
-  final DatabaseService _databaseService;
+  final IDatabaseService _databaseService;
   late final ReadOnlyDatabaseService _readOnlyDB;
   final LLMInputSanitizer _sanitizer;
   final LLMSearchRateLimiter _rateLimiter;

@@ -48,7 +48,8 @@ class LLMInputSanitizer {
 
     // 5. Character whitelist (letters, numbers, spaces, basic punctuation)
     // Allow: a-z, A-Z, 0-9, space, . , - ? ! ' " $ ( )
-    if (!RegExp(r'^[a-zA-Z0-9\s\.,\-\?\!\'\"$()]+$').hasMatch(normalized)) {
+    final allowedCharsPattern = RegExp(r'''^[a-zA-Z0-9\s.,\-?!()'"\$]+$''');
+    if (!allowedCharsPattern.hasMatch(normalized)) {
       throw SecurityException(
         'Query contains invalid characters',
       );

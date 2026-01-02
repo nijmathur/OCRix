@@ -85,8 +85,6 @@ class SQLQueryValidator {
   }
 
   void _validateTableNames(String sql) {
-    final upperSQL = sql.toUpperCase();
-
     // Extract table names after FROM and JOIN keywords
     final fromPattern = RegExp(r'FROM\s+(\w+)', caseSensitive: false);
     final joinPattern = RegExp(r'JOIN\s+(\w+)', caseSensitive: false);
