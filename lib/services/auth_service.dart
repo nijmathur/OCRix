@@ -27,7 +27,8 @@ class AuthService extends BaseService {
     try {
       // Initialize the GoogleSignIn instance with configuration
       await _googleSignIn.initialize(
-        serverClientId: '340615948692-mqara4jiq5l52pp7027cm16s9eojc5vg.apps.googleusercontent.com',
+        serverClientId:
+            '340615948692-mqara4jiq5l52pp7027cm16s9eojc5vg.apps.googleusercontent.com',
       );
 
       // Listen to authentication events to track current user

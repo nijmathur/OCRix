@@ -186,7 +186,8 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       // Initialize GoogleSignIn if needed (this is safe to call multiple times)
       try {
         await _googleSignIn.initialize(
-          serverClientId: '340615948692-mqara4jiq5l52pp7027cm16s9eojc5vg.apps.googleusercontent.com',
+          serverClientId:
+              '340615948692-mqara4jiq5l52pp7027cm16s9eojc5vg.apps.googleusercontent.com',
         );
       } catch (e) {
         // Already initialized, ignore
@@ -213,7 +214,9 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       _currentUser = user;
 
       // Get access token for Drive API using authorizationClient
-      final clientAuth = await user.authorizationClient.authorizationForScopes(_scopes);
+      final clientAuth = await user.authorizationClient.authorizationForScopes(
+        _scopes,
+      );
 
       if (clientAuth == null) {
         // Need to authorize scopes
@@ -225,7 +228,9 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
         }
 
         // Get the access token after authorization
-        final finalAuth = await user.authorizationClient.authorizationForScopes(_scopes);
+        final finalAuth = await user.authorizationClient.authorizationForScopes(
+          _scopes,
+        );
         if (finalAuth == null) {
           logger.e('Failed to get access token after authorization');
           return false;
