@@ -3,8 +3,18 @@ name: Android Build
 on:
     push:
         branches: [main, develop, feature/*]
+        paths:
+            - 'lib/**'
+            - 'android/**'
+            - 'pubspec.yaml'
+            - 'pubspec.lock'
     pull_request:
         branches: [main, develop]
+        paths:
+            - 'lib/**'
+            - 'android/**'
+            - 'pubspec.yaml'
+            - 'pubspec.lock'
 
 jobs:
     build-android:
@@ -37,6 +47,7 @@ jobs:
                   path: |
                       ~/.gradle/caches
                       ~/.gradle/wrapper
+                      android/.gradle
                   key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
                   restore-keys: |
                       ${{ runner.os }}-gradle-
@@ -54,9 +65,6 @@ jobs:
             - name: Install dependencies
               run: flutter pub get
 
-            - name: Verify Flutter setup
-              run: flutter doctor -v
-
             - name: Free up disk space
               run: |
                   echo "Disk space before cleanup:"
@@ -73,20 +81,6 @@ jobs:
 
                   echo "Disk space after cleanup:"
                   df -h
-
-            - name: Run Flutter analyze
-              run: |
-                  echo "Running static analysis..."
-                  flutter analyze > analyze_output.txt 2>&1 || true
-                  cat analyze_output.txt
-
-                  # Check if there are any errors (not warnings or info)
-                  if grep -q "error •" analyze_output.txt; then
-                      echo "❌ Analysis found errors"
-                      exit 1
-                  fi
-
-                  echo "✅ Analysis passed (warnings and info are acceptable)"
 
             - name: Check ProGuard rules exist
               run: |

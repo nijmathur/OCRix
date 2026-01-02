@@ -3,8 +3,18 @@ name: Test and Coverage
 on:
     push:
         branches: [main, develop]
+        paths:
+            - 'lib/**'
+            - 'test/**'
+            - 'pubspec.yaml'
+            - 'pubspec.lock'
     pull_request:
         branches: [main, develop]
+        paths:
+            - 'lib/**'
+            - 'test/**'
+            - 'pubspec.yaml'
+            - 'pubspec.lock'
 
 jobs:
     test:
@@ -44,11 +54,8 @@ jobs:
             - name: Install dependencies
               run: flutter pub get
 
-            - name: Verify setup
-              run: flutter doctor -v
-
             - name: Run tests with coverage
-              run: flutter test --coverage
+              run: flutter test --coverage --concurrency=4
 
             - name: Generate coverage report
               run: |

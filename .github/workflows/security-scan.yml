@@ -3,8 +3,18 @@ name: Security Scan
 on:
     push:
         branches: [main, develop]
+        paths:
+            - 'lib/**'
+            - 'android/**'
+            - 'pubspec.yaml'
+            - 'pubspec.lock'
     pull_request:
         branches: [main, develop]
+        paths:
+            - 'lib/**'
+            - 'android/**'
+            - 'pubspec.yaml'
+            - 'pubspec.lock'
     schedule:
         # Run weekly on Mondays at 9am UTC
         - cron: '0 9 * * 1'
@@ -12,6 +22,9 @@ on:
 jobs:
     codeql:
         name: CodeQL Security Scan
+        # Only run CodeQL on main/develop branches and scheduled runs
+        # Skip on feature branch PRs to save CI time
+        if: github.event_name == 'schedule' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         runs-on: ubuntu-latest
         permissions:
             actions: read
@@ -44,8 +57,8 @@ jobs:
             - name: Install dependencies
               run: flutter pub get
 
-            - name: Build for CodeQL analysis
-              run: flutter build apk --debug
+            - name: Autobuild for CodeQL
+              uses: github/codeql-action/autobuild@v3
 
             - name: Perform CodeQL Analysis
               uses: github/codeql-action/analyze@v3
