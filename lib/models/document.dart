@@ -202,6 +202,49 @@ class Document extends Equatable {
     );
   }
 
+  /// Create Document from database map (snake_case columns)
+  factory Document.fromMap(Map<String, dynamic> map) {
+    return Document(
+      id: map['id'],
+      title: map['title'],
+      imageData: map['image_data'] as Uint8List?,
+      thumbnailData: map['thumbnail_data'] as Uint8List?,
+      imageFormat: map['image_format'] ?? 'jpeg',
+      imageSize: map['image_size'] as int?,
+      imageWidth: map['image_width'] as int?,
+      imageHeight: map['image_height'] as int?,
+      imagePath: map['image_path'],
+      extractedText: map['extracted_text'] ?? '',
+      type: DocumentType.values.firstWhere(
+        (e) => e.name == map['type'],
+        orElse: () => DocumentType.other,
+      ),
+      scanDate: DateTime.fromMillisecondsSinceEpoch(map['scan_date']),
+      tags: (map['tags'] as String?)?.split(',') ?? [],
+      metadata: map['metadata'] != null &&
+              map['metadata'] is String &&
+              (map['metadata'] as String).isNotEmpty
+          ? Map<String, dynamic>.from(jsonDecode(map['metadata'] as String))
+          : const {},
+      storageProvider: map['storage_provider'],
+      isEncrypted: map['is_encrypted'] == 1,
+      confidenceScore: map['confidence_score'],
+      detectedLanguage: map['detected_language'],
+      deviceInfo: map['device_info'],
+      notes: map['notes'],
+      location: map['location'],
+      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at']),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at']),
+      isSynced: map['is_synced'] == 1,
+      cloudId: map['cloud_id'],
+      lastSyncedAt: map['last_synced_at'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['last_synced_at'])
+          : null,
+      isMultiPage: (map['is_multi_page'] ?? 0) == 1,
+      pageCount: map['page_count'] ?? 1,
+    );
+  }
+
   factory Document.fromJson(Map<String, dynamic> json) =>
       _$DocumentFromJson(json);
   Map<String, dynamic> toJson() => _$DocumentToJson(this);

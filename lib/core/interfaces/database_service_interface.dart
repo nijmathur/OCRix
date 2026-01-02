@@ -4,9 +4,13 @@ import '../../models/document_page.dart';
 import '../../models/user_settings.dart';
 import '../../models/audit_log.dart';
 import 'dart:typed_data';
+import 'package:sqflite/sqflite.dart';
 
 /// Interface for database operations
 abstract class IDatabaseService {
+  /// Get database instance (for advanced queries)
+  Future<Database> get database;
+
   /// Get a document by ID
   Future<Document?> getDocument(String id);
 
