@@ -791,8 +791,15 @@ class DatabaseService extends BaseService implements IDatabaseService {
         // Parse different data types
         if (value == 'true' || value == 'false') {
           settingsMap[key] = value == 'true';
+        } else if (value.startsWith('[') || value.startsWith('{')) {
+          // Try to parse as JSON (for lists and maps)
+          try {
+            settingsMap[key] = jsonDecode(value);
+          } catch (_) {
+            settingsMap[key] = value;
+          }
         } else if (value.contains('.')) {
-          settingsMap[key] = double.tryParse(value);
+          settingsMap[key] = double.tryParse(value) ?? value;
         } else {
           settingsMap[key] = int.tryParse(value) ?? value;
         }

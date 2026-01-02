@@ -6,10 +6,6 @@ import '../core/exceptions/app_exceptions.dart';
 
 class AuthService extends BaseService {
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
-  final List<String> _scopes = [
-    drive.DriveApi.driveFileScope,
-    'https://www.googleapis.com/auth/drive.appdata', // Required for appDataFolder access
-  ];
 
   GoogleSignInAccount? _currentUser;
   bool _isInitialized = false;
@@ -29,8 +25,10 @@ class AuthService extends BaseService {
     }
 
     try {
-      // Initialize the GoogleSignIn instance
-      await _googleSignIn.initialize();
+      // Initialize the GoogleSignIn instance with configuration
+      await _googleSignIn.initialize(
+        serverClientId: '340615948692-mqara4jiq5l52pp7027cm16s9eojc5vg.apps.googleusercontent.com',
+      );
 
       // Listen to authentication events to track current user
       _authEventsSubscription = _googleSignIn.authenticationEvents.listen(
@@ -48,12 +46,11 @@ class AuthService extends BaseService {
         },
       );
 
-      // Try lightweight authentication (previously signInSilently)
+      // Try lightweight authentication to restore session
       final result = _googleSignIn.attemptLightweightAuthentication();
       if (result is Future<GoogleSignInAccount?>) {
         _currentUser = await result;
       }
-      // If result is not a Future, we'll get updates via the event stream
 
       _isInitialized = true;
       logInfo('Auth service initialized. Signed in: $isSignedIn');
@@ -69,19 +66,17 @@ class AuthService extends BaseService {
     try {
       logInfo('Initiating Google Sign-In');
 
-      // Check if platform supports authenticate method
-      if (_googleSignIn.supportsAuthenticate()) {
-        final user = await _googleSignIn.authenticate(scopeHint: _scopes);
-        _currentUser = user;
-        logInfo('User signed in: ${user.email}');
-        return user;
-      } else {
-        // Platform doesn't support authenticate (e.g., web)
-        // For web, you would need to use renderButton from google_sign_in_web
-        throw AuthException(
-          'Platform does not support explicit authentication',
-        );
-      }
+      // Use the new authenticate method with scope hint
+      final user = await _googleSignIn.authenticate(
+        scopeHint: [
+          drive.DriveApi.driveFileScope,
+          'https://www.googleapis.com/auth/drive.appdata',
+        ],
+      );
+
+      _currentUser = user;
+      logInfo('User signed in: ${user.email}');
+      return user;
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) {
         logWarning('User canceled sign-in');

@@ -447,19 +447,14 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
       );
     }
 
-    // Show login screen if not signed in
-    if (!isSignedIn) {
-      // Reset authentication state when signed out
-      _isAuthenticated = false;
-      return const LoginScreen();
-    }
-
     if (!_isInitialized) {
       return const SplashScreen();
     }
 
-    // If biometric is enabled and user hasn't authenticated yet, show login
-    if (biometricState.isEnabled &&
+    // Only check biometric if user is signed in
+    // (Biometric is optional security layer, not required for app access)
+    if (isSignedIn &&
+        biometricState.isEnabled &&
         biometricState.isAvailable &&
         !_isAuthenticated &&
         !_isCheckingBiometric) {
@@ -473,6 +468,8 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
       return const SplashScreen();
     }
 
+    // App can be used without Google Sign-In
+    // Sign-in is only required for cloud sync/export features
     return const HomeScreen();
   }
 }

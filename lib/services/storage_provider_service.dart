@@ -183,20 +183,26 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
   @override
   Future<bool> initialize() async {
     try {
-      // Initialize GoogleSignIn if not already initialized
-      await _googleSignIn.initialize();
+      // Initialize GoogleSignIn if needed (this is safe to call multiple times)
+      try {
+        await _googleSignIn.initialize(
+          serverClientId: '340615948692-mqara4jiq5l52pp7027cm16s9eojc5vg.apps.googleusercontent.com',
+        );
+      } catch (e) {
+        // Already initialized, ignore
+      }
 
-      // Authenticate user
+      // Authenticate user for Drive access
+      // First try lightweight authentication
       GoogleSignInAccount? user;
-      if (_googleSignIn.supportsAuthenticate()) {
+      final result = _googleSignIn.attemptLightweightAuthentication();
+      if (result is Future<GoogleSignInAccount?>) {
+        user = await result;
+      }
+
+      // If lightweight auth didn't work, do full authentication
+      if (user == null) {
         user = await _googleSignIn.authenticate(scopeHint: _scopes);
-      } else {
-        // For platforms that don't support authenticate (e.g., web)
-        // Try lightweight authentication first
-        final result = _googleSignIn.attemptLightweightAuthentication();
-        if (result is Future<GoogleSignInAccount?>) {
-          user = await result;
-        }
       }
 
       if (user == null) {
@@ -206,54 +212,60 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
 
       _currentUser = user;
 
-      // Get authorization for the scopes
-      final authorization = await user.authorizationClient
-          .authorizationForScopes(_scopes);
-      if (authorization == null) {
-        // Need to request authorization
+      // Get access token for Drive API using authorizationClient
+      final clientAuth = await user.authorizationClient.authorizationForScopes(_scopes);
+
+      if (clientAuth == null) {
+        // Need to authorize scopes
+        logger.i('Requesting authorization for Drive scopes');
         final newAuth = await user.authorizationClient.authorizeScopes(_scopes);
         if (newAuth == null) {
-          logger.e('Failed to get authorization');
+          logger.e('Failed to authorize Drive scopes');
           return false;
         }
-      }
 
-      // Get fresh authorization token
-      final clientAuth = await user.authorizationClient.authorizationForScopes(
-        _scopes,
-      );
-      if (clientAuth == null) {
-        logger.e('Failed to get access token after authorization');
-        return false;
-      }
+        // Get the access token after authorization
+        final finalAuth = await user.authorizationClient.authorizationForScopes(_scopes);
+        if (finalAuth == null) {
+          logger.e('Failed to get access token after authorization');
+          return false;
+        }
 
-      final authClient = authenticatedClient(
-        http.Client(),
-        AccessCredentials(
-          AccessToken(
-            'Bearer',
-            clientAuth.accessToken,
-            DateTime.now().toUtc().add(const Duration(hours: 1)),
+        final authClient = authenticatedClient(
+          http.Client(),
+          AccessCredentials(
+            AccessToken(
+              'Bearer',
+              finalAuth.accessToken,
+              DateTime.now().toUtc().add(const Duration(hours: 1)),
+            ),
+            null,
+            _scopes,
           ),
-          null, // idToken is no longer available in the same way
-          _scopes,
-        ),
-      );
+        );
 
-      _driveApi = drive.DriveApi(authClient);
+        _driveApi = drive.DriveApi(authClient);
+      } else {
+        // Already have authorization
+        final authClient = authenticatedClient(
+          http.Client(),
+          AccessCredentials(
+            AccessToken(
+              'Bearer',
+              clientAuth.accessToken,
+              DateTime.now().toUtc().add(const Duration(hours: 1)),
+            ),
+            null,
+            _scopes,
+          ),
+        );
+
+        _driveApi = drive.DriveApi(authClient);
+      }
+
       _isInitialized = true;
-
       logger.i('Google Drive storage provider initialized');
       return true;
-    } on GoogleSignInException catch (e) {
-      if (e.code == GoogleSignInExceptionCode.canceled) {
-        logger.w('User canceled sign-in');
-      } else {
-        logger.e(
-          'Google Sign-In exception: ${e.description ?? e.code.toString()}',
-        );
-      }
-      return false;
     } catch (e) {
       logger.e('Failed to initialize Google Drive storage: $e');
       return false;
