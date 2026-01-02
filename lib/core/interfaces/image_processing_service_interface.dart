@@ -17,8 +17,5 @@ abstract class IImageProcessingService {
   Future<ImageDimensions?> getImageDimensions(List<int> imageBytes);
 
   /// Compress image to JPEG
-  Future<List<int>> compressToJpeg(
-    List<int> imageBytes, {
-    int quality = 85,
-  });
+  Future<List<int>> compressToJpeg(List<int> imageBytes, {int quality = 85});
 }

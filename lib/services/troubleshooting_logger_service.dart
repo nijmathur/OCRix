@@ -19,10 +19,7 @@ class TroubleshootingLoggerService extends BaseService
   final List<LogEntry> _inMemoryBuffer = [];
   static const int _bufferSize = 100; // Keep last 100 entries in memory
 
-  TroubleshootingLoggerService(
-    this._logFileService,
-    this._rotationService,
-  );
+  TroubleshootingLoggerService(this._logFileService, this._rotationService);
 
   @override
   String get serviceName => 'TroubleshootingLoggerService';
@@ -48,42 +45,73 @@ class TroubleshootingLoggerService extends BaseService
   }
 
   @override
-  Future<void> debug(String message,
-      {String? tag, Map<String, dynamic>? metadata}) async {
+  Future<void> debug(
+    String message, {
+    String? tag,
+    Map<String, dynamic>? metadata,
+  }) async {
     await _log(LogLevel.debug, message, tag: tag, metadata: metadata);
   }
 
   @override
-  Future<void> info(String message,
-      {String? tag, Map<String, dynamic>? metadata}) async {
+  Future<void> info(
+    String message, {
+    String? tag,
+    Map<String, dynamic>? metadata,
+  }) async {
     await _log(LogLevel.info, message, tag: tag, metadata: metadata);
   }
 
   @override
-  Future<void> warning(String message,
-      {String? tag, Object? error, Map<String, dynamic>? metadata}) async {
-    await _log(LogLevel.warning, message,
-        tag: tag, error: error, metadata: metadata);
+  Future<void> warning(
+    String message, {
+    String? tag,
+    Object? error,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await _log(
+      LogLevel.warning,
+      message,
+      tag: tag,
+      error: error,
+      metadata: metadata,
+    );
   }
 
   @override
-  Future<void> error(String message,
-      {String? tag,
-      Object? error,
-      StackTrace? stackTrace,
-      Map<String, dynamic>? metadata}) async {
-    await _log(LogLevel.error, message,
-        tag: tag, error: error, stackTrace: stackTrace, metadata: metadata);
+  Future<void> error(
+    String message, {
+    String? tag,
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await _log(
+      LogLevel.error,
+      message,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+      metadata: metadata,
+    );
   }
 
   @override
-  Future<void> critical(String message,
-      {String? tag,
-      Object? error,
-      StackTrace? stackTrace,
-      Map<String, dynamic>? metadata}) async {
-    await _log(LogLevel.critical, message,
-        tag: tag, error: error, stackTrace: stackTrace, metadata: metadata);
+  Future<void> critical(
+    String message, {
+    String? tag,
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? metadata,
+  }) async {
+    await _log(
+      LogLevel.critical,
+      message,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+      metadata: metadata,
+    );
   }
 
   Future<void> _log(
@@ -139,7 +167,8 @@ class TroubleshootingLoggerService extends BaseService
     // Only log errors and critical to console to avoid spam
     if (entry.level.priority >= LogLevel.error.priority) {
       debugPrint(
-          '[${entry.level.name}] ${entry.tag != null ? "[${entry.tag}] " : ""}${entry.message}');
+        '[${entry.level.name}] ${entry.tag != null ? "[${entry.tag}] " : ""}${entry.message}',
+      );
       if (entry.error != null) {
         debugPrint('  Error: ${entry.error}');
       }
@@ -178,7 +207,7 @@ class TroubleshootingLoggerService extends BaseService
       if (_inMemoryBuffer.isNotEmpty) {
         buffer.writeln('Recent Log Entries (Last ${_inMemoryBuffer.length}):');
         buffer.writeln('-' * 80);
-        final formatter = LogFormatterService();
+        const formatter = LogFormatterService();
         for (final entry in _inMemoryBuffer.reversed) {
           buffer.writeln(formatter.format(entry));
           buffer.writeln();

@@ -31,9 +31,9 @@ class AuthNotifier extends StateNotifier<AsyncValue<GoogleSignInAccount?>> {
     this._authService, {
     AuditLoggingService? auditLoggingService,
     ITroubleshootingLogger? troubleshootingLogger,
-  })  : _auditLoggingService = auditLoggingService,
-        _troubleshootingLogger = troubleshootingLogger,
-        super(const AsyncValue.loading()) {
+  }) : _auditLoggingService = auditLoggingService,
+       _troubleshootingLogger = troubleshootingLogger,
+       super(const AsyncValue.loading()) {
     _checkAuthState();
   }
 
@@ -127,14 +127,15 @@ class AuthNotifier extends StateNotifier<AsyncValue<GoogleSignInAccount?>> {
 }
 
 final authNotifierProvider =
-    StateNotifierProvider<AuthNotifier, AsyncValue<GoogleSignInAccount?>>(
-        (ref) {
-  final authService = ref.read(authServiceProvider);
-  final auditLoggingService = ref.read(auditLoggingServiceProvider);
-  final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
-  return AuthNotifier(
-    authService,
-    auditLoggingService: auditLoggingService,
-    troubleshootingLogger: troubleshootingLogger,
-  );
-});
+    StateNotifierProvider<AuthNotifier, AsyncValue<GoogleSignInAccount?>>((
+      ref,
+    ) {
+      final authService = ref.read(authServiceProvider);
+      final auditLoggingService = ref.read(auditLoggingServiceProvider);
+      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+      return AuthNotifier(
+        authService,
+        auditLoggingService: auditLoggingService,
+        troubleshootingLogger: troubleshootingLogger,
+      );
+    });

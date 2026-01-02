@@ -45,7 +45,8 @@ class AuditDatabaseService extends BaseService
 
     if (_mainDatabaseService == null) {
       throw StateError(
-          'Main database service must be set before initialization');
+        'Main database service must be set before initialization',
+      );
     }
 
     try {
@@ -96,12 +97,14 @@ class AuditDatabaseService extends BaseService
     try {
       // Verify entry checksum before inserting
       if (!entry.verifyChecksum()) {
-        throw DatabaseException('Audit entry checksum verification failed');
+        throw const DatabaseException(
+          'Audit entry checksum verification failed',
+        );
       }
 
       // Verify chain integrity if not first entry
       if (_lastEntryId != null && !entry.verifyChain(_lastChecksum)) {
-        throw DatabaseException('Audit entry chain verification failed');
+        throw const DatabaseException('Audit entry chain verification failed');
       }
 
       // Insert entry
@@ -230,7 +233,8 @@ class AuditDatabaseService extends BaseService
         logInfo('Audit database integrity verification passed');
       } else {
         logWarning(
-            'Audit database integrity verification found ${failedEntries.length} failed entries');
+          'Audit database integrity verification found ${failedEntries.length} failed entries',
+        );
       }
 
       return failedEntries;

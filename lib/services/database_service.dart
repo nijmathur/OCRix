@@ -1,6 +1,5 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:sqflite/sqflite.dart' hide DatabaseException;
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -65,15 +64,11 @@ class DatabaseService extends BaseService implements IDatabaseService {
   Future<void> setCurrentUserIdForTriggers(String userId) async {
     try {
       final db = await database;
-      await db.insert(
-        'user_settings',
-        {
-          'key': 'current_user_id',
-          'value': userId,
-          'updated_at': DateTime.now().millisecondsSinceEpoch,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await db.insert('user_settings', {
+        'key': 'current_user_id',
+        'value': userId,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     } catch (e) {
       logError('Failed to set current user ID for triggers', e);
       // Don't throw - this is not critical
@@ -110,7 +105,8 @@ class DatabaseService extends BaseService implements IDatabaseService {
       }
 
       // Mobile/Desktop platforms
-      final documentsPath = _databasePathOverride ??
+      final documentsPath =
+          _databasePathOverride ??
           (await getApplicationDocumentsDirectory()).path;
       final path = join(documentsPath, AppConfig.databaseName);
 
@@ -361,12 +357,15 @@ class DatabaseService extends BaseService implements IDatabaseService {
       try {
         await db.execute('ALTER TABLE documents ADD COLUMN image_data BLOB');
         await db.execute(
-            'ALTER TABLE documents ADD COLUMN image_format TEXT DEFAULT "jpeg"');
+          'ALTER TABLE documents ADD COLUMN image_format TEXT DEFAULT "jpeg"',
+        );
         await db.execute('ALTER TABLE documents ADD COLUMN image_size INTEGER');
-        await db
-            .execute('ALTER TABLE documents ADD COLUMN image_width INTEGER');
-        await db
-            .execute('ALTER TABLE documents ADD COLUMN image_height INTEGER');
+        await db.execute(
+          'ALTER TABLE documents ADD COLUMN image_width INTEGER',
+        );
+        await db.execute(
+          'ALTER TABLE documents ADD COLUMN image_height INTEGER',
+        );
         logInfo('Added image BLOB columns to documents table');
       } catch (e) {
         logError('Error adding image BLOB columns', e);
@@ -376,8 +375,9 @@ class DatabaseService extends BaseService implements IDatabaseService {
     if (oldVersion < 5) {
       // Add thumbnail_data column for performance optimization
       try {
-        await db
-            .execute('ALTER TABLE documents ADD COLUMN thumbnail_data BLOB');
+        await db.execute(
+          'ALTER TABLE documents ADD COLUMN thumbnail_data BLOB',
+        );
         logInfo('Added thumbnail_data column to documents table');
       } catch (e) {
         logError('Error adding thumbnail_data column', e);
@@ -437,9 +437,11 @@ class DatabaseService extends BaseService implements IDatabaseService {
       try {
         // Add new columns to documents table
         await db.execute(
-            'ALTER TABLE documents ADD COLUMN is_multi_page INTEGER NOT NULL DEFAULT 0');
+          'ALTER TABLE documents ADD COLUMN is_multi_page INTEGER NOT NULL DEFAULT 0',
+        );
         await db.execute(
-            'ALTER TABLE documents ADD COLUMN page_count INTEGER NOT NULL DEFAULT 1');
+          'ALTER TABLE documents ADD COLUMN page_count INTEGER NOT NULL DEFAULT 1',
+        );
         logInfo('Added multi-page columns to documents table');
 
         // Create document_pages table
@@ -496,7 +498,8 @@ class DatabaseService extends BaseService implements IDatabaseService {
       // and can properly implement tamper-proofing with checksums and chaining
 
       logInfo(
-          'Audit triggers skipped - using application-level logging for tamper-proofing');
+        'Audit triggers skipped - using application-level logging for tamper-proofing',
+      );
     } catch (e) {
       logError('Failed to create audit triggers', e);
       // Don't throw - triggers are nice-to-have, not critical
@@ -504,6 +507,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   // Document operations
+  @override
   Future<String> insertDocument(Document document) async {
     final db = await database;
     try {
@@ -520,10 +524,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
           'notes': document.notes ?? '',
         });
       });
-
-      // Log audit (old system - keep for backward compatibility)
-      await _logAudit(
-          AuditAction.create, 'document', document.id, 'Document created');
 
       // Log to audit database (COMPULSORY level)
       await _auditLoggingService?.logDatabaseWrite(
@@ -544,6 +544,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
   Future<Document?> getDocument(String id) async {
     final db = await database;
     try {
@@ -574,6 +575,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
   Future<List<Document>> getAllDocuments({
     int? limit,
     int? offset,
@@ -592,13 +594,16 @@ class DatabaseService extends BaseService implements IDatabaseService {
       // If there's a search query, use JOIN with search_index (FTS5)
       if (searchQuery != null && searchQuery.isNotEmpty) {
         try {
+          // Sanitize the query to prevent FTS5 injection
+          final sanitizedQuery = _sanitizeFTS5Query(searchQuery);
+
           // Try FTS5 search with JOIN
           String query = '''
             SELECT DISTINCT d.* FROM documents d
             JOIN search_index s ON d.id = s.doc_id
             WHERE search_index MATCH ?
           ''';
-          List<dynamic> queryArgs = [searchQuery];
+          List<dynamic> queryArgs = [sanitizedQuery];
 
           if (type != null) {
             query += ' AND d.type = ?';
@@ -632,7 +637,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
             searchTerm,
             searchTerm,
             searchTerm,
-            searchTerm
+            searchTerm,
           ];
 
           if (type != null) {
@@ -685,6 +690,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
   Future<void> updateDocument(Document document) async {
     final db = await database;
     try {
@@ -711,10 +717,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         );
       });
 
-      // Log audit (old system)
-      await _logAudit(
-          AuditAction.update, 'document', document.id, 'Document updated');
-
       // Log to audit database (COMPULSORY level)
       await _auditLoggingService?.logDatabaseWrite(
         action: AuditAction.update,
@@ -733,6 +735,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
   Future<void> deleteDocument(String id) async {
     final db = await database;
     try {
@@ -743,9 +746,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         // Delete document
         await txn.delete('documents', where: 'id = ?', whereArgs: [id]);
       });
-
-      // Log audit (old system)
-      await _logAudit(AuditAction.delete, 'document', id, 'Document deleted');
 
       // Log to audit database (COMPULSORY level)
       await _auditLoggingService?.logDatabaseWrite(
@@ -777,6 +777,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
   Future<UserSettings> getUserSettings() async {
     final db = await database;
     try {
@@ -790,8 +791,15 @@ class DatabaseService extends BaseService implements IDatabaseService {
         // Parse different data types
         if (value == 'true' || value == 'false') {
           settingsMap[key] = value == 'true';
+        } else if (value.startsWith('[') || value.startsWith('{')) {
+          // Try to parse as JSON (for lists and maps)
+          try {
+            settingsMap[key] = jsonDecode(value);
+          } catch (_) {
+            settingsMap[key] = value;
+          }
         } else if (value.contains('.')) {
-          settingsMap[key] = double.tryParse(value);
+          settingsMap[key] = double.tryParse(value) ?? value;
         } else {
           settingsMap[key] = int.tryParse(value) ?? value;
         }
@@ -804,27 +812,20 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
   Future<void> updateUserSettings(UserSettings settings) async {
     final db = await database;
     try {
       await db.transaction((txn) async {
         final settingsMap = settings.toJson();
         for (final entry in settingsMap.entries) {
-          await txn.insert(
-            'user_settings',
-            {
-              'key': entry.key,
-              'value': entry.value.toString(),
-              'updated_at': DateTime.now().millisecondsSinceEpoch,
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
+          await txn.insert('user_settings', {
+            'key': entry.key,
+            'value': entry.value.toString(),
+            'updated_at': DateTime.now().millisecondsSinceEpoch,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
         }
       });
-
-      // Log audit
-      await _logAudit(
-          AuditAction.update, 'user_settings', 'global', 'Settings updated');
 
       logInfo('User settings updated');
     } catch (e) {
@@ -837,26 +838,11 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   // Audit log operations
-  Future<void> _logAudit(AuditAction action, String resourceType,
-      String resourceId, String? details) async {
-    try {
-      final auditLog = AuditLog.create(
-        action: action,
-        resourceType: resourceType,
-        resourceId: resourceId,
-        userId: 'current_user', // TODO: Get actual user ID
-        details: details,
-        deviceInfo: Platform.operatingSystem,
-      );
+  // Deprecated: _logAudit method removed - use _auditLoggingService instead
+  // The AuditLoggingService properly tracks user IDs via setUserId()
+  // and provides level-based logging (COMPULSORY, DISCRETIONARY, etc.)
 
-      final db = await database;
-      await db.insert('audit_log', _auditLogToMap(auditLog));
-    } catch (e) {
-      logError('Failed to log audit', e);
-      // Don't throw - audit logging failures shouldn't break the app
-    }
-  }
-
+  @override
   Future<List<AuditLog>> getAuditLogs({
     int? limit,
     int? offset,
@@ -899,28 +885,71 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   // Search operations
+
+  /// Sanitize FTS5 query to prevent injection attacks
+  /// Escapes special FTS5 characters and limits query length
+  String _sanitizeFTS5Query(String query) {
+    // Limit query length to prevent DoS
+    const maxQueryLength = 200;
+    String sanitized = query.length > maxQueryLength
+        ? query.substring(0, maxQueryLength)
+        : query;
+
+    // Remove or escape FTS5 special characters
+    // FTS5 special chars: " - ( ) * AND OR NOT
+    sanitized = sanitized
+        .replaceAll('"', '""') // Escape quotes by doubling them
+        .replaceAll('(', '') // Remove grouping operators
+        .replaceAll(')', '')
+        .replaceAll('*', '') // Remove wildcard operators
+        .replaceAll('-', ' '); // Replace NOT operator with space
+
+    // Remove FTS5 boolean operators (case-insensitive)
+    sanitized = sanitized.replaceAllMapped(
+      RegExp(r'\b(AND|OR|NOT)\b', caseSensitive: false),
+      (match) => ' ',
+    );
+
+    // Trim and collapse multiple spaces
+    sanitized = sanitized.trim().replaceAll(RegExp(r'\s+'), ' ');
+
+    // Wrap the sanitized query in quotes for exact phrase matching
+    // This prevents FTS5 syntax interpretation
+    return '"$sanitized"';
+  }
+
+  @override
   Future<List<Document>> searchDocuments(String query) async {
     final db = await database;
     try {
+      // Sanitize the query to prevent FTS5 injection
+      final sanitizedQuery = _sanitizeFTS5Query(query);
+
       // Try FTS5 search first
       try {
-        final maps = await db.rawQuery('''
+        final maps = await db.rawQuery(
+          '''
           SELECT d.* FROM documents d
           JOIN search_index s ON d.id = s.doc_id
           WHERE search_index MATCH ?
           ORDER BY rank
-        ''', [query]);
+        ''',
+          [sanitizedQuery],
+        );
         return maps.map((map) => _mapToDocument(map)).toList();
       } catch (e) {
         logWarning('FTS5 search failed, using fallback: $e');
         // Fallback to LIKE search
         final searchTerm = '%$query%';
-        final maps = await db.rawQuery('''
+        final maps = await db.rawQuery(
+          '''
           SELECT d.* FROM documents d
           JOIN search_index s ON d.id = s.doc_id
           WHERE s.title LIKE ? OR s.extracted_text LIKE ? OR s.tags LIKE ? OR s.notes LIKE ?
           ORDER BY d.scan_date DESC
-        ''', [searchTerm, searchTerm, searchTerm, searchTerm]);
+        ''',
+          [searchTerm, searchTerm, searchTerm, searchTerm],
+        );
         return maps.map((map) => _mapToDocument(map)).toList();
       }
     } catch (e) {
@@ -954,17 +983,20 @@ class DatabaseService extends BaseService implements IDatabaseService {
       // Handle search query
       if (searchQuery != null && searchQuery.isNotEmpty) {
         try {
+          // Sanitize the query to prevent FTS5 injection
+          final sanitizedQuery = _sanitizeFTS5Query(searchQuery);
+
           // Try FTS5 search with JOIN
           query = '''
-            SELECT DISTINCT 
-              d.id, d.title, d.thumbnail_data, d.image_format, d.type, 
-              d.scan_date, d.tags, d.confidence_score, d.detected_language, 
+            SELECT DISTINCT
+              d.id, d.title, d.thumbnail_data, d.image_format, d.type,
+              d.scan_date, d.tags, d.confidence_score, d.detected_language,
               d.created_at, d.updated_at, d.is_encrypted
             FROM documents d
             JOIN search_index s ON d.id = s.doc_id
             WHERE search_index MATCH ?
           ''';
-          queryArgs = [searchQuery];
+          queryArgs = [sanitizedQuery];
 
           if (type != null) {
             query += ' AND d.type = ?';
@@ -1115,7 +1147,12 @@ class DatabaseService extends BaseService implements IDatabaseService {
       ),
       scanDate: DateTime.fromMillisecondsSinceEpoch(map['scan_date']),
       tags: (map['tags'] as String?)?.split(',') ?? [],
-      metadata: {}, // TODO: Parse metadata JSON
+      metadata:
+          map['metadata'] != null &&
+              map['metadata'] is String &&
+              (map['metadata'] as String).isNotEmpty
+          ? Map<String, dynamic>.from(jsonDecode(map['metadata'] as String))
+          : const {},
       storageProvider: map['storage_provider'],
       isEncrypted: map['is_encrypted'] == 1,
       confidenceScore: map['confidence_score'],
@@ -1135,21 +1172,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     );
   }
 
-  Map<String, dynamic> _auditLogToMap(AuditLog auditLog) {
-    return {
-      'id': auditLog.id,
-      'action': auditLog.action.name,
-      'resource_type': auditLog.resourceType,
-      'resource_id': auditLog.resourceId,
-      'user_id': auditLog.userId,
-      'timestamp': auditLog.timestamp.millisecondsSinceEpoch,
-      'details': auditLog.details,
-      'location': auditLog.location,
-      'device_info': auditLog.deviceInfo,
-      'is_success': auditLog.isSuccess ? 1 : 0,
-      'error_message': auditLog.errorMessage,
-    };
-  }
+  // Removed _auditLogToMap - no longer needed after deprecating old audit system
 
   AuditLog _mapToAuditLog(Map<String, dynamic> map) {
     return AuditLog(
@@ -1206,13 +1229,16 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   /// Public method to log audit entries (for use by other services)
+  /// DEPRECATED: Use AuditLoggingService instead
+  @Deprecated('Use AuditLoggingService for proper user tracking')
   Future<void> logAudit(
     AuditAction action,
     String resourceType,
     String resourceId,
     String? details,
   ) async {
-    await _logAudit(action, resourceType, resourceId, details);
+    // No-op: This method is deprecated
+    // Use _auditLoggingService instead for proper user ID tracking
   }
 
   // ============================================================================
@@ -1220,31 +1246,25 @@ class DatabaseService extends BaseService implements IDatabaseService {
   // ============================================================================
 
   /// Save a document page
+  @override
   Future<void> saveDocumentPage(DocumentPage page) async {
     try {
       final db = await database;
-      await db.insert(
-        'document_pages',
-        {
-          'id': page.id,
-          'document_id': page.documentId,
-          'page_number': page.pageNumber,
-          'image_data': page.imageData,
-          'thumbnail_data': page.thumbnailData,
-          'image_format': page.imageFormat,
-          'image_size': page.imageSize,
-          'image_width': page.imageWidth,
-          'image_height': page.imageHeight,
-          'extracted_text': page.extractedText,
-          'confidence_score': page.confidenceScore,
-          'created_at': page.createdAt.millisecondsSinceEpoch,
-          'updated_at': page.updatedAt.millisecondsSinceEpoch,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-
-      await _logAudit(AuditAction.create, 'document_page', page.id,
-          'Created page ${page.pageNumber} for document ${page.documentId}');
+      await db.insert('document_pages', {
+        'id': page.id,
+        'document_id': page.documentId,
+        'page_number': page.pageNumber,
+        'image_data': page.imageData,
+        'thumbnail_data': page.thumbnailData,
+        'image_format': page.imageFormat,
+        'image_size': page.imageSize,
+        'image_width': page.imageWidth,
+        'image_height': page.imageHeight,
+        'extracted_text': page.extractedText,
+        'confidence_score': page.confidenceScore,
+        'created_at': page.createdAt.millisecondsSinceEpoch,
+        'updated_at': page.updatedAt.millisecondsSinceEpoch,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     } catch (e) {
       logError('Failed to save document page', e);
       throw DatabaseException(
@@ -1255,6 +1275,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   /// Get all pages for a document
+  @override
   Future<List<DocumentPage>> getDocumentPages(String documentId) async {
     try {
       final db = await database;
@@ -1264,9 +1285,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         whereArgs: [documentId],
         orderBy: 'page_number ASC',
       );
-
-      await _logAudit(AuditAction.read, 'document_page', documentId,
-          'Retrieved ${maps.length} pages');
 
       return List.generate(maps.length, (i) => _documentPageFromMap(maps[i]));
     } catch (e) {
@@ -1279,8 +1297,11 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   /// Get a specific page by page number
+  @override
   Future<DocumentPage?> getDocumentPage(
-      String documentId, int pageNumber) async {
+    String documentId,
+    int pageNumber,
+  ) async {
     try {
       final db = await database;
       final List<Map<String, dynamic>> maps = await db.query(
@@ -1294,9 +1315,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         return null;
       }
 
-      await _logAudit(AuditAction.read, 'document_page', documentId,
-          'Retrieved page $pageNumber');
-
       return _documentPageFromMap(maps.first);
     } catch (e) {
       logError('Failed to get document page', e);
@@ -1308,6 +1326,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   /// Update a document page
+  @override
   Future<void> updateDocumentPage(DocumentPage page) async {
     try {
       final db = await database;
@@ -1327,9 +1346,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         where: 'id = ?',
         whereArgs: [page.id],
       );
-
-      await _logAudit(AuditAction.update, 'document_page', page.id,
-          'Updated page ${page.pageNumber}');
     } catch (e) {
       logError('Failed to update document page', e);
       throw DatabaseException(
@@ -1340,17 +1356,11 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 
   /// Delete a document page
+  @override
   Future<void> deleteDocumentPage(String pageId) async {
     try {
       final db = await database;
-      await db.delete(
-        'document_pages',
-        where: 'id = ?',
-        whereArgs: [pageId],
-      );
-
-      await _logAudit(
-          AuditAction.delete, 'document_page', pageId, 'Deleted document page');
+      await db.delete('document_pages', where: 'id = ?', whereArgs: [pageId]);
     } catch (e) {
       logError('Failed to delete document page', e);
       throw DatabaseException(
@@ -1369,9 +1379,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
         where: 'document_id = ?',
         whereArgs: [documentId],
       );
-
-      await _logAudit(AuditAction.delete, 'document_page', documentId,
-          'Deleted $count pages');
     } catch (e) {
       logError('Failed to delete document pages', e);
       throw DatabaseException(
@@ -1442,8 +1449,9 @@ class _EncryptionServiceAdapter implements IEncryptionService {
 
   @override
   Future<String> decryptFileWithPassword(
-          String encryptedFilePath, String password) =>
-      _service.decryptFileWithPassword(encryptedFilePath, password);
+    String encryptedFilePath,
+    String password,
+  ) => _service.decryptFileWithPassword(encryptedFilePath, password);
 
   @override
   Future<bool> isBiometricAvailable() => _service.isBiometricAvailable();

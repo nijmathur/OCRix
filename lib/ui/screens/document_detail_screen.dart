@@ -8,10 +8,7 @@ import '../widgets/document_image_viewer.dart';
 class DocumentDetailScreen extends ConsumerStatefulWidget {
   final Document document;
 
-  const DocumentDetailScreen({
-    super.key,
-    required this.document,
-  });
+  const DocumentDetailScreen({super.key, required this.document});
 
   @override
   ConsumerState<DocumentDetailScreen> createState() =>
@@ -126,7 +123,7 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
           controller: _tabController,
           indicatorColor: Colors.white,
           labelColor: Colors.white,
-          unselectedLabelColor: Colors.white.withOpacity(0.7),
+          unselectedLabelColor: Colors.white.withValues(alpha: 0.7),
           tabs: const [
             Tab(icon: Icon(Icons.image), text: 'Image'),
             Tab(icon: Icon(Icons.text_fields), text: 'Text'),
@@ -136,19 +133,13 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildImageTab(),
-          _buildTextTab(),
-          _buildDetailsTab(),
-        ],
+        children: [_buildImageTab(), _buildTextTab(), _buildDetailsTab()],
       ),
     );
   }
 
   Widget _buildImageTab() {
-    return DocumentImageViewer(
-      document: widget.document,
-    );
+    return DocumentImageViewer(document: widget.document);
   }
 
   Widget _buildTextTab() {
@@ -169,9 +160,9 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
           ] else ...[
             Text(
               widget.document.title,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
           ],
@@ -190,9 +181,9 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
               widget.document.notes!.isNotEmpty) ...[
             Text(
               'Notes',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -203,9 +194,9 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
           ],
           Text(
             'Extracted Text',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Container(
@@ -215,7 +206,9 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                color: Theme.of(
+                  context,
+                ).colorScheme.outline.withValues(alpha: 0.3),
               ),
             ),
             child: Text(
@@ -236,75 +229,75 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildDetailCard(
-            'Document Information',
-            [
-              _buildDetailRow('Type', widget.document.type.displayName),
-              _buildDetailRow('Title', widget.document.title),
-              _buildDetailRow(
-                  'Created', _formatDate(widget.document.createdAt)),
-              _buildDetailRow(
-                  'Last Updated', _formatDate(widget.document.updatedAt)),
-              _buildDetailRow(
-                  'Scan Date', _formatDate(widget.document.scanDate)),
-            ],
-          ),
+          _buildDetailCard('Document Information', [
+            _buildDetailRow('Type', widget.document.type.displayName),
+            _buildDetailRow('Title', widget.document.title),
+            _buildDetailRow('Created', _formatDate(widget.document.createdAt)),
+            _buildDetailRow(
+              'Last Updated',
+              _formatDate(widget.document.updatedAt),
+            ),
+            _buildDetailRow('Scan Date', _formatDate(widget.document.scanDate)),
+          ]),
           const SizedBox(height: 16),
-          _buildDetailCard(
-            'Technical Details',
-            [
-              _buildDetailRow('Confidence Score',
-                  '${(widget.document.confidenceScore * 100).toInt()}%'),
-              _buildDetailRow(
-                  'Detected Language', widget.document.detectedLanguage),
-              _buildDetailRow('Device Info', widget.document.deviceInfo),
-              _buildDetailRow(
-                  'Storage Provider', widget.document.storageProvider),
-              _buildDetailRow(
-                  'Encrypted', widget.document.isEncrypted ? 'Yes' : 'No'),
-            ],
-          ),
+          _buildDetailCard('Technical Details', [
+            _buildDetailRow(
+              'Confidence Score',
+              '${(widget.document.confidenceScore * 100).toInt()}%',
+            ),
+            _buildDetailRow(
+              'Detected Language',
+              widget.document.detectedLanguage,
+            ),
+            _buildDetailRow('Device Info', widget.document.deviceInfo),
+            _buildDetailRow(
+              'Storage Provider',
+              widget.document.storageProvider,
+            ),
+            _buildDetailRow(
+              'Encrypted',
+              widget.document.isEncrypted ? 'Yes' : 'No',
+            ),
+          ]),
           if (widget.document.tags.isNotEmpty) ...[
             const SizedBox(height: 16),
-            _buildDetailCard(
-              'Tags',
-              [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: widget.document.tags
-                      .map((tag) => Chip(
-                            label: Text(tag),
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primaryContainer,
-                          ))
-                      .toList(),
-                ),
-              ],
-            ),
+            _buildDetailCard('Tags', [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: widget.document.tags
+                    .map(
+                      (tag) => Chip(
+                        label: Text(tag),
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.primaryContainer,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ]),
           ],
           if (widget.document.location != null) ...[
             const SizedBox(height: 16),
-            _buildDetailCard(
-              'Location',
-              [
-                _buildDetailRow('Location', widget.document.location!),
-              ],
-            ),
+            _buildDetailCard('Location', [
+              _buildDetailRow('Location', widget.document.location!),
+            ]),
           ],
           if (widget.document.cloudId != null) ...[
             const SizedBox(height: 16),
-            _buildDetailCard(
-              'Cloud Sync',
-              [
-                _buildDetailRow('Cloud ID', widget.document.cloudId!),
+            _buildDetailCard('Cloud Sync', [
+              _buildDetailRow('Cloud ID', widget.document.cloudId!),
+              _buildDetailRow(
+                'Synced',
+                widget.document.isSynced ? 'Yes' : 'No',
+              ),
+              if (widget.document.lastSyncedAt != null)
                 _buildDetailRow(
-                    'Synced', widget.document.isSynced ? 'Yes' : 'No'),
-                if (widget.document.lastSyncedAt != null)
-                  _buildDetailRow('Last Synced',
-                      _formatDate(widget.document.lastSyncedAt!)),
-              ],
-            ),
+                  'Last Synced',
+                  _formatDate(widget.document.lastSyncedAt!),
+                ),
+            ]),
           ],
         ],
       ),
@@ -320,9 +313,9 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
           children: [
             Text(
               title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             ...children,
@@ -343,19 +336,15 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(0.7),
-                  ),
+                fontWeight: FontWeight.w500,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            child: Text(value, style: Theme.of(context).textTheme.bodyMedium),
           ),
         ],
       ),
@@ -414,18 +403,14 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
   void _shareDocument() {
     // Implementation for sharing document
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Share functionality not implemented yet'),
-      ),
+      const SnackBar(content: Text('Share functionality not implemented yet')),
     );
   }
 
   void _exportDocument() {
     // Implementation for exporting document
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Export functionality not implemented yet'),
-      ),
+      const SnackBar(content: Text('Export functionality not implemented yet')),
     );
   }
 
@@ -434,8 +419,9 @@ class _DocumentDetailScreenState extends ConsumerState<DocumentDetailScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Document'),
-        content:
-            Text('Are you sure you want to delete "${widget.document.title}"?'),
+        content: Text(
+          'Are you sure you want to delete "${widget.document.title}"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),

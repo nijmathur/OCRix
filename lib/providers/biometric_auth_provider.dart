@@ -48,8 +48,8 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
   BiometricAuthNotifier(
     this._biometricAuthService, {
     ITroubleshootingLogger? troubleshootingLogger,
-  })  : _troubleshootingLogger = troubleshootingLogger,
-        super(const BiometricAuthState(isLoading: true)) {
+  }) : _troubleshootingLogger = troubleshootingLogger,
+       super(const BiometricAuthState(isLoading: true)) {
     _initialize();
   }
 
@@ -59,8 +59,8 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
 
       final isAvailable = await _biometricAuthService.isBiometricAvailable();
       final isEnabled = await _biometricAuthService.isBiometricEnabled();
-      final availableTypes =
-          await _biometricAuthService.getAvailableBiometrics();
+      final availableTypes = await _biometricAuthService
+          .getAvailableBiometrics();
 
       state = state.copyWith(
         isAvailable: isAvailable,
@@ -69,10 +69,7 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
         availableTypes: availableTypes,
       );
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -91,11 +88,7 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
         'Biometric authentication enabled successfully',
         tag: 'BiometricAuthNotifier',
       );
-      state = state.copyWith(
-        isEnabled: true,
-        isLoading: false,
-        error: null,
-      );
+      state = state.copyWith(isEnabled: true, isLoading: false, error: null);
       return true;
     } catch (e, stackTrace) {
       _troubleshootingLogger?.error(
@@ -142,15 +135,9 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
       state = state.copyWith(isLoading: true, error: null);
       await _biometricAuthService.disableBiometricAuth();
 
-      state = state.copyWith(
-        isEnabled: false,
-        isLoading: false,
-      );
+      state = state.copyWith(isEnabled: false, isLoading: false);
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -165,10 +152,10 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
 
 final biometricAuthNotifierProvider =
     StateNotifierProvider<BiometricAuthNotifier, BiometricAuthState>((ref) {
-  final service = ref.read(biometricAuthServiceProvider);
-  final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
-  return BiometricAuthNotifier(
-    service,
-    troubleshootingLogger: troubleshootingLogger,
-  );
-});
+      final service = ref.read(biometricAuthServiceProvider);
+      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+      return BiometricAuthNotifier(
+        service,
+        troubleshootingLogger: troubleshootingLogger,
+      );
+    });

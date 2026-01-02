@@ -22,21 +22,19 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeIn),
+      ),
+    );
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.2, 0.8, curve: Curves.elasticOut),
-    ));
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.2, 0.8, curve: Curves.elasticOut),
+      ),
+    );
 
     _animationController.forward();
   }
@@ -81,7 +79,7 @@ class _SplashScreenState extends State<SplashScreen>
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
@@ -107,9 +105,7 @@ class _SplashScreenState extends State<SplashScreen>
                       children: [
                         Text(
                           'Privacy Document Scanner',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
+                          style: Theme.of(context).textTheme.headlineMedium
                               ?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -119,10 +115,10 @@ class _SplashScreenState extends State<SplashScreen>
                         const SizedBox(height: 8),
                         Text(
                           'Secure • Private • Local',
-                          style:
-                              Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: Colors.white.withOpacity(0.9),
-                                  ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.9),
+                              ),
                         ),
                       ],
                     ),
@@ -150,8 +146,8 @@ class _SplashScreenState extends State<SplashScreen>
     return Column(
       children: [
         Shimmer.fromColors(
-          baseColor: Colors.white.withOpacity(0.3),
-          highlightColor: Colors.white.withOpacity(0.8),
+          baseColor: Colors.white.withValues(alpha: 0.3),
+          highlightColor: Colors.white.withValues(alpha: 0.8),
           child: Container(
             width: 200,
             height: 4,
@@ -165,8 +161,8 @@ class _SplashScreenState extends State<SplashScreen>
         Text(
           'Initializing secure environment...',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.white.withOpacity(0.8),
-              ),
+            color: Colors.white.withValues(alpha: 0.8),
+          ),
         ),
       ],
     );

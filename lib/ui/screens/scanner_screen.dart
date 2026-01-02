@@ -64,10 +64,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
         elevation: 0,
         actions: [
           if (_capturedImagePath != null && !_isMultiPageMode)
-            IconButton(
-              icon: const Icon(Icons.check),
-              onPressed: _saveDocument,
-            ),
+            IconButton(icon: const Icon(Icons.check), onPressed: _saveDocument),
           if (_isMultiPageMode && _capturedPages.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.check),
@@ -78,7 +75,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
           controller: _tabController,
           indicatorColor: Colors.white,
           labelColor: Colors.white,
-          unselectedLabelColor: Colors.white.withOpacity(0.7),
+          unselectedLabelColor: Colors.white.withValues(alpha: 0.7),
           tabs: const [
             Tab(icon: Icon(Icons.camera_alt), text: 'Camera'),
             Tab(icon: Icon(Icons.edit), text: 'Details'),
@@ -87,10 +84,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildCameraTab(scannerState),
-          _buildDetailsTab(),
-        ],
+        children: [_buildCameraTab(scannerState), _buildDetailsTab()],
       ),
     );
   }
@@ -148,7 +142,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -160,10 +154,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
               const SizedBox(width: 12),
               const Text(
                 'Scan Mode:',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -192,7 +183,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                       }
                     });
                   },
-                  style: ButtonStyle(
+                  style: const ButtonStyle(
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
@@ -201,9 +192,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
           ),
         ),
         // Main camera/preview content
-        Expanded(
-          child: _buildCameraContent(scannerState),
-        ),
+        Expanded(child: _buildCameraContent(scannerState)),
       ],
     );
   }
@@ -314,13 +303,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       children: [
         Text(
           'Document Type',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<DocumentType>(
-          value: _selectedType,
+          initialValue: _selectedType,
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
             contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -366,23 +355,25 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       children: [
         Text(
           'Tags',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
-            ..._selectedTags.map((tag) => Chip(
-                  label: Text(tag),
-                  onDeleted: () {
-                    setState(() {
-                      _selectedTags.remove(tag);
-                    });
-                  },
-                )),
+            ..._selectedTags.map(
+              (tag) => Chip(
+                label: Text(tag),
+                onDeleted: () {
+                  setState(() {
+                    _selectedTags.remove(tag);
+                  });
+                },
+              ),
+            ),
             ActionChip(
               label: const Text('+ Add Tag'),
               onPressed: _showAddTagDialog,
@@ -437,8 +428,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   }
 
   Future<void> _captureImage() async {
-    final imagePath =
-        await ref.read(scannerNotifierProvider.notifier).captureImage();
+    final imagePath = await ref
+        .read(scannerNotifierProvider.notifier)
+        .captureImage();
     if (imagePath != null) {
       setState(() {
         _capturedImagePath = imagePath;
@@ -491,10 +483,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
                       border: Border.all(color: Colors.grey[400]!),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Image.file(
-                      File(page.imagePath),
-                      fit: BoxFit.cover,
-                    ),
+                    child: Image.file(File(page.imagePath), fit: BoxFit.cover),
                   ),
                 ),
               ),
@@ -516,20 +505,20 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
             child:
                 // Delete button
                 GestureDetector(
-              onTap: () => _deletePageFromMultiPage(index),
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(4),
+                  onTap: () => _deletePageFromMultiPage(index),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
-                child: const Icon(
-                  Icons.close,
-                  size: 16,
-                  color: Colors.white,
-                ),
-              ),
-            ),
           ),
         ],
       ),
@@ -537,8 +526,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   }
 
   Future<void> _captureMultiPageImage() async {
-    final imagePath =
-        await ref.read(scannerNotifierProvider.notifier).captureImage();
+    final imagePath = await ref
+        .read(scannerNotifierProvider.notifier)
+        .captureImage();
     if (imagePath != null) {
       // Add the captured image as a page
       final page = CapturedPage(
@@ -581,13 +571,17 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
     });
 
     try {
-      await ref.read(documentNotifierProvider.notifier).scanDocument(
+      await ref
+          .read(documentNotifierProvider.notifier)
+          .scanDocument(
             imagePath: _capturedImagePath!,
-            title:
-                _titleController.text.isNotEmpty ? _titleController.text : null,
+            title: _titleController.text.isNotEmpty
+                ? _titleController.text
+                : null,
             tags: _selectedTags,
-            notes:
-                _notesController.text.isNotEmpty ? _notesController.text : null,
+            notes: _notesController.text.isNotEmpty
+                ? _notesController.text
+                : null,
           );
 
       if (mounted) {
@@ -640,15 +634,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
           }
 
           // Load image bytes for storage
-          if (capturedPage.imageBytes == null) {
-            capturedPage.imageBytes = await file.readAsBytes();
-          }
+          capturedPage.imageBytes ??= await file.readAsBytes();
 
           // Validate image bytes
           if (capturedPage.imageBytes == null ||
               capturedPage.imageBytes!.isEmpty) {
             throw Exception(
-                'Image bytes are empty for page ${capturedPage.pageNumber}');
+              'Image bytes are empty for page ${capturedPage.pageNumber}',
+            );
           }
 
           // Save image bytes to temp file for OCR
@@ -659,8 +652,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
 
           // Perform OCR using original image
           final ocrService = ref.read(ocrServiceProvider);
-          final ocrResult =
-              await ocrService.extractTextFromImage(tempEnhancedPath);
+          final ocrResult = await ocrService.extractTextFromImage(
+            tempEnhancedPath,
+          );
 
           // Create DocumentPage
           final documentPage = DocumentPage.create(
@@ -679,7 +673,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                    'Warning: Page ${capturedPage.pageNumber} failed OCR: $pageError'),
+                  'Warning: Page ${capturedPage.pageNumber} failed OCR: $pageError',
+                ),
                 backgroundColor: Colors.orange,
                 duration: const Duration(seconds: 2),
               ),
@@ -712,20 +707,25 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
       }
 
       // Save multi-page document
-      await ref.read(documentNotifierProvider.notifier).scanMultiPageDocument(
+      await ref
+          .read(documentNotifierProvider.notifier)
+          .scanMultiPageDocument(
             pages: documentPages,
-            title:
-                _titleController.text.isNotEmpty ? _titleController.text : null,
+            title: _titleController.text.isNotEmpty
+                ? _titleController.text
+                : null,
             tags: _selectedTags,
-            notes:
-                _notesController.text.isNotEmpty ? _notesController.text : null,
+            notes: _notesController.text.isNotEmpty
+                ? _notesController.text
+                : null,
           );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Multi-page document saved successfully! (${_capturedPages.length} pages)'),
+              'Multi-page document saved successfully! (${_capturedPages.length} pages)',
+            ),
             backgroundColor: Colors.green,
           ),
         );

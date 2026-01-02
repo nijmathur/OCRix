@@ -163,20 +163,20 @@ class AuditEntry extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        level,
-        action,
-        resourceType,
-        resourceId,
-        userId,
-        timestamp,
-        details,
-        location,
-        deviceInfo,
-        isSuccess,
-        errorMessage,
-        checksum,
-        previousEntryId,
-        previousChecksum,
-      ];
+    id,
+    level,
+    action,
+    resourceType,
+    resourceId,
+    userId,
+    timestamp,
+    details,
+    location,
+    deviceInfo,
+    isSuccess,
+    errorMessage,
+    checksum,
+    previousEntryId,
+    previousChecksum,
+  ];
 }

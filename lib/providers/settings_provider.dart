@@ -8,13 +8,13 @@ import '../core/interfaces/troubleshooting_logger_interface.dart';
 
 final settingsNotifierProvider =
     StateNotifierProvider<SettingsNotifier, AsyncValue<UserSettings>>((ref) {
-  final databaseService = ref.read(databaseServiceProvider);
-  final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
-  return SettingsNotifier(
-    databaseService,
-    troubleshootingLogger: troubleshootingLogger,
-  );
-});
+      final databaseService = ref.read(databaseServiceProvider);
+      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+      return SettingsNotifier(
+        databaseService,
+        troubleshootingLogger: troubleshootingLogger,
+      );
+    });
 
 class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
   final IDatabaseService _databaseService;
@@ -23,8 +23,8 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
   SettingsNotifier(
     this._databaseService, {
     ITroubleshootingLogger? troubleshootingLogger,
-  })  : _troubleshootingLogger = troubleshootingLogger,
-        super(const AsyncValue.loading()) {
+  }) : _troubleshootingLogger = troubleshootingLogger,
+       super(const AsyncValue.loading()) {
     _loadSettings();
   }
 
@@ -137,9 +137,7 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
   Future<void> updateDefaultTags(List<String> tags) async {
     final currentSettings = state.value;
     if (currentSettings != null) {
-      final updatedSettings = currentSettings.copyWith(
-        defaultTags: tags,
-      );
+      final updatedSettings = currentSettings.copyWith(defaultTags: tags);
       await updateSettings(updatedSettings);
     }
   }
@@ -157,9 +155,7 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
   Future<void> updateLanguage(String language) async {
     final currentSettings = state.value;
     if (currentSettings != null) {
-      final updatedSettings = currentSettings.copyWith(
-        language: language,
-      );
+      final updatedSettings = currentSettings.copyWith(language: language);
       await updateSettings(updatedSettings);
     }
   }
@@ -167,9 +163,7 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
   Future<void> updateTheme(String theme) async {
     final currentSettings = state.value;
     if (currentSettings != null) {
-      final updatedSettings = currentSettings.copyWith(
-        theme: theme,
-      );
+      final updatedSettings = currentSettings.copyWith(theme: theme);
       await updateSettings(updatedSettings);
     }
   }
@@ -217,8 +211,9 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
   Future<void> updateCustomSetting(String key, dynamic value) async {
     final currentSettings = state.value;
     if (currentSettings != null) {
-      final customSettings =
-          Map<String, dynamic>.from(currentSettings.customSettings);
+      final customSettings = Map<String, dynamic>.from(
+        currentSettings.customSettings,
+      );
       customSettings[key] = value;
 
       final updatedSettings = currentSettings.copyWith(
@@ -261,8 +256,8 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
   EncryptionNotifier(
     this._encryptionService, {
     ITroubleshootingLogger? troubleshootingLogger,
-  })  : _troubleshootingLogger = troubleshootingLogger,
-        super(const EncryptionState.initial()) {
+  }) : _troubleshootingLogger = troubleshootingLogger,
+       super(const EncryptionState.initial()) {
     _initialize();
   }
 
@@ -271,8 +266,8 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
       state = state.copyWith(isLoading: true);
       await _encryptionService.initialize();
 
-      final isBiometricAvailable =
-          await _encryptionService.isBiometricAvailable();
+      final isBiometricAvailable = await _encryptionService
+          .isBiometricAvailable();
       final encryptionInfo = await _encryptionService.getEncryptionInfo();
 
       state = state.copyWith(
@@ -292,10 +287,7 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
         tag: 'EncryptionNotifier',
         error: e,
       );
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -303,8 +295,8 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
     try {
       state = state.copyWith(isAuthenticating: true, error: null);
 
-      final isAuthenticated =
-          await _encryptionService.authenticateWithBiometrics();
+      final isAuthenticated = await _encryptionService
+          .authenticateWithBiometrics();
 
       state = state.copyWith(
         isAuthenticating: false,
@@ -319,10 +311,7 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
         tag: 'EncryptionNotifier',
         error: e,
       );
-      state = state.copyWith(
-        isAuthenticating: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isAuthenticating: false, error: e.toString());
       return false;
     }
   }
@@ -335,10 +324,7 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
 
       final encryptionInfo = await _encryptionService.getEncryptionInfo();
 
-      state = state.copyWith(
-        isLoading: false,
-        encryptionInfo: encryptionInfo,
-      );
+      state = state.copyWith(isLoading: false, encryptionInfo: encryptionInfo);
 
       _troubleshootingLogger?.info(
         'Encryption key changed successfully',
@@ -350,10 +336,7 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
         tag: 'EncryptionNotifier',
         error: e,
       );
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -380,10 +363,7 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
         tag: 'EncryptionNotifier',
         error: e,
       );
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
@@ -420,13 +400,13 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
 
 final encryptionNotifierProvider =
     StateNotifierProvider<EncryptionNotifier, EncryptionState>((ref) {
-  final encryptionService = ref.read(encryptionServiceProvider);
-  final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
-  return EncryptionNotifier(
-    encryptionService,
-    troubleshootingLogger: troubleshootingLogger,
-  );
-});
+      final encryptionService = ref.read(encryptionServiceProvider);
+      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
+      return EncryptionNotifier(
+        encryptionService,
+        troubleshootingLogger: troubleshootingLogger,
+      );
+    });
 
 class EncryptionState {
   final bool isLoading;

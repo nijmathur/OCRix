@@ -1,0 +1,164 @@
+@startuml OCRix Domain Models
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+
+title OCRix - Domain Model Class Diagram
+
+package "Core Domain Models" {
+    class Document {
+        +int? id
+        +String title
+        +Uint8List imageData
+        +Uint8List? thumbnailData
+        +String extractedText
+        +DocumentType type
+        +List<String> tags
+        +Map<String, dynamic> metadata
+        +DateTime createdAt
+        +DateTime updatedAt
+        +bool isEncrypted
+        +String? encryptionKeyId
+        +int? pageCount
+        --
+        +factory create(...)
+        +Map<String, dynamic> toMap()
+        +static Document fromMap(Map<String, dynamic>)
+        +Document copyWith(...)
+    }
+
+    enum DocumentType {
+        RECEIPT
+        CONTRACT
+        INVOICE
+        LETTER
+        ID_CARD
+        OTHER
+    }
+
+    class DocumentPage {
+        +int? id
+        +int documentId
+        +int pageNumber
+        +Uint8List imageData
+        +Uint8List? thumbnailData
+        +String extractedText
+        +DateTime createdAt
+        --
+        +Map<String, dynamic> toMap()
+        +static DocumentPage fromMap(Map<String, dynamic>)
+    }
+
+    class AuditLog {
+        +int? id
+        +String userId
+        +AuditAction action
+        +String? details
+        +DateTime timestamp
+        +AuditLevel level
+        +String? previousEntryId
+        +String? previousChecksum
+        +String checksum
+        --
+        +factory create(...)
+        +Map<String, dynamic> toMap()
+        +static AuditLog fromMap(Map<String, dynamic>)
+        +String calculateChecksum()
+    }
+
+    enum AuditAction {
+        CREATE
+        READ
+        UPDATE
+        DELETE
+        SYNC
+        EXPORT
+        IMPORT
+        LOGIN
+        LOGOUT
+        BIOMETRIC_AUTH
+    }
+
+    enum AuditLevel {
+        COMPULSORY
+        INFO
+        DEBUG
+        TRACE
+    }
+
+    class UserSettings {
+        +int? id
+        +String userId
+        +String storageProvider
+        +bool autoSync
+        +bool encryptionEnabled
+        +bool biometricAuthEnabled
+        +String? encryptionKeyId
+        +DateTime createdAt
+        +DateTime updatedAt
+        --
+        +Map<String, dynamic> toMap()
+        +static UserSettings fromMap(Map<String, dynamic>)
+        +UserSettings copyWith(...)
+    }
+
+    class StorageProvider {
+        +String id
+        +String name
+        +StorageProviderType type
+        +bool isEnabled
+        +Map<String, dynamic> credentials
+        +DateTime? lastSyncTime
+        --
+        +Map<String, dynamic> toMap()
+        +static StorageProvider fromMap(Map<String, dynamic>)
+    }
+
+    enum StorageProviderType {
+        LOCAL
+        GOOGLE_DRIVE
+        ONEDRIVE
+        DROPBOX
+    }
+
+    class AuthUser {
+        +String id
+        +String email
+        +String? displayName
+        +String? photoUrl
+        +DateTime? lastLoginTime
+        --
+        +Map<String, dynamic> toMap()
+        +static AuthUser fromMap(Map<String, dynamic>)
+    }
+}
+
+' Relationships
+Document "1" *-- "0..*" DocumentPage : contains
+Document --> DocumentType : has type
+AuditLog --> AuditAction : performs
+AuditLog --> AuditLevel : has level
+UserSettings --> AuthUser : belongs to
+StorageProvider --> StorageProviderType : has type
+Document --> UserSettings : owned by user
+
+note right of Document
+    Main entity representing
+    scanned documents.
+    Supports both single-page
+    and multi-page documents.
+end note
+
+note right of AuditLog
+    Immutable audit trail with
+    chain linking for tamper
+    detection using checksums.
+end note
+
+note right of DocumentPage
+    Individual pages in
+    multi-page documents.
+    Foreign key to Document.
+end note
+
+@enduml

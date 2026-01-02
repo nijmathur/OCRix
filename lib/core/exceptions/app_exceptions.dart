@@ -4,11 +4,7 @@ sealed class AppException implements Exception {
   final Object? originalError;
   final StackTrace? stackTrace;
 
-  const AppException(
-    this.message, {
-    this.originalError,
-    this.stackTrace,
-  });
+  const AppException(this.message, {this.originalError, this.stackTrace});
 
   @override
   String toString() => message;
@@ -34,20 +30,12 @@ class EncryptionException extends AppException {
 
 /// OCR-related exceptions
 class OCRException extends AppException {
-  const OCRException(
-    super.message, {
-    super.originalError,
-    super.stackTrace,
-  });
+  const OCRException(super.message, {super.originalError, super.stackTrace});
 }
 
 /// Camera-related exceptions
 class CameraException extends AppException {
-  const CameraException(
-    super.message, {
-    super.originalError,
-    super.stackTrace,
-  });
+  const CameraException(super.message, {super.originalError, super.stackTrace});
 }
 
 /// Storage-related exceptions
@@ -79,9 +67,5 @@ class ValidationException extends AppException {
 
 /// Authentication-related exceptions
 class AuthException extends AppException {
-  const AuthException(
-    super.message, {
-    super.originalError,
-    super.stackTrace,
-  });
+  const AuthException(super.message, {super.originalError, super.stackTrace});
 }

@@ -1,0 +1,133 @@
+@startuml Multi-Page Document Scanning
+!theme plain
+skinparam shadowing false
+
+title OCRix - Multi-Page Document Scanning Sequence Diagram
+
+actor User
+participant "ScannerScreen" as UI
+participant "ScannerNotifier" as Notifier
+participant "CameraService" as Camera
+participant "OCRService" as OCR
+participant "DocumentNotifier" as DocNotifier
+participant "DatabaseService" as DB
+participant "AuditLoggingService" as Audit
+
+== Enable Multi-Page Mode ==
+User -> UI: Toggle multi-page mode ON
+activate UI
+UI -> Notifier: setMultiPageMode(true)
+activate Notifier
+Notifier -> Notifier: _isMultiPageMode = true
+Notifier -> Notifier: _capturedPages = []
+Notifier --> UI: State updated
+deactivate Notifier
+deactivate UI
+
+== Capture First Page ==
+User -> UI: Press capture button
+activate UI
+UI -> Notifier: captureImage()
+activate Notifier
+Notifier -> Camera: captureImage()
+activate Camera
+Camera --> Notifier: page1Path
+deactivate Camera
+
+Notifier -> Notifier: Add CapturedPage(page1Path, 1)
+Notifier -> Notifier: Update state: pageCount = 1
+Notifier --> UI: Page 1 captured
+deactivate Notifier
+UI -> UI: Show page counter (1/?)
+deactivate UI
+
+== Capture Additional Pages ==
+loop For each additional page
+    User -> UI: Press capture button
+    activate UI
+    UI -> Notifier: captureImage()
+    activate Notifier
+    Notifier -> Camera: captureImage()
+    activate Camera
+    Camera --> Notifier: pageNPath
+    deactivate Camera
+
+    Notifier -> Notifier: Add CapturedPage(pageNPath, N)
+    Notifier -> Notifier: Update state: pageCount = N
+    Notifier --> UI: Page N captured
+    deactivate Notifier
+    UI -> UI: Show page counter (N/?)
+    deactivate UI
+end
+
+== Review & Save Multi-Page Document ==
+User -> UI: Tap "Done" button
+activate UI
+UI -> UI: Show review screen with all pages
+User -> UI: Enter title, tags and tap Save
+UI -> DocNotifier: scanMultiPageDocument(capturedPages, title, tags)
+activate DocNotifier
+
+DocNotifier -> DocNotifier: Initialize combinedText = ""
+DocNotifier -> DocNotifier: Initialize documentPages = []
+
+loop For each captured page
+    DocNotifier -> DocNotifier: Load image bytes from path
+
+    DocNotifier -> OCR: extractTextFromImage(page.path)
+    activate OCR
+    OCR --> DocNotifier: pageText
+    deactivate OCR
+
+    DocNotifier -> DocNotifier: Append pageText to combinedText
+    DocNotifier -> DocNotifier: Create DocumentPage object
+    DocNotifier -> DocNotifier: Add to documentPages list
+end
+
+alt No document type specified
+    DocNotifier -> OCR: categorizeDocument(combinedText)
+    activate OCR
+    OCR --> DocNotifier: documentType
+    deactivate OCR
+end
+
+DocNotifier -> DocNotifier: Create Document with pageCount
+DocNotifier -> DB: insertDocument(document)
+activate DB
+DB -> DB: Insert document record
+DB --> DocNotifier: documentId
+deactivate DB
+
+loop For each document page
+    DocNotifier -> DocNotifier: Set page.documentId = documentId
+    DocNotifier -> DB: saveDocumentPage(page)
+    activate DB
+    DB -> DB: Insert page record
+    DB --> DocNotifier: Success
+    deactivate DB
+end
+
+DocNotifier -> Audit: logInfoAction(CREATE, documentId)
+activate Audit
+Audit -> Audit: Calculate checksum with chain link
+Audit -> DB: insertAuditEntry(auditLog)
+activate DB
+DB --> Audit: Success
+deactivate DB
+deactivate Audit
+
+DocNotifier -> DocNotifier: Update state
+DocNotifier --> UI: Multi-page document saved
+deactivate DocNotifier
+
+UI -> Notifier: resetMultiPageCapture()
+activate Notifier
+Notifier -> Notifier: Clear _capturedPages
+Notifier -> Notifier: _isMultiPageMode = false
+Notifier --> UI: Reset complete
+deactivate Notifier
+
+UI --> User: Show success message
+deactivate UI
+
+@enduml

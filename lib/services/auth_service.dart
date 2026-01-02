@@ -1,18 +1,15 @@
+import 'dart:async';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import '../core/base/base_service.dart';
 import '../core/exceptions/app_exceptions.dart';
 
 class AuthService extends BaseService {
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: [
-      drive.DriveApi.driveFileScope,
-      'https://www.googleapis.com/auth/drive.appdata', // Required for appDataFolder access
-    ],
-  );
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
   GoogleSignInAccount? _currentUser;
   bool _isInitialized = false;
+  StreamSubscription<GoogleSignInAuthenticationEvent>? _authEventsSubscription;
 
   @override
   String get serviceName => 'AuthService';
@@ -28,16 +25,36 @@ class AuthService extends BaseService {
     }
 
     try {
-      // Check if user is already signed in (silent sign-in)
-      _currentUser = _googleSignIn.currentUser;
+      // Initialize the GoogleSignIn instance with configuration
+      await _googleSignIn.initialize(
+        serverClientId:
+            '340615948692-mqara4jiq5l52pp7027cm16s9eojc5vg.apps.googleusercontent.com',
+      );
 
-      // If not signed in, try to restore previous session
-      if (_currentUser == null) {
-        _currentUser = await _googleSignIn.signInSilently();
+      // Listen to authentication events to track current user
+      _authEventsSubscription = _googleSignIn.authenticationEvents.listen(
+        (GoogleSignInAuthenticationEvent event) {
+          if (event is GoogleSignInAuthenticationEventSignIn) {
+            _currentUser = event.user;
+            logInfo('User signed in via event: ${event.user.email}');
+          } else if (event is GoogleSignInAuthenticationEventSignOut) {
+            _currentUser = null;
+            logInfo('User signed out via event');
+          }
+        },
+        onError: (error) {
+          logError('Authentication event error', error);
+        },
+      );
+
+      // Try lightweight authentication to restore session
+      final result = _googleSignIn.attemptLightweightAuthentication();
+      if (result is Future<GoogleSignInAccount?>) {
+        _currentUser = await result;
       }
 
       _isInitialized = true;
-      logInfo('Auth service initialized. Signed in: ${isSignedIn}');
+      logInfo('Auth service initialized. Signed in: $isSignedIn');
     } catch (e) {
       logError('Failed to initialize auth service', e);
       // Don't throw - allow app to show login screen
@@ -49,16 +66,28 @@ class AuthService extends BaseService {
   Future<GoogleSignInAccount?> signIn() async {
     try {
       logInfo('Initiating Google Sign-In');
-      final account = await _googleSignIn.signIn();
 
-      if (account != null) {
-        _currentUser = account;
-        logInfo('User signed in: ${account.email}');
-      } else {
-        logWarning('Google Sign-In cancelled by user');
+      // Use the new authenticate method with scope hint
+      final user = await _googleSignIn.authenticate(
+        scopeHint: [
+          drive.DriveApi.driveFileScope,
+          'https://www.googleapis.com/auth/drive.appdata',
+        ],
+      );
+
+      _currentUser = user;
+      logInfo('User signed in: ${user.email}');
+      return user;
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        logWarning('User canceled sign-in');
+        return null;
       }
-
-      return account;
+      logError('Google Sign-In exception', e);
+      throw AuthException(
+        'Failed to sign in: ${e.description ?? e.code.toString()}',
+        originalError: e,
+      );
     } catch (e) {
       logError('Failed to sign in', e);
       throw AuthException(
@@ -82,6 +111,11 @@ class AuthService extends BaseService {
         originalError: e,
       );
     }
+  }
+
+  /// Clean up resources
+  void cleanup() {
+    _authEventsSubscription?.cancel();
   }
 
   /// Get user email

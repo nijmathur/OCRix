@@ -47,21 +47,20 @@ void main() {
         logsDirectoryPathOverride: tempLogsDir.path,
       );
       rotationService = LogRotationService(logFileService);
-      troubleshootingLogger =
-          TroubleshootingLoggerService(logFileService, rotationService);
+      troubleshootingLogger = TroubleshootingLoggerService(
+        logFileService,
+        rotationService,
+      );
 
       // Set up mock encryption service (doesn't require flutter_secure_storage)
       final mockEncryptionService = MockEncryptionService();
       await mockEncryptionService.initialize();
-      (databaseService as DatabaseService)
-          .setEncryptionService(mockEncryptionService);
-      (databaseService as DatabaseService)
-          .setDatabasePathOverride(tempDbDir.path);
+      (databaseService).setEncryptionService(mockEncryptionService);
+      (databaseService).setDatabasePathOverride(tempDbDir.path);
 
       // Set up relationships
       auditDatabaseService.setMainDatabaseService(databaseService);
-      (databaseService as DatabaseService)
-          .setAuditLoggingService(auditLoggingService);
+      (databaseService).setAuditLoggingService(auditLoggingService);
 
       // Initialize services
       await databaseService.initialize();
@@ -91,36 +90,37 @@ void main() {
     });
 
     test(
-        'CRITICAL: Database operations log to both audit and troubleshooting logs',
-        () async {
-      // Perform database operation that should trigger both loggers
-      // (This would require a real document, but we can test the logging calls)
+      'CRITICAL: Database operations log to both audit and troubleshooting logs',
+      () async {
+        // Perform database operation that should trigger both loggers
+        // (This would require a real document, but we can test the logging calls)
 
-      // Log to audit
-      await auditLoggingService.logDatabaseWrite(
-        action: AuditAction.create,
-        resourceType: 'document',
-        resourceId: 'test_doc',
-        details: 'Test document created',
-      );
+        // Log to audit
+        await auditLoggingService.logDatabaseWrite(
+          action: AuditAction.create,
+          resourceType: 'document',
+          resourceId: 'test_doc',
+          details: 'Test document created',
+        );
 
-      // Log to troubleshooting
-      await troubleshootingLogger.info(
-        'Database operation performed',
-        tag: 'DatabaseService',
-        metadata: {'operation': 'create', 'resourceId': 'test_doc'},
-      );
+        // Log to troubleshooting
+        await troubleshootingLogger.info(
+          'Database operation performed',
+          tag: 'DatabaseService',
+          metadata: {'operation': 'create', 'resourceId': 'test_doc'},
+        );
 
-      // Verify audit log
-      final auditEntries = await auditDatabaseService.getAuditEntries();
-      expect(auditEntries.length, greaterThan(0));
-      expect(auditEntries.first.resourceId, contains('test_doc'));
+        // Verify audit log
+        final auditEntries = await auditDatabaseService.getAuditEntries();
+        expect(auditEntries.length, greaterThan(0));
+        expect(auditEntries.first.resourceId, contains('test_doc'));
 
-      // Verify troubleshooting log
-      final troubleshootingLogs = await troubleshootingLogger.getLogContent();
-      expect(troubleshootingLogs, contains('Database operation performed'));
-      expect(troubleshootingLogs, contains('test_doc'));
-    });
+        // Verify troubleshooting log
+        final troubleshootingLogs = await troubleshootingLogger.getLogContent();
+        expect(troubleshootingLogs, contains('Database operation performed'));
+        expect(troubleshootingLogs, contains('test_doc'));
+      },
+    );
 
     test('CRITICAL: Errors are logged to both systems', () async {
       try {
@@ -179,56 +179,63 @@ void main() {
 
       // Verify audit integrity
       final auditFailed = await auditDatabaseService.verifyIntegrity();
-      expect(auditFailed, isEmpty,
-          reason: 'Audit integrity should be maintained under load');
+      expect(
+        auditFailed,
+        isEmpty,
+        reason: 'Audit integrity should be maintained under load',
+      );
 
       // Verify troubleshooting logs are written
       final troubleshootingLogs = await troubleshootingLogger.getLogContent();
       expect(troubleshootingLogs, contains('Operation'));
     });
 
-    test('CRITICAL: Export includes both audit and troubleshooting information',
-        () async {
-      // Create entries in both systems
-      await auditLoggingService.logDatabaseWrite(
-        action: AuditAction.create,
-        resourceType: 'document',
-        resourceId: 'export_test_doc',
-      );
+    test(
+      'CRITICAL: Export includes both audit and troubleshooting information',
+      () async {
+        // Create entries in both systems
+        await auditLoggingService.logDatabaseWrite(
+          action: AuditAction.create,
+          resourceType: 'document',
+          resourceId: 'export_test_doc',
+        );
 
-      await troubleshootingLogger.info('Test log entry', tag: 'ExportTest');
+        await troubleshootingLogger.info('Test log entry', tag: 'ExportTest');
 
-      // Export troubleshooting logs
-      final exported = await troubleshootingLogger.exportLogs();
+        // Export troubleshooting logs
+        final exported = await troubleshootingLogger.exportLogs();
 
-      // Verify export includes troubleshooting info
-      expect(exported, contains('OCRix Troubleshooting Log Export'));
-      expect(exported, contains('Test log entry'));
+        // Verify export includes troubleshooting info
+        expect(exported, contains('OCRix Troubleshooting Log Export'));
+        expect(exported, contains('Test log entry'));
 
-      // Note: Audit logs are in separate database, so they won't be in troubleshooting export
-      // But we can verify audit export separately if needed
-    });
+        // Note: Audit logs are in separate database, so they won't be in troubleshooting export
+        // But we can verify audit export separately if needed
+      },
+    );
 
-    test('CRITICAL: Service failures in one system don\'t break the other',
-        () async {
-      // This test verifies that if one logging system fails,
-      // the other continues to work
+    test(
+      'CRITICAL: Service failures in one system don\'t break the other',
+      () async {
+        // This test verifies that if one logging system fails,
+        // the other continues to work
 
-      // Both should work independently
-      await auditLoggingService.logDatabaseWrite(
-        action: AuditAction.create,
-        resourceType: 'document',
-        resourceId: 'doc_1',
-      );
+        // Both should work independently
+        await auditLoggingService.logDatabaseWrite(
+          action: AuditAction.create,
+          resourceType: 'document',
+          resourceId: 'doc_1',
+        );
 
-      await troubleshootingLogger.info('Troubleshooting log', tag: 'Test');
+        await troubleshootingLogger.info('Troubleshooting log', tag: 'Test');
 
-      // Verify both worked
-      final auditEntries = await auditDatabaseService.getAuditEntries();
-      expect(auditEntries.length, greaterThan(0));
+        // Verify both worked
+        final auditEntries = await auditDatabaseService.getAuditEntries();
+        expect(auditEntries.length, greaterThan(0));
 
-      final troubleshootingLogs = await troubleshootingLogger.getLogContent();
-      expect(troubleshootingLogs, contains('Troubleshooting log'));
-    });
+        final troubleshootingLogs = await troubleshootingLogger.getLogContent();
+        expect(troubleshootingLogs, contains('Troubleshooting log'));
+      },
+    );
   });
 }

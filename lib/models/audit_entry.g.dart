@@ -7,22 +7,22 @@ part of 'audit_entry.dart';
 // **************************************************************************
 
 AuditEntry _$AuditEntryFromJson(Map<String, dynamic> json) => AuditEntry(
-      id: json['id'] as String,
-      level: $enumDecode(_$AuditLogLevelEnumMap, json['level']),
-      action: $enumDecode(_$AuditActionEnumMap, json['action']),
-      resourceType: json['resourceType'] as String,
-      resourceId: json['resourceId'] as String,
-      userId: json['userId'] as String,
-      timestamp: DateTime.parse(json['timestamp'] as String),
-      details: json['details'] as String?,
-      location: json['location'] as String?,
-      deviceInfo: json['deviceInfo'] as String?,
-      isSuccess: json['isSuccess'] as bool,
-      errorMessage: json['errorMessage'] as String?,
-      checksum: json['checksum'] as String,
-      previousEntryId: json['previousEntryId'] as String?,
-      previousChecksum: json['previousChecksum'] as String?,
-    );
+  id: json['id'] as String,
+  level: $enumDecode(_$AuditLogLevelEnumMap, json['level']),
+  action: $enumDecode(_$AuditActionEnumMap, json['action']),
+  resourceType: json['resourceType'] as String,
+  resourceId: json['resourceId'] as String,
+  userId: json['userId'] as String,
+  timestamp: DateTime.parse(json['timestamp'] as String),
+  details: json['details'] as String?,
+  location: json['location'] as String?,
+  deviceInfo: json['deviceInfo'] as String?,
+  isSuccess: json['isSuccess'] as bool,
+  errorMessage: json['errorMessage'] as String?,
+  checksum: json['checksum'] as String,
+  previousEntryId: json['previousEntryId'] as String?,
+  previousChecksum: json['previousChecksum'] as String?,
+);
 
 Map<String, dynamic> _$AuditEntryToJson(AuditEntry instance) =>
     <String, dynamic>{

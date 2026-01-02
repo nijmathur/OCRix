@@ -124,18 +124,18 @@ class DocumentPage extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        documentId,
-        pageNumber,
-        imageData,
-        thumbnailData,
-        imageFormat,
-        imageSize,
-        imageWidth,
-        imageHeight,
-        extractedText,
-        confidenceScore,
-        createdAt,
-        updatedAt,
-      ];
+    id,
+    documentId,
+    pageNumber,
+    imageData,
+    thumbnailData,
+    imageFormat,
+    imageSize,
+    imageWidth,
+    imageHeight,
+    extractedText,
+    confidenceScore,
+    createdAt,
+    updatedAt,
+  ];
 }

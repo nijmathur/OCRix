@@ -42,7 +42,8 @@ class AuditLoggingService extends BaseService {
       await _auditDatabase.initialize();
       _deviceInfo = Platform.operatingSystem;
       super.logInfo(
-          'Audit logging service initialized with level: ${_currentLevel.name}');
+        'Audit logging service initialized with level: ${_currentLevel.name}',
+      );
 
       // No staging processing needed - audit is in main database
     } catch (e) {
@@ -96,7 +97,8 @@ class AuditLoggingService extends BaseService {
       final entryId = await _auditDatabase.insertAuditEntry(entry);
 
       logDebug(
-          'Audit event logged: ${level.name} - ${action.name} on $resourceType/$resourceId');
+        'Audit event logged: ${level.name} - ${action.name} on $resourceType/$resourceId',
+      );
       return entryId;
     } catch (e) {
       logError('Failed to log audit event', e);

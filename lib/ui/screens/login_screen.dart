@@ -50,16 +50,16 @@ class LoginScreen extends ConsumerWidget {
                 Text(
                   'OCRix',
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Privacy-First Document Scanner',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
@@ -156,10 +156,8 @@ class LoginScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceVariant
-                        .withOpacity(0.5),
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -173,12 +171,12 @@ class LoginScreen extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           'Your documents are encrypted and stored securely. Google Sign-In is required to access your data.',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
                         ),
                       ),
                     ],
@@ -193,7 +191,9 @@ class LoginScreen extends ConsumerWidget {
   }
 
   Future<void> _attemptBiometricSignIn(
-      BuildContext context, WidgetRef ref) async {
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final biometricNotifier = ref.read(biometricAuthNotifierProvider.notifier);
     final isAuthenticated = await biometricNotifier.authenticate(
       reason: 'Use biometrics to sign in to OCRix',
@@ -217,13 +217,15 @@ class LoginScreen extends ConsumerWidget {
           final updatedAuthState = ref.read(authNotifierProvider);
           if (updatedAuthState.valueOrNull == null) {
             // Still not signed in, need to sign in with Google
-            final success =
-                await ref.read(authNotifierProvider.notifier).signIn();
+            final success = await ref
+                .read(authNotifierProvider.notifier)
+                .signIn();
             if (!success && context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
-                      'Google Sign-In required after biometric authentication'),
+                    'Google Sign-In required after biometric authentication',
+                  ),
                   backgroundColor: Colors.orange,
                 ),
               );
@@ -233,8 +235,9 @@ class LoginScreen extends ConsumerWidget {
         } catch (e) {
           // If restore fails, prompt for Google Sign-In
           if (context.mounted) {
-            final success =
-                await ref.read(authNotifierProvider.notifier).signIn();
+            final success = await ref
+                .read(authNotifierProvider.notifier)
+                .signIn();
             if (!success && context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -251,7 +254,8 @@ class LoginScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Biometric authentication failed. Please sign in with Google.'),
+            'Biometric authentication failed. Please sign in with Google.',
+          ),
           backgroundColor: Colors.orange,
         ),
       );

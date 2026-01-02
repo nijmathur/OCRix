@@ -21,6 +21,7 @@ class CameraService extends BaseService
   String get serviceName => 'CameraService';
 
   /// Get current flash mode
+  @override
   FlashMode get currentFlashMode => _currentFlashMode;
 
   @override
@@ -41,7 +42,7 @@ class CameraService extends BaseService
     try {
       _cameras = await availableCameras();
       if (_cameras.isEmpty) {
-        throw CameraException('No cameras available');
+        throw const CameraException('No cameras available');
       }
       _isInitialized = true;
       logInfo('Camera service initialized with ${_cameras.length} cameras');
@@ -57,6 +58,7 @@ class CameraService extends BaseService
     }
   }
 
+  @override
   Future<void> initializeController({
     int cameraIndex = 0,
     ResolutionPreset resolution = ResolutionPreset.high,
@@ -102,7 +104,7 @@ class CameraService extends BaseService
   Future<String> captureImage() async {
     try {
       if (_controller == null || !_controller!.value.isInitialized) {
-        throw CameraException('Camera controller not initialized');
+        throw const CameraException('Camera controller not initialized');
       }
 
       final XFile image = await _controller!.takePicture();
@@ -134,7 +136,7 @@ class CameraService extends BaseService
   Future<List<int>> captureImageBytes() async {
     try {
       if (_controller == null || !_controller!.value.isInitialized) {
-        throw CameraException('Camera controller not initialized');
+        throw const CameraException('Camera controller not initialized');
       }
 
       final XFile image = await _controller!.takePicture();
@@ -155,13 +157,15 @@ class CameraService extends BaseService
   }
 
   @override
-  Future<String> processAndSaveImage(List<int> imageBytes,
-      {String? fileName}) async {
+  Future<String> processAndSaveImage(
+    List<int> imageBytes, {
+    String? fileName,
+  }) async {
     try {
       // Decode and process image
       final image = img.decodeImage(Uint8List.fromList(imageBytes));
       if (image == null) {
-        throw CameraException('Failed to decode image');
+        throw const CameraException('Failed to decode image');
       }
 
       // Apply image processing
@@ -220,7 +224,7 @@ class CameraService extends BaseService
   Future<void> startPreview() async {
     try {
       if (_controller == null || !_controller!.value.isInitialized) {
-        throw CameraException('Camera controller not initialized');
+        throw const CameraException('Camera controller not initialized');
       }
       await _controller!.startImageStream(_onImageStream);
       logInfo('Camera preview started');
@@ -268,9 +272,11 @@ class CameraService extends BaseService
   }
 
   /// Toggle flash between OFF and ON (torch mode)
+  @override
   Future<void> toggleFlash() async {
-    final newMode =
-        _currentFlashMode == FlashMode.off ? FlashMode.torch : FlashMode.off;
+    final newMode = _currentFlashMode == FlashMode.off
+        ? FlashMode.torch
+        : FlashMode.off;
     await setFlashMode(newMode);
   }
 
@@ -321,6 +327,43 @@ class CameraService extends BaseService
       logError('Failed to set exposure point: $e');
     }
   }
+
+  /// Switch between available cameras
+  Future<void> switchCamera() async {
+    try {
+      if (_cameras.length <= 1) {
+        logWarning('Cannot switch camera: Only one camera available');
+        return;
+      }
+
+      // Get current camera index
+      int currentIndex = 0;
+      if (_controller != null) {
+        final currentDescription = _controller!.description;
+        currentIndex = _cameras.indexWhere((cam) => cam == currentDescription);
+      }
+
+      // Switch to next camera (cycle through available cameras)
+      final nextIndex = (currentIndex + 1) % _cameras.length;
+
+      // Dispose current controller
+      await _controller?.dispose();
+
+      // Initialize with new camera
+      await initializeController(cameraIndex: nextIndex);
+
+      logInfo('Switched to camera: ${_cameras[nextIndex].name}');
+    } catch (e) {
+      logError('Failed to switch camera', e);
+      throw CameraException(
+        'Failed to switch camera: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  /// Check if multiple cameras are available
+  bool get hasMultipleCameras => _cameras.length > 1;
 
   @override
   Future<void> dispose() async {

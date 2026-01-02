@@ -20,8 +20,8 @@ class DatabaseExportService extends BaseService {
     required DatabaseService databaseService,
     required IEncryptionService encryptionService,
     required IStorageProviderService storageProviderService,
-  })  : _databaseService = databaseService,
-        _encryptionService = encryptionService;
+  }) : _databaseService = databaseService,
+       _encryptionService = encryptionService;
 
   @override
   String get serviceName => 'DatabaseExportService';
@@ -83,15 +83,12 @@ class DatabaseExportService extends BaseService {
 
         // Step 4: Encrypt the database file with user password
         logInfo('Encrypting database file with password...');
-        final encryptedFilePath =
-            await _encryptionService.encryptFileWithPassword(
-          tempDbPath,
-          password,
-        );
+        final encryptedFilePath = await _encryptionService
+            .encryptFileWithPassword(tempDbPath, password);
         final encryptedFile = File(encryptedFilePath);
 
         if (!await encryptedFile.exists()) {
-          throw EncryptionException('Encrypted file was not created');
+          throw const EncryptionException('Encrypted file was not created');
         }
 
         final encryptedFileSize = await encryptedFile.length();
@@ -103,7 +100,8 @@ class DatabaseExportService extends BaseService {
         logInfo('Uploading encrypted database to Google Drive...');
 
         // Generate filename with timestamp
-        final fileName = customFileName ??
+        final fileName =
+            customFileName ??
             'ocrix_database_backup_${DateTime.now().toIso8601String().split('T')[0]}.db.enc';
 
         final remotePath = 'backups/$fileName';
@@ -121,15 +119,18 @@ class DatabaseExportService extends BaseService {
         if (!await provider.isConnected()) {
           final initialized = await provider.initialize();
           if (!initialized) {
-            throw StorageException(
-                'Failed to initialize Google Drive provider');
+            throw const StorageException(
+              'Failed to initialize Google Drive provider',
+            );
           }
         }
 
         // Upload encrypted file to Google Drive
         // Note: Google Drive API uses HTTPS/TLS automatically (encryption in transit)
-        final driveFileId =
-            await provider.uploadFile(encryptedFilePath, remotePath);
+        final driveFileId = await provider.uploadFile(
+          encryptedFilePath,
+          remotePath,
+        );
 
         logInfo('Database uploaded to Google Drive: $driveFileId');
 
@@ -220,7 +221,9 @@ class DatabaseExportService extends BaseService {
       if (!await provider.isConnected()) {
         final initialized = await provider.initialize();
         if (!initialized) {
-          throw StorageException('Failed to initialize Google Drive provider');
+          throw const StorageException(
+            'Failed to initialize Google Drive provider',
+          );
         }
       }
 
@@ -238,23 +241,21 @@ class DatabaseExportService extends BaseService {
       final encryptedFile = File(encryptedFilePath);
 
       if (!await encryptedFile.exists()) {
-        throw StorageException('Downloaded file does not exist');
+        throw const StorageException('Downloaded file does not exist');
       }
 
       logInfo(
-          'Encrypted database downloaded: ${encryptedFile.lengthSync()} bytes');
+        'Encrypted database downloaded: ${encryptedFile.lengthSync()} bytes',
+      );
 
       // Step 3: Decrypt the database file with user password
       logInfo('Decrypting database file with password...');
-      final decryptedFilePath =
-          await _encryptionService.decryptFileWithPassword(
-        encryptedFilePath,
-        password,
-      );
+      final decryptedFilePath = await _encryptionService
+          .decryptFileWithPassword(encryptedFilePath, password);
       final decryptedFile = File(decryptedFilePath);
 
       if (!await decryptedFile.exists()) {
-        throw EncryptionException('Decrypted file was not created');
+        throw const EncryptionException('Decrypted file was not created');
       }
 
       logInfo(
@@ -368,18 +369,22 @@ class DatabaseExportService extends BaseService {
       if (!await provider.isConnected()) {
         final initialized = await provider.initialize();
         if (!initialized) {
-          throw StorageException('Failed to initialize Google Drive provider');
+          throw const StorageException(
+            'Failed to initialize Google Drive provider',
+          );
         }
       }
 
       // Access Google Drive API directly to get file metadata
       if (provider is! GoogleDriveStorageProvider) {
-        throw StorageException('Provider is not GoogleDriveStorageProvider');
+        throw const StorageException(
+          'Provider is not GoogleDriveStorageProvider',
+        );
       }
 
       final driveApi = provider.driveApi;
       if (driveApi == null) {
-        throw StorageException('Google Drive API not initialized');
+        throw const StorageException('Google Drive API not initialized');
       }
 
       // Query Google Drive API for files in appDataFolder
@@ -397,7 +402,8 @@ class DatabaseExportService extends BaseService {
             'fileId': file.id ?? '',
             'fileName': file.name ?? 'unknown.db.enc',
             'path': file.id ?? '',
-            'createdAt': file.createdTime?.toIso8601String() ??
+            'createdAt':
+                file.createdTime?.toIso8601String() ??
                 DateTime.now().toIso8601String(),
             'modifiedAt': file.modifiedTime?.toIso8601String(),
             'size': file.size,
@@ -433,7 +439,9 @@ class DatabaseExportService extends BaseService {
       if (!await provider.isConnected()) {
         final initialized = await provider.initialize();
         if (!initialized) {
-          throw StorageException('Failed to initialize Google Drive provider');
+          throw const StorageException(
+            'Failed to initialize Google Drive provider',
+          );
         }
       }
 

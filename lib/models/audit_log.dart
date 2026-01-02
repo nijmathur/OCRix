@@ -64,18 +64,18 @@ class AuditLog extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        action,
-        resourceType,
-        resourceId,
-        userId,
-        timestamp,
-        details,
-        location,
-        deviceInfo,
-        isSuccess,
-        errorMessage,
-      ];
+    id,
+    action,
+    resourceType,
+    resourceId,
+    userId,
+    timestamp,
+    details,
+    location,
+    deviceInfo,
+    isSuccess,
+    errorMessage,
+  ];
 }
 
 enum AuditAction {

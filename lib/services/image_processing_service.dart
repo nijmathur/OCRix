@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import '../core/interfaces/image_processing_service_interface.dart';
@@ -15,7 +14,8 @@ class ImageProcessingService extends BaseService
 
   @override
   Future<ProcessedImageResult> processImageForStorage(
-      List<int> imageBytes) async {
+    List<int> imageBytes,
+  ) async {
     try {
       logInfo('Processing image for storage: ${imageBytes.length} bytes');
 
@@ -23,7 +23,8 @@ class ImageProcessingService extends BaseService
       final result = await compute(_processImageInIsolate, imageBytes);
 
       logInfo(
-          'Image processed: ${result.size} bytes (thumbnail: ${result.thumbnailSize} bytes), ${result.width}x${result.height}');
+        'Image processed: ${result.size} bytes (thumbnail: ${result.thumbnailSize} bytes), ${result.width}x${result.height}',
+      );
 
       return result;
     } catch (e, stackTrace) {
@@ -70,8 +71,10 @@ class ImageProcessingService extends BaseService
     }
 
     // Convert to JPEG with configured quality
-    final processedBytes =
-        img.encodeJpg(processedImage, quality: AppConfig.storageQuality);
+    final processedBytes = img.encodeJpg(
+      processedImage,
+      quality: AppConfig.storageQuality,
+    );
     final processedUint8List = Uint8List.fromList(processedBytes);
 
     // Generate thumbnail
@@ -80,8 +83,10 @@ class ImageProcessingService extends BaseService
       width: AppConfig.thumbnailWidth,
       height: AppConfig.thumbnailHeight,
     );
-    final thumbnailBytes =
-        img.encodeJpg(thumbnail, quality: AppConfig.thumbnailQuality);
+    final thumbnailBytes = img.encodeJpg(
+      thumbnail,
+      quality: AppConfig.thumbnailQuality,
+    );
     final thumbnailUint8List = Uint8List.fromList(thumbnailBytes);
 
     return ProcessedImageResult(
@@ -104,7 +109,7 @@ class ImageProcessingService extends BaseService
     try {
       final image = img.decodeImage(Uint8List.fromList(imageBytes));
       if (image == null) {
-        throw ImageProcessingException('Failed to decode image');
+        throw const ImageProcessingException('Failed to decode image');
       }
 
       if (image.width <= maxWidth && image.height <= maxHeight) {
@@ -139,10 +144,7 @@ class ImageProcessingService extends BaseService
         return null;
       }
 
-      return ImageDimensions(
-        width: image.width,
-        height: image.height,
-      );
+      return ImageDimensions(width: image.width, height: image.height);
     } catch (e) {
       logError('Failed to get image dimensions', e);
       return null;
@@ -157,7 +159,7 @@ class ImageProcessingService extends BaseService
     try {
       final image = img.decodeImage(Uint8List.fromList(imageBytes));
       if (image == null) {
-        throw ImageProcessingException('Failed to decode image');
+        throw const ImageProcessingException('Failed to decode image');
       }
 
       final compressed = img.encodeJpg(image, quality: quality);

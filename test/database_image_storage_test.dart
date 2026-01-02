@@ -1,8 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:sqflite/sqflite.dart';
-import '../lib/models/document.dart';
+import 'package:ocrix/models/document.dart';
 
 void main() {
   // Initialize FFI for testing (allows running on desktop/CI without device)
@@ -216,54 +215,56 @@ void main() {
       expect(map['image_path'], equals('/path/to/original/image.jpg'));
     });
 
-    test('should handle document without image data (backward compatibility)',
-        () async {
-      final document = Document.create(
-        title: 'Document without image data',
-        imagePath: '/path/to/image.jpg',
-        extractedText: 'Text',
-        type: DocumentType.receipt,
-        confidenceScore: 0.9,
-        detectedLanguage: 'en',
-        deviceInfo: 'test',
-      );
+    test(
+      'should handle document without image data (backward compatibility)',
+      () async {
+        final document = Document.create(
+          title: 'Document without image data',
+          imagePath: '/path/to/image.jpg',
+          extractedText: 'Text',
+          type: DocumentType.receipt,
+          confidenceScore: 0.9,
+          detectedLanguage: 'en',
+          deviceInfo: 'test',
+        );
 
-      await testDatabase.insert('documents', {
-        'id': document.id,
-        'title': document.title,
-        'image_data': document.imageData,
-        'image_format': document.imageFormat,
-        'image_path': document.imagePath,
-        'extracted_text': document.extractedText,
-        'type': document.type.name,
-        'scan_date': document.scanDate.millisecondsSinceEpoch,
-        'tags': document.tags.join(','),
-        'metadata': document.metadata.toString(),
-        'storage_provider': document.storageProvider,
-        'is_encrypted': document.isEncrypted ? 1 : 0,
-        'confidence_score': document.confidenceScore,
-        'detected_language': document.detectedLanguage,
-        'device_info': document.deviceInfo,
-        'notes': document.notes,
-        'location': document.location,
-        'created_at': document.createdAt.millisecondsSinceEpoch,
-        'updated_at': document.updatedAt.millisecondsSinceEpoch,
-        'is_synced': document.isSynced ? 1 : 0,
-        'cloud_id': document.cloudId,
-        'last_synced_at': document.lastSyncedAt?.millisecondsSinceEpoch,
-      });
+        await testDatabase.insert('documents', {
+          'id': document.id,
+          'title': document.title,
+          'image_data': document.imageData,
+          'image_format': document.imageFormat,
+          'image_path': document.imagePath,
+          'extracted_text': document.extractedText,
+          'type': document.type.name,
+          'scan_date': document.scanDate.millisecondsSinceEpoch,
+          'tags': document.tags.join(','),
+          'metadata': document.metadata.toString(),
+          'storage_provider': document.storageProvider,
+          'is_encrypted': document.isEncrypted ? 1 : 0,
+          'confidence_score': document.confidenceScore,
+          'detected_language': document.detectedLanguage,
+          'device_info': document.deviceInfo,
+          'notes': document.notes,
+          'location': document.location,
+          'created_at': document.createdAt.millisecondsSinceEpoch,
+          'updated_at': document.updatedAt.millisecondsSinceEpoch,
+          'is_synced': document.isSynced ? 1 : 0,
+          'cloud_id': document.cloudId,
+          'last_synced_at': document.lastSyncedAt?.millisecondsSinceEpoch,
+        });
 
-      final maps = await testDatabase.query(
-        'documents',
-        where: 'id = ?',
-        whereArgs: [document.id],
-      );
+        final maps = await testDatabase.query(
+          'documents',
+          where: 'id = ?',
+          whereArgs: [document.id],
+        );
 
-      expect(maps.length, equals(1));
-      final map = maps.first;
-      expect(map['image_data'], isNull);
-      expect(map['image_path'], equals('/path/to/image.jpg'));
-    });
+        expect(maps.length, equals(1));
+        final map = maps.first;
+        expect(map['image_data'], isNull);
+        expect(map['image_path'], equals('/path/to/image.jpg'));
+      },
+    );
 
     test('should update document image data', () async {
       final initialImageData = Uint8List.fromList([1, 2, 3]);

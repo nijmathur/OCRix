@@ -24,8 +24,5 @@ class ImageDimensions {
   final int width;
   final int height;
 
-  const ImageDimensions({
-    required this.width,
-    required this.height,
-  });
+  const ImageDimensions({required this.width, required this.height});
 }

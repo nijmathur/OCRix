@@ -56,12 +56,14 @@ class BiometricAuthService extends BaseService {
       final availableTypes = await getAvailableBiometrics();
 
       logInfo(
-          'Biometric availability check: isAvailable=$isAvailable, types=${availableTypes.map((t) => t.name).join(", ")}');
+        'Biometric availability check: isAvailable=$isAvailable, types=${availableTypes.map((t) => t.name).join(", ")}',
+      );
 
       if (!isAvailable) {
         logError('Biometric authentication not available on device');
         throw const AuthException(
-            'Biometric authentication is not available on this device');
+          'Biometric authentication is not available on this device',
+        );
       }
 
       // First verify biometric works
@@ -72,13 +74,16 @@ class BiometricAuthService extends BaseService {
         );
 
         logInfo(
-            'Biometric authentication result: isAuthenticated=$isAuthenticated');
+          'Biometric authentication result: isAuthenticated=$isAuthenticated',
+        );
 
         if (!isAuthenticated) {
           logError(
-              'Biometric authentication failed during enable process - user cancelled or authentication failed');
+            'Biometric authentication failed during enable process - user cancelled or authentication failed',
+          );
           throw const AuthException(
-              'Biometric authentication was cancelled or failed. Please try again.');
+            'Biometric authentication was cancelled or failed. Please try again.',
+          );
         }
       } catch (e) {
         // If it's already an AuthException, rethrow it
@@ -95,15 +100,20 @@ class BiometricAuthService extends BaseService {
 
       // Mark as enabled
       logInfo(
-          'Saving biometric authentication enabled state to secure storage');
+        'Saving biometric authentication enabled state to secure storage',
+      );
       try {
         await _secureStorage.write(key: _biometricEnabledKey, value: 'true');
         await _secureStorage.write(key: _biometricRegisteredKey, value: 'true');
         logInfo(
-            'Biometric authentication enabled successfully - state saved to secure storage');
+          'Biometric authentication enabled successfully - state saved to secure storage',
+        );
       } catch (storageError, stackTrace) {
-        logError('Failed to save biometric enabled state to secure storage',
-            storageError, stackTrace);
+        logError(
+          'Failed to save biometric enabled state to secure storage',
+          storageError,
+          stackTrace,
+        );
         throw AuthException(
           'Failed to save biometric authentication settings: ${storageError.toString()}',
           originalError: storageError,
@@ -140,28 +150,28 @@ class BiometricAuthService extends BaseService {
   Future<bool> authenticate({String? reason}) async {
     try {
       logDebug(
-          'Starting biometric authentication - reason: ${reason ?? "default"}');
+        'Starting biometric authentication - reason: ${reason ?? "default"}',
+      );
 
       final isAvailable = await isBiometricAvailable();
       final availableTypes = await getAvailableBiometrics();
 
       logDebug(
-          'Biometric check: isAvailable=$isAvailable, availableTypes=${availableTypes.map((t) => t.name).join(", ")}');
+        'Biometric check: isAvailable=$isAvailable, availableTypes=${availableTypes.map((t) => t.name).join(", ")}',
+      );
 
       if (!isAvailable) {
         logWarning(
-            'Biometric authentication not available - canCheckBiometrics=false or no biometrics available');
+          'Biometric authentication not available - canCheckBiometrics=false or no biometrics available',
+        );
         return false;
       }
 
       logInfo('Requesting biometric authentication from system');
       final isAuthenticated = await _localAuth.authenticate(
         localizedReason: reason ?? 'Authenticate to access the app',
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-          useErrorDialogs: true,
-        ),
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
       );
 
       if (isAuthenticated) {

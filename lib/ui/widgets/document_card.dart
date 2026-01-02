@@ -120,11 +120,7 @@ class DocumentCard extends StatelessWidget {
                     color: Colors.green,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
-                    Icons.lock,
-                    size: 16,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.lock, size: 16, color: Colors.white),
                 ),
               ),
             // Document type indicator
@@ -134,7 +130,7 @@ class DocumentCard extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
+                  color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -163,9 +159,9 @@ class DocumentCard extends StatelessWidget {
           children: [
             Text(
               document.title,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -173,11 +169,10 @@ class DocumentCard extends StatelessWidget {
             Text(
               _formatDate(document.createdAt),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(0.6),
-                  ),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
             const Spacer(),
             Row(
@@ -191,19 +186,18 @@ class DocumentCard extends StatelessWidget {
                 Text(
                   '${(document.confidenceScore * 100).toInt()}%',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 const Spacer(),
                 if (document.tags.isNotEmpty)
                   Icon(
                     Icons.label,
                     size: 16,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(0.6),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
               ],
             ),

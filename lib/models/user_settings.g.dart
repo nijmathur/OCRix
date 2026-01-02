@@ -7,29 +7,28 @@ part of 'user_settings.dart';
 // **************************************************************************
 
 UserSettings _$UserSettingsFromJson(Map<String, dynamic> json) => UserSettings(
-      metadataStorageProvider: json['metadataStorageProvider'] as String,
-      fileStorageProvider: json['fileStorageProvider'] as String,
-      autoSync: json['autoSync'] as bool,
-      syncIntervalMinutes: (json['syncIntervalMinutes'] as num).toInt(),
-      biometricAuth: json['biometricAuth'] as bool,
-      encryptionEnabled: json['encryptionEnabled'] as bool,
-      defaultDocumentType: json['defaultDocumentType'] as String,
-      defaultTags: (json['defaultTags'] as List<dynamic>)
-          .map((e) => e as String)
-          .toList(),
-      privacyAuditEnabled: json['privacyAuditEnabled'] as bool,
-      language: json['language'] as String,
-      theme: json['theme'] as String,
-      notificationsEnabled: json['notificationsEnabled'] as bool,
-      autoCategorization: json['autoCategorization'] as bool,
-      ocrConfidenceThreshold:
-          (json['ocrConfidenceThreshold'] as num).toDouble(),
-      backupEnabled: json['backupEnabled'] as bool,
-      lastBackupAt: json['lastBackupAt'] == null
-          ? null
-          : DateTime.parse(json['lastBackupAt'] as String),
-      customSettings: json['customSettings'] as Map<String, dynamic>,
-    );
+  metadataStorageProvider: json['metadataStorageProvider'] as String,
+  fileStorageProvider: json['fileStorageProvider'] as String,
+  autoSync: json['autoSync'] as bool,
+  syncIntervalMinutes: (json['syncIntervalMinutes'] as num).toInt(),
+  biometricAuth: json['biometricAuth'] as bool,
+  encryptionEnabled: json['encryptionEnabled'] as bool,
+  defaultDocumentType: json['defaultDocumentType'] as String,
+  defaultTags: (json['defaultTags'] as List<dynamic>)
+      .map((e) => e as String)
+      .toList(),
+  privacyAuditEnabled: json['privacyAuditEnabled'] as bool,
+  language: json['language'] as String,
+  theme: json['theme'] as String,
+  notificationsEnabled: json['notificationsEnabled'] as bool,
+  autoCategorization: json['autoCategorization'] as bool,
+  ocrConfidenceThreshold: (json['ocrConfidenceThreshold'] as num).toDouble(),
+  backupEnabled: json['backupEnabled'] as bool,
+  lastBackupAt: json['lastBackupAt'] == null
+      ? null
+      : DateTime.parse(json['lastBackupAt'] as String),
+  customSettings: json['customSettings'] as Map<String, dynamic>,
+);
 
 Map<String, dynamic> _$UserSettingsToJson(UserSettings instance) =>
     <String, dynamic>{

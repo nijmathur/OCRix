@@ -48,7 +48,7 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
     }
 
     if (_encrypter == null || _iv == null) {
-      throw EncryptionException('Encryption not initialized');
+      throw const EncryptionException('Encryption not initialized');
     }
 
     final encrypted = _encrypter!.encrypt(text, iv: _iv!);
@@ -62,7 +62,7 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
     }
 
     if (_encrypter == null || _iv == null) {
-      throw EncryptionException('Encryption not initialized');
+      throw const EncryptionException('Encryption not initialized');
     }
 
     final encrypted = Encrypted.fromBase64(encryptedText);
@@ -77,11 +77,13 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
     }
 
     if (_encrypter == null || _iv == null) {
-      throw EncryptionException('Encryption not initialized');
+      throw const EncryptionException('Encryption not initialized');
     }
 
-    final encrypted =
-        _encrypter!.encryptBytes(Uint8List.fromList(bytes), iv: _iv!);
+    final encrypted = _encrypter!.encryptBytes(
+      Uint8List.fromList(bytes),
+      iv: _iv!,
+    );
     return encrypted.bytes;
   }
 
@@ -92,7 +94,7 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
     }
 
     if (_encrypter == null || _iv == null) {
-      throw EncryptionException('Encryption not initialized');
+      throw const EncryptionException('Encryption not initialized');
     }
 
     final encrypted = Encrypted(Uint8List.fromList(encryptedBytes));
@@ -122,14 +124,18 @@ class MockEncryptionService extends BaseService implements IEncryptionService {
 
   @override
   Future<String> encryptFileWithPassword(
-      String filePath, String password) async {
+    String filePath,
+    String password,
+  ) async {
     // Mock implementation - just use regular encrypt for testing
     return encryptFile(filePath);
   }
 
   @override
   Future<String> decryptFileWithPassword(
-      String encryptedFilePath, String password) async {
+    String encryptedFilePath,
+    String password,
+  ) async {
     // Mock implementation - just use regular decrypt for testing
     return decryptFile(encryptedFilePath);
   }

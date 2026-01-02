@@ -76,9 +76,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const SettingsScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
               );
             },
           ),
@@ -87,7 +85,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           controller: _tabController,
           indicatorColor: Colors.white,
           labelColor: Colors.white,
-          unselectedLabelColor: Colors.white.withOpacity(0.7),
+          unselectedLabelColor: Colors.white.withValues(alpha: 0.7),
           tabs: const [
             Tab(icon: Icon(Icons.home), text: 'Home'),
             Tab(icon: Icon(Icons.document_scanner), text: 'Scanner'),
@@ -109,9 +107,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => const ScannerScreen(),
-            ),
+            MaterialPageRoute(builder: (context) => const ScannerScreen()),
           );
         },
         icon: const Icon(Icons.camera_alt),
@@ -165,16 +161,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           Text(
             'Welcome Back!',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Your documents are secure and private. Start scanning to organize your important papers.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withOpacity(0.9),
-                ),
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
           ),
         ],
       ),
@@ -186,12 +182,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       data: (documents) {
         final totalDocuments = documents.length;
         final recentDocuments = documents
-            .where((doc) => doc.createdAt.isAfter(
-                  DateTime.now().subtract(const Duration(days: 7)),
-                ))
+            .where(
+              (doc) => doc.createdAt.isAfter(
+                DateTime.now().subtract(const Duration(days: 7)),
+              ),
+            )
             .length;
-        final encryptedDocuments =
-            documents.where((doc) => doc.isEncrypted).length;
+        final encryptedDocuments = documents
+            .where((doc) => doc.isEncrypted)
+            .length;
 
         return Row(
           children: [
@@ -230,7 +229,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -241,9 +244,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             Text(
               value,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
             Text(
               title,
@@ -259,18 +262,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget _buildStatsLoading() {
     return Row(
       children: List.generate(
-          3,
-          (index) => Expanded(
-                child: Card(
-                  child: Container(
-                    height: 120,
-                    padding: const EdgeInsets.all(16),
-                    child: const Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  ),
-                ),
-              )),
+        3,
+        (index) => Expanded(
+          child: Card(
+            child: Container(
+              height: 120,
+              padding: const EdgeInsets.all(16),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -284,9 +286,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             const SizedBox(height: 8),
             Text(
               'Error loading stats',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.red,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.red),
             ),
           ],
         ),
@@ -303,9 +305,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           children: [
             Text(
               'Recent Documents',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             TextButton(
               onPressed: () {
@@ -344,7 +346,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             Icon(
               Icons.document_scanner_outlined,
               size: 64,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
@@ -355,11 +359,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             Text(
               'Start by scanning your first document',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(0.6),
-                  ),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
@@ -395,9 +398,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             const SizedBox(height: 4),
             Text(
               error,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.red,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.red),
               textAlign: TextAlign.center,
             ),
           ],
@@ -417,8 +420,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               Text(
                 'Document Analytics',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 24),
               _buildDocumentTypeChart(documents),
@@ -431,9 +434,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) => Center(
-        child: Text('Error: $error'),
-      ),
+      error: (error, stack) => Center(child: Text('Error: $error')),
     );
   }
 
@@ -451,9 +452,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           children: [
             Text(
               'Document Types',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             ...typeCounts.entries.map((entry) {
@@ -471,9 +472,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       color: Theme.of(context).colorScheme.primary,
                     ),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(entry.key.displayName),
-                    ),
+                    Expanded(child: Text(entry.key.displayName)),
                     Text('${entry.value} (${percentage.toStringAsFixed(1)}%)'),
                   ],
                 ),
@@ -486,8 +485,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildStorageStats(List<Document> documents) {
-    final localCount =
-        documents.where((doc) => doc.storageProvider == 'local').length;
+    final localCount = documents
+        .where((doc) => doc.storageProvider == 'local')
+        .length;
     final cloudCount = documents.length - localCount;
 
     return Card(
@@ -498,21 +498,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           children: [
             Text(
               'Storage Distribution',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
                   child: _buildStorageStat(
-                      'Local', localCount, Icons.storage, Colors.blue),
+                    'Local',
+                    localCount,
+                    Icons.storage,
+                    Colors.blue,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: _buildStorageStat(
-                      'Cloud', cloudCount, Icons.cloud, Colors.green),
+                    'Cloud',
+                    cloudCount,
+                    Icons.cloud,
+                    Colors.green,
+                  ),
                 ),
               ],
             ),
@@ -523,7 +531,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildStorageStat(
-      String label, int count, IconData icon, Color color) {
+    String label,
+    int count,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       children: [
         Icon(icon, color: color, size: 32),
@@ -531,9 +543,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         Text(
           count.toString(),
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
         Text(label),
       ],
@@ -552,21 +564,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           children: [
             Text(
               'Security Status',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
                   child: _buildSecurityStat(
-                      'Encrypted', encryptedCount, Icons.lock, Colors.green),
+                    'Encrypted',
+                    encryptedCount,
+                    Icons.lock,
+                    Colors.green,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: _buildSecurityStat('Unencrypted', unencryptedCount,
-                      Icons.lock_open, Colors.orange),
+                  child: _buildSecurityStat(
+                    'Unencrypted',
+                    unencryptedCount,
+                    Icons.lock_open,
+                    Colors.orange,
+                  ),
                 ),
               ],
             ),
@@ -577,7 +597,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildSecurityStat(
-      String label, int count, IconData icon, Color color) {
+    String label,
+    int count,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       children: [
         Icon(icon, color: color, size: 32),
@@ -585,9 +609,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         Text(
           count.toString(),
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
         Text(label),
       ],
@@ -630,8 +654,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             // User Profile
             CircleAvatar(
               radius: 40,
-              backgroundImage:
-                  user.photoUrl != null ? NetworkImage(user.photoUrl!) : null,
+              backgroundImage: user.photoUrl != null
+                  ? NetworkImage(user.photoUrl!)
+                  : null,
               child: user.photoUrl == null
                   ? Icon(
                       Icons.person,
@@ -644,17 +669,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             if (user.displayName != null) ...[
               Text(
                 user.displayName!,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
             ],
             Text(
               user.email,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 24),
             ListTile(
@@ -672,8 +697,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
-              title:
-                  const Text('Sign Out', style: TextStyle(color: Colors.red)),
+              title: const Text(
+                'Sign Out',
+                style: TextStyle(color: Colors.red),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _showSignOutDialog(context, ref);
@@ -753,9 +780,7 @@ class DocumentSearchDelegate extends SearchDelegate<List<Document>> {
 
   Widget _buildSearchResults() {
     if (query.isEmpty) {
-      return const Center(
-        child: Text('Enter a search term to find documents'),
-      );
+      return const Center(child: Text('Enter a search term to find documents'));
     }
 
     final searchResults = ref.watch(documentSearchProvider(query));
@@ -763,9 +788,7 @@ class DocumentSearchDelegate extends SearchDelegate<List<Document>> {
     return searchResults.when(
       data: (documents) {
         if (documents.isEmpty) {
-          return const Center(
-            child: Text('No documents found'),
-          );
+          return const Center(child: Text('No documents found'));
         }
         return ListView.builder(
           itemCount: documents.length,

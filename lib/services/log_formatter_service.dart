@@ -13,9 +13,9 @@ class LogFormatterService implements ILogFormatter {
     bool includeEmoji = true,
     bool includeMetadata = true,
     bool includeStackTrace = true,
-  })  : _includeEmoji = includeEmoji,
-        _includeMetadata = includeMetadata,
-        _includeStackTrace = includeStackTrace;
+  }) : _includeEmoji = includeEmoji,
+       _includeMetadata = includeMetadata,
+       _includeStackTrace = includeStackTrace;
 
   @override
   String format(LogEntry entry) {
@@ -29,7 +29,7 @@ class LogFormatterService implements ILogFormatter {
     if (_includeEmoji) {
       buffer.write('${entry.level.emoji} ');
     }
-    buffer.write('${entry.level.name}');
+    buffer.write(entry.level.name);
 
     // Tag
     if (entry.tag != null) {

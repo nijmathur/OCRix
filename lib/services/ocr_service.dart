@@ -51,11 +51,13 @@ class OCRService extends BaseService implements IOCRService {
         confidence: confidence,
         detectedLanguage: detectedLanguage,
         blocks: recognizedText.blocks
-            .map((block) => TextBlock(
-                  text: block.text,
-                  confidence: 'unknown',
-                  boundingBox: block.boundingBox,
-                ))
+            .map(
+              (block) => TextBlock(
+                text: block.text,
+                confidence: 'unknown',
+                boundingBox: block.boundingBox,
+              ),
+            )
             .toList(),
       );
     } catch (e) {
@@ -100,11 +102,13 @@ class OCRService extends BaseService implements IOCRService {
         confidence: confidence,
         detectedLanguage: detectedLanguage,
         blocks: recognizedText.blocks
-            .map((block) => TextBlock(
-                  text: block.text,
-                  confidence: 'unknown',
-                  boundingBox: block.boundingBox,
-                ))
+            .map(
+              (block) => TextBlock(
+                text: block.text,
+                confidence: 'unknown',
+                boundingBox: block.boundingBox,
+              ),
+            )
             .toList(),
       );
     } catch (e) {
@@ -125,32 +129,65 @@ class OCRService extends BaseService implements IOCRService {
       final lowerText = text.toLowerCase();
 
       // Simple categorization based on keywords
-      if (_containsKeywords(
-          lowerText, ['receipt', 'total', 'subtotal', 'tax', 'payment'])) {
+      if (_containsKeywords(lowerText, [
+        'receipt',
+        'total',
+        'subtotal',
+        'tax',
+        'payment',
+      ])) {
         return DocumentType.receipt;
-      } else if (_containsKeywords(
-          lowerText, ['contract', 'agreement', 'terms', 'conditions'])) {
+      } else if (_containsKeywords(lowerText, [
+        'contract',
+        'agreement',
+        'terms',
+        'conditions',
+      ])) {
         return DocumentType.contract;
-      } else if (_containsKeywords(
-          lowerText, ['invoice', 'bill', 'amount due', 'payment terms'])) {
+      } else if (_containsKeywords(lowerText, [
+        'invoice',
+        'bill',
+        'amount due',
+        'payment terms',
+      ])) {
         return DocumentType.invoice;
-      } else if (_containsKeywords(
-          lowerText, ['manual', 'instructions', 'guide', 'how to'])) {
+      } else if (_containsKeywords(lowerText, [
+        'manual',
+        'instructions',
+        'guide',
+        'how to',
+      ])) {
         return DocumentType.manual;
-      } else if (_containsKeywords(
-          lowerText, ['business card', 'contact', 'phone', 'email'])) {
+      } else if (_containsKeywords(lowerText, [
+        'business card',
+        'contact',
+        'phone',
+        'email',
+      ])) {
         return DocumentType.businessCard;
-      } else if (_containsKeywords(
-          lowerText, ['passport', 'passport number', 'nationality'])) {
+      } else if (_containsKeywords(lowerText, [
+        'passport',
+        'passport number',
+        'nationality',
+      ])) {
         return DocumentType.passport;
-      } else if (_containsKeywords(
-          lowerText, ['license', 'driving license', 'license number'])) {
+      } else if (_containsKeywords(lowerText, [
+        'license',
+        'driving license',
+        'license number',
+      ])) {
         return DocumentType.license;
-      } else if (_containsKeywords(
-          lowerText, ['certificate', 'certification', 'award'])) {
+      } else if (_containsKeywords(lowerText, [
+        'certificate',
+        'certification',
+        'award',
+      ])) {
         return DocumentType.certificate;
-      } else if (_containsKeywords(
-          lowerText, ['id', 'identification', 'identity card'])) {
+      } else if (_containsKeywords(lowerText, [
+        'id',
+        'identification',
+        'identity card',
+      ])) {
         return DocumentType.id;
       }
 
@@ -169,7 +206,7 @@ class OCRService extends BaseService implements IOCRService {
       final image = img.decodeImage(bytes);
 
       if (image == null) {
-        throw OCRException('Failed to decode image');
+        throw const OCRException('Failed to decode image');
       }
 
       // Apply image preprocessing
