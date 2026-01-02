@@ -5,8 +5,10 @@ import '../widgets/quick_actions.dart';
 import 'scanner_screen.dart';
 import 'settings_screen.dart';
 import 'document_list_screen.dart';
+import 'ai_search_screen.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/database_service_provider.dart';
 import '../../models/document.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -23,7 +25,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -88,6 +90,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           unselectedLabelColor: Colors.white.withValues(alpha: 0.7),
           tabs: const [
             Tab(icon: Icon(Icons.home), text: 'Home'),
+            Tab(icon: Icon(Icons.psychology), text: 'AI Search'),
             Tab(icon: Icon(Icons.document_scanner), text: 'Scanner'),
             Tab(icon: Icon(Icons.folder), text: 'Documents'),
             Tab(icon: Icon(Icons.analytics), text: 'Analytics'),
@@ -98,6 +101,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         controller: _tabController,
         children: [
           _buildHomeTab(documentsAsync),
+          AISearchScreen(
+            databaseService: ref.read(databaseServiceProvider),
+          ),
           const ScannerScreen(),
           const DocumentListScreen(),
           _buildAnalyticsTab(documentsAsync),

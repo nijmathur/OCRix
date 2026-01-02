@@ -67,6 +67,10 @@ dependencies:
     connectivity_plus: ^7.0.0
     http: ^1.1.0
 
+    # NLP & LLM (lightweight pattern-based NLU)
+    # For future LLM integration: flutter_gemini or similar
+    collection: ^1.18.0
+
 dev_dependencies:
     flutter_test:
         sdk: flutter
