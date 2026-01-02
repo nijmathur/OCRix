@@ -1,11 +1,33 @@
 /// Natural Language Processor for LLM Search
-/// Lightweight pattern-based NLU (< 50MB RAM)
-/// Converts natural language queries to SQL
+/// Uses Gemma LLM (MediaPipe) for natural language to SQL conversion
 library;
 
+import 'gemma_model_service.dart';
+
 class NaturalLanguageProcessor {
-  /// Process natural language query and convert to SQL
-  String processQuery(String naturalLanguage) {
+  final GemmaModelService _gemmaService;
+  bool _usePatternFallback = false;
+
+  NaturalLanguageProcessor(this._gemmaService);
+
+  /// Process natural language query and convert to SQL using Gemma LLM
+  Future<String> processQuery(String naturalLanguage) async {
+    try {
+      // Try LLM-based generation first
+      if (!_usePatternFallback) {
+        return await _gemmaService.generateSQL(naturalLanguage);
+      }
+    } catch (e) {
+      print('[NaturalLanguageProcessor] LLM generation failed, using fallback: $e');
+      _usePatternFallback = true;
+    }
+
+    // Fallback to pattern-based generation if LLM fails
+    return _generateSQLWithPatterns(naturalLanguage);
+  }
+
+  /// Pattern-based SQL generation (fallback)
+  String _generateSQLWithPatterns(String naturalLanguage) {
     final lower = naturalLanguage.toLowerCase().trim();
 
     // Extract components from query
@@ -77,42 +99,42 @@ class NaturalLanguageProcessor {
   String? _extractDateFilter(String query) {
     // Relative dates
     if (query.contains('today')) {
-      return "date(created_at) = date('now')";
+      return "date(created_at/1000, 'unixepoch') = date('now')";
     }
 
     if (query.contains('yesterday')) {
-      return "date(created_at) = date('now', '-1 day')";
+      return "date(created_at/1000, 'unixepoch') = date('now', '-1 day')";
     }
 
     if (query.contains('last week') || query.contains('past week')) {
-      return "created_at >= date('now', '-7 days')";
+      return "created_at >= strftime('%s', 'now', '-7 days') * 1000";
     }
 
     if (query.contains('last month') || query.contains('past month')) {
-      return "created_at >= date('now', '-30 days')";
+      return "created_at >= strftime('%s', 'now', '-30 days') * 1000";
     }
 
     if (query.contains('last year') || query.contains('past year')) {
-      return "created_at >= date('now', '-365 days')";
+      return "created_at >= strftime('%s', 'now', '-365 days') * 1000";
     }
 
     if (query.contains('this week')) {
-      return "created_at >= date('now', 'weekday 0', '-7 days')";
+      return "created_at >= strftime('%s', 'now', 'weekday 0', '-7 days') * 1000";
     }
 
     if (query.contains('this month')) {
-      return "created_at >= date('now', 'start of month')";
+      return "created_at >= strftime('%s', 'now', 'start of month') * 1000";
     }
 
     if (query.contains('this year')) {
-      return "created_at >= date('now', 'start of year')";
+      return "created_at >= strftime('%s', 'now', 'start of year') * 1000";
     }
 
     // Specific year
     final yearMatch = RegExp(r'\b(20\d{2})\b').firstMatch(query);
     if (yearMatch != null) {
       final year = yearMatch.group(1);
-      return "strftime('%Y', created_at) = '$year'";
+      return "strftime('%Y', created_at/1000, 'unixepoch') = '$year'";
     }
 
     // Specific month names
@@ -136,11 +158,11 @@ class NaturalLanguageProcessor {
         final yearMatch = RegExp(r'\b(20\d{2})\b').firstMatch(query);
         if (yearMatch != null) {
           final year = yearMatch.group(1);
-          return "strftime('%Y-%m', created_at) = '$year-${entry.value}'";
+          return "strftime('%Y-%m', created_at/1000, 'unixepoch') = '$year-${entry.value}'";
         } else {
           // Current year
-          return "strftime('%m', created_at) = '${entry.value}' AND "
-              "strftime('%Y', created_at) = strftime('%Y', 'now')";
+          return "strftime('%m', created_at/1000, 'unixepoch') = '${entry.value}' AND "
+              "strftime('%Y', created_at/1000, 'unixepoch') = strftime('%Y', 'now')";
         }
       }
     }

@@ -8,6 +8,7 @@ import 'sql_validator.dart';
 import 'rate_limiter.dart';
 import 'read_only_database_service.dart';
 import 'natural_language_processor.dart';
+import 'gemma_model_service.dart';
 import '../../core/interfaces/database_service_interface.dart';
 
 class LLMSearchService {
@@ -16,21 +17,28 @@ class LLMSearchService {
   final LLMInputSanitizer _sanitizer;
   final LLMSearchRateLimiter _rateLimiter;
   final SQLQueryValidator _sqlValidator;
-  final NaturalLanguageProcessor _nlpProcessor;
+  late final NaturalLanguageProcessor _nlpProcessor;
+  late final GemmaModelService _gemmaService;
   final List<SearchAuditEntry> _auditLog;
 
   bool _isInitialized = false;
+  bool _isModelReady = false;
 
   LLMSearchService(this._databaseService)
       : _sanitizer = LLMInputSanitizer(),
         _rateLimiter = LLMSearchRateLimiter(),
         _sqlValidator = SQLQueryValidator(),
-        _nlpProcessor = NaturalLanguageProcessor(),
         _auditLog = [];
 
-  /// Initialize the service
+  /// Initialize the service (without model download)
   Future<void> initialize() async {
     if (_isInitialized) return;
+
+    // Initialize Gemma service
+    _gemmaService = GemmaModelService();
+
+    // Initialize NLP processor with Gemma service
+    _nlpProcessor = NaturalLanguageProcessor(_gemmaService);
 
     // Get database instance
     final db = await _databaseService.database;
@@ -44,8 +52,44 @@ class LLMSearchService {
       );
     }
 
+    // Check if model is already downloaded
+    _isModelReady = await _gemmaService.isModelDownloaded();
+    if (_isModelReady) {
+      try {
+        await _gemmaService.initialize();
+      } catch (e) {
+        print('[LLMSearchService] Model initialization failed: $e');
+        _isModelReady = false;
+      }
+    }
+
     _isInitialized = true;
   }
+
+  /// Download and initialize the Gemma model
+  Future<void> downloadAndInitializeModel() async {
+    if (!_isInitialized) {
+      throw StateError('Service not initialized. Call initialize() first.');
+    }
+
+    if (_isModelReady) {
+      return; // Model already ready
+    }
+
+    // Download model
+    await _gemmaService.downloadModel();
+
+    // Initialize model
+    await _gemmaService.initialize();
+
+    _isModelReady = true;
+  }
+
+  /// Get model download progress stream
+  Stream<double> get modelDownloadProgress => _gemmaService.downloadProgress;
+
+  /// Check if model is ready for inference
+  bool get isModelReady => _isModelReady;
 
   /// Main search method with all security layers
   Future<SearchResult> searchWithNaturalLanguage(String userQuery) async {
