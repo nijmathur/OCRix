@@ -307,11 +307,28 @@ class DatabaseService extends BaseService implements IDatabaseService {
       // Note: SQLite triggers can't easily calculate checksums or maintain chains,
       // so we use application-level logging which is more reliable
 
+      // Create document_embeddings table for vector semantic search
+      await db.execute('''
+        CREATE TABLE document_embeddings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          document_id TEXT NOT NULL UNIQUE,
+          embedding BLOB NOT NULL,
+          text_hash TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute('''
+        CREATE INDEX idx_document_embeddings_doc_id
+        ON document_embeddings(document_id)
+      ''');
+      logInfo('Created document_embeddings table for vector search');
+
       // Insert default settings
       final defaultSettings = UserSettings.defaultSettings();
       await _insertUserSettings(db, defaultSettings);
 
-      logInfo('Database created successfully with audit_entries table');
+      logInfo('Database created successfully with all tables including vector search');
     } catch (e) {
       logError('Failed to create database', e);
       throw DatabaseException(
@@ -475,6 +492,56 @@ class DatabaseService extends BaseService implements IDatabaseService {
         logInfo('Created indexes for document_pages table');
       } catch (e) {
         logError('Error adding multi-page support', e);
+      }
+    }
+
+    if (oldVersion < 8) {
+      // Add vector embeddings support for semantic search
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS document_embeddings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_id TEXT NOT NULL UNIQUE,
+            embedding BLOB NOT NULL,
+            text_hash TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+          )
+        ''');
+        logInfo('Created document_embeddings table');
+
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_document_embeddings_doc_id
+          ON document_embeddings(document_id)
+        ''');
+        logInfo('Created indexes for document_embeddings table');
+      } catch (e) {
+        logError('Error adding vector embeddings support', e);
+      }
+    }
+
+    if (oldVersion < 9) {
+      // Ensure document_embeddings table exists (fix for databases that were already at v8)
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS document_embeddings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_id TEXT NOT NULL UNIQUE,
+            embedding BLOB NOT NULL,
+            text_hash TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+          )
+        ''');
+        logInfo('Ensured document_embeddings table exists');
+
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_document_embeddings_doc_id
+          ON document_embeddings(document_id)
+        ''');
+        logInfo('Ensured indexes for document_embeddings table exist');
+      } catch (e) {
+        logError('Error ensuring vector embeddings support', e);
       }
     }
   }

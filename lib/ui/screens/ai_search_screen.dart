@@ -1,15 +1,16 @@
 /// AI-Powered Search Screen
-/// Natural language search with strict security guarantees
+/// Vector-based semantic search with optional LLM analysis
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import '../../services/llm_search/llm_search_service.dart';
-import '../../services/llm_search/input_sanitizer.dart';
-import '../../services/llm_search/rate_limiter.dart';
+import 'package:file_picker/file_picker.dart';
+import '../../services/llm_search/vector_search_service.dart';
+import '../../services/llm_search/gemma_model_service.dart';
 import '../../core/interfaces/database_service_interface.dart';
 import '../../models/document.dart';
 import '../widgets/document_card.dart';
+import 'document_detail_screen.dart';
 
 class AISearchScreen extends StatefulWidget {
   final IDatabaseService databaseService;
@@ -25,15 +26,28 @@ class AISearchScreen extends StatefulWidget {
 
 class _AISearchScreenState extends State<AISearchScreen> {
   final _queryController = TextEditingController();
-  late final LLMSearchService _searchService;
+  late final VectorSearchService _searchService;
+  late final GemmaModelService _gemmaService;
 
   bool _isInitializing = true;
   bool _isSearching = false;
-  bool _isDownloadingModel = false;
-  double _downloadProgress = 0.0;
-  SearchResult? _lastResult;
+  bool _isDownloadingGemmaModel = false;
+  bool _isDownloadingEmbeddingModel = false;
+  bool _isVectorizing = false;
+  bool _modelFileAvailable = false;
+  bool _embeddingModelJustLoaded = false;
+  bool _gemmaModelJustInstalled = false;
+  bool _showEmbeddingSuccess = false;
+  bool _showGemmaSuccess = false;
+  double _gemmaDownloadProgress = 0.0;
+  double _embeddingDownloadProgress = 0.0;
+  double _vectorizationProgress = 0.0;
+  int _vectorizedCount = 0;
+  int _totalDocsToVectorize = 0;
+  VectorSearchResult? _lastResult;
   String? _error;
   List<Document> _documents = [];
+  Map<String, int>? _vectorizationStats;
 
   @override
   void initState() {
@@ -43,74 +57,295 @@ class _AISearchScreenState extends State<AISearchScreen> {
 
   Future<void> _initializeSearchService() async {
     try {
-      _searchService = LLMSearchService(widget.databaseService);
+      // Initialize VectorSearchService
+      _searchService = VectorSearchService(widget.databaseService);
+
+      // Show loading state for embedding model
+      setState(() {
+        _isDownloadingEmbeddingModel = true;
+      });
+
       await _searchService.initialize();
+
+      // Check if embedding model was just loaded successfully
+      final embeddingReady = _searchService.isReady;
+
+      // Initialize Gemma service separately for model download check
+      _gemmaService = GemmaModelService();
+      final fileAvailable = await _gemmaService.isModelFileAvailable();
+
+      // Get vectorization statistics
+      final stats = await _searchService.getVectorizationStats();
 
       setState(() {
         _isInitializing = false;
+        _isDownloadingEmbeddingModel = false;
+        _modelFileAvailable = fileAvailable;
+        _vectorizationStats = stats;
+
+        // Show success banner if embedding model loaded
+        if (embeddingReady) {
+          _embeddingModelJustLoaded = true;
+          _showEmbeddingSuccess = true;
+        }
       });
+
+      // Auto-hide embedding success banner after 5 seconds
+      if (_embeddingModelJustLoaded) {
+        Future.delayed(const Duration(seconds: 5), () {
+          if (mounted) {
+            setState(() {
+              _showEmbeddingSuccess = false;
+            });
+          }
+        });
+      }
+
+      // Auto-start vectorization if embedding model is ready but docs need vectorization
+      if (_searchService.isReady && stats['pending_documents']! > 0) {
+        _startBackgroundVectorization();
+      }
     } catch (e) {
       setState(() {
         _isInitializing = false;
+        _isDownloadingEmbeddingModel = false;
         _error = 'Failed to initialize search: $e';
       });
     }
   }
 
-  Future<void> _downloadModel() async {
+  Future<void> _startBackgroundVectorization() async {
+    if (_isVectorizing) return;
+
     setState(() {
-      _isDownloadingModel = true;
-      _downloadProgress = 0.0;
-      _error = null;
+      _isVectorizing = true;
+      _vectorizationProgress = 0.0;
+      _vectorizedCount = 0;
+      _totalDocsToVectorize = _vectorizationStats?['pending_documents'] ?? 0;
     });
 
     try {
-      // Listen to download progress
-      _searchService.modelDownloadProgress.listen(
-        (progress) {
+      print('[AISearchScreen] Starting background vectorization...');
+
+      final result = await _searchService.vectorizeAllDocuments(
+        onProgress: (current, total) {
           if (mounted) {
             setState(() {
-              _downloadProgress = progress;
-            });
-          }
-        },
-        onError: (error) {
-          if (mounted) {
-            setState(() {
-              _isDownloadingModel = false;
-              _error = 'Download failed: $error';
+              _vectorizedCount = current;
+              _totalDocsToVectorize = total;
+              _vectorizationProgress = current / total;
             });
           }
         },
       );
 
-      // Start download
-      await _searchService.downloadAndInitializeModel();
-
       if (mounted) {
         setState(() {
-          _isDownloadingModel = false;
-          _downloadProgress = 1.0;
+          _isVectorizing = false;
+        });
+
+        // Refresh stats
+        final stats = await _searchService.getVectorizationStats();
+        setState(() {
+          _vectorizationStats = stats;
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gemma model downloaded and ready!'),
+          SnackBar(
+            content: Text(
+              'Vectorization complete! ${result.vectorizedDocuments} documents indexed in ${result.duration.inSeconds}s',
+            ),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _isDownloadingModel = false;
-          _error = 'Failed to download model: $e';
+          _isVectorizing = false;
+          _error = 'Vectorization failed: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _installFromPersistentStorage() async {
+    setState(() {
+      _isDownloadingGemmaModel = true;
+      _gemmaDownloadProgress = 0.0;
+      _error = null;
+    });
+
+    try {
+      // Listen to installation progress
+      _gemmaService.downloadProgress.listen(
+        (progress) {
+          if (mounted) {
+            setState(() {
+              _gemmaDownloadProgress = progress;
+            });
+          }
+        },
+        onError: (error) {
+          if (mounted) {
+            setState(() {
+              _isDownloadingGemmaModel = false;
+              _error = 'Installation failed: $error';
+            });
+          }
+        },
+      );
+
+      // Install from persistent storage
+      await _gemmaService.installFromPersistentStorage();
+
+      if (mounted) {
+        setState(() {
+          _isDownloadingGemmaModel = false;
+          _gemmaDownloadProgress = 1.0;
+          _gemmaModelJustInstalled = true;
+          _showGemmaSuccess = true;
+        });
+
+        // Auto-hide success banner after 5 seconds
+        Future.delayed(const Duration(seconds: 5), () {
+          if (mounted) {
+            setState(() {
+              _showGemmaSuccess = false;
+            });
+          }
+        });
+
+        // Initialize the model and refresh LLM status
+        try {
+          await _gemmaService.initialize();
+          await _searchService.refreshLLMStatus();
+          setState(() {}); // Trigger rebuild to show AI + Vector badge
+          print('[AISearchScreen] Gemma initialized and search service refreshed');
+        } catch (e) {
+          print('[AISearchScreen] Failed to initialize Gemma after install: $e');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isDownloadingGemmaModel = false;
+          _error = 'Failed to install model: $e';
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Download failed: $e'),
+            content: Text('Installation failed: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _downloadModel() async {
+    // Pick model file
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['task'],
+      dialogTitle: 'Select Gemma Model File (gemma2-2b-it.task)',
+    );
+
+    if (result == null || result.files.isEmpty) {
+      // User cancelled
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Model selection cancelled'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
+    final filePath = result.files.single.path;
+    if (filePath == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not access selected file'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _isDownloadingGemmaModel = true;
+      _gemmaDownloadProgress = 0.0;
+      _error = null;
+    });
+
+    try {
+      // Listen to download progress
+      _gemmaService.downloadProgress.listen(
+        (progress) {
+          if (mounted) {
+            setState(() {
+              _gemmaDownloadProgress = progress;
+            });
+          }
+        },
+        onError: (error) {
+          if (mounted) {
+            setState(() {
+              _isDownloadingGemmaModel = false;
+              _error = 'Installation failed: $error';
+            });
+          }
+        },
+      );
+
+      // Start installation with selected file
+      await _gemmaService.downloadModel(filePath);
+
+      if (mounted) {
+        setState(() {
+          _isDownloadingGemmaModel = false;
+          _gemmaDownloadProgress = 1.0;
+          _gemmaModelJustInstalled = true;
+          _showGemmaSuccess = true;
+        });
+
+        // Auto-hide success banner after 5 seconds
+        Future.delayed(const Duration(seconds: 5), () {
+          if (mounted) {
+            setState(() {
+              _showGemmaSuccess = false;
+            });
+          }
+        });
+
+        // Initialize the model and refresh LLM status
+        try {
+          await _gemmaService.initialize();
+          await _searchService.refreshLLMStatus();
+          setState(() {}); // Trigger rebuild to show AI + Vector badge
+          print('[AISearchScreen] Gemma initialized and search service refreshed');
+        } catch (e) {
+          print('[AISearchScreen] Failed to initialize Gemma after install: $e');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isDownloadingGemmaModel = false;
+          _error = 'Failed to install model: $e';
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Installation failed: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
@@ -122,6 +357,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
   @override
   void dispose() {
     _queryController.dispose();
+    _searchService.dispose();
     super.dispose();
   }
 
@@ -135,14 +371,24 @@ class _AISearchScreenState extends State<AISearchScreen> {
       return;
     }
 
+    if (!_searchService.isReady) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Embedding model not ready. Please wait for initialization.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isSearching = true;
       _error = null;
     });
 
     try {
-      // Perform search with all security layers
-      final result = await _searchService.searchWithNaturalLanguage(query);
+      // Perform vector search
+      final result = await _searchService.search(query);
 
       // Convert results to Document objects
       final documents = result.results
@@ -165,20 +411,6 @@ class _AISearchScreenState extends State<AISearchScreen> {
             ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } on SecurityException catch (e) {
-      setState(() {
-        _isSearching = false;
-        _error = 'Security Error: ${e.message}';
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_error!),
-            backgroundColor: Colors.red,
           ),
         );
       }
@@ -250,25 +482,45 @@ class _AISearchScreenState extends State<AISearchScreen> {
       ),
       body: Column(
         children: [
-          // Model Status Banner
-          if (!_searchService.isModelReady && !_isDownloadingModel)
-            _buildModelDownloadBanner(),
+          // Embedding Model Loading Indicator
+          if (_isDownloadingEmbeddingModel)
+            _buildEmbeddingModelLoading(),
 
-          // Download Progress
-          if (_isDownloadingModel)
-            _buildDownloadProgress(),
+          // Embedding Model Success Banner
+          if (_showEmbeddingSuccess && _searchService.isReady)
+            _buildEmbeddingModelSuccess(),
+
+          // Gemma Model Success Banner
+          if (_showGemmaSuccess && _searchService.isLLMReady)
+            _buildGemmaModelSuccess(),
+
+          // Embedding Model Status Banner (if not ready and not loading)
+          if (!_searchService.isReady && !_isDownloadingEmbeddingModel)
+            _buildEmbeddingModelBanner(),
+
+          // Gemma Model Download Banner (optional, for analysis)
+          if (_searchService.isReady && !_searchService.isLLMReady && !_isDownloadingGemmaModel && !_showGemmaSuccess)
+            _buildGemmaModelBanner(),
+
+          // Download Progress (Gemma)
+          if (_isDownloadingGemmaModel)
+            _buildGemmaDownloadProgress(),
+
+          // Vectorization Progress
+          if (_isVectorizing)
+            _buildVectorizationProgress(),
+
+          // Vectorization Stats Banner
+          if (_searchService.isReady && !_isVectorizing && _vectorizationStats != null && !_showEmbeddingSuccess)
+            _buildVectorizationStatsBanner(),
 
           // Search Input Section
-          if (_searchService.isModelReady || _isDownloadingModel)
+          if (_searchService.isReady)
             _buildSearchInput(),
 
-          // Stats Bar
-          if (_searchService.isModelReady)
-            _buildStatsBar(),
-
-          // Example Queries (chips)
-          if (_searchService.isModelReady)
-            _buildExampleQueries(),
+          // Example Queries (chips) - TEMPORARILY DISABLED FOR DEBUGGING
+          // if (_searchService.isReady && _lastResult == null)
+          //   _buildExampleQueries(),
 
           // Results Section
           Expanded(child: _buildResults()),
@@ -277,7 +529,122 @@ class _AISearchScreenState extends State<AISearchScreen> {
     );
   }
 
-  Widget _buildModelDownloadBanner() {
+  Widget _buildEmbeddingModelLoading() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Loading embedding model...',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmbeddingModelSuccess() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      color: Colors.green.withOpacity(0.15),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle, color: Colors.green, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Embedding Model Ready',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: Colors.green.shade800,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Vector search is now available',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.green.shade700,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 20),
+            color: Colors.green.shade700,
+            onPressed: () {
+              setState(() {
+                _showEmbeddingSuccess = false;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGemmaModelSuccess() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      color: Colors.green.withOpacity(0.15),
+      child: Row(
+        children: [
+          const Icon(Icons.auto_awesome, color: Colors.green, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Gemma Model Installed',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: Colors.green.shade800,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'AI analysis is now available for analytical queries',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.green.shade700,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 20),
+            color: Colors.green.shade700,
+            onPressed: () {
+              setState(() {
+                _showGemmaSuccess = false;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmbeddingModelBanner() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -293,48 +660,28 @@ class _AISearchScreenState extends State<AISearchScreen> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'AI Model Required',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Download Gemma 2B model (~1.5GB) for AI-powered search',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _downloadModel,
-                  icon: const Icon(Icons.download),
-                  label: const Text('Download AI Model'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
+                child: Text(
+                  'Embedding Model Required',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            '✓ 100% on-device processing\n'
-            '✓ Complete privacy (no cloud)\n'
-            '✓ Works offline',
+            'The embedding model (Universal Sentence Encoder) will be downloaded automatically on first use (~2MB)',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '✓ Enables semantic vector search\n'
+            '✓ Auto-downloads from TensorFlow Hub\n'
+            '✓ Works 100% offline after download',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.8),
                 ),
@@ -344,7 +691,67 @@ class _AISearchScreenState extends State<AISearchScreen> {
     );
   }
 
-  Widget _buildDownloadProgress() {
+  Widget _buildGemmaModelBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.lightbulb_outline,
+                color: Theme.of(context).colorScheme.onSecondaryContainer,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Optional: Install Gemma for AI Analysis',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSecondaryContainer,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _modelFileAvailable
+                ? 'Model found in storage - ready for quick install! Adds intelligent analysis to search results.'
+                : 'Optionally install Gemma 2B (~2.6GB) for advanced query analysis.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSecondaryContainer,
+                ),
+          ),
+          const SizedBox(height: 12),
+          if (_modelFileAvailable)
+            ElevatedButton.icon(
+              onPressed: _installFromPersistentStorage,
+              icon: const Icon(Icons.bolt),
+              label: const Text('Install Gemma Model'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              ),
+            )
+          else
+            ElevatedButton.icon(
+              onPressed: _downloadModel,
+              icon: const Icon(Icons.install_desktop),
+              label: const Text('Select Gemma Model File'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGemmaDownloadProgress() {
     return Container(
       padding: const EdgeInsets.all(16),
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -361,12 +768,12 @@ class _AISearchScreenState extends State<AISearchScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Downloading Gemma 2B model...',
+                  'Installing Gemma 2B model...',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
               ),
               Text(
-                '${(_downloadProgress * 100).toStringAsFixed(1)}%',
+                '${(_gemmaDownloadProgress * 100).toStringAsFixed(1)}%',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -375,18 +782,128 @@ class _AISearchScreenState extends State<AISearchScreen> {
           ),
           const SizedBox(height: 12),
           LinearProgressIndicator(
-            value: _downloadProgress,
+            value: _gemmaDownloadProgress,
             minHeight: 8,
             borderRadius: BorderRadius.circular(4),
           ),
           const SizedBox(height: 8),
           Text(
-            '${(_downloadProgress * 1500).toStringAsFixed(0)} MB / 1500 MB',
+            '${(_gemmaDownloadProgress * 2.6).toStringAsFixed(2)} GB / 2.6 GB',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildVectorizationProgress() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: Theme.of(context).colorScheme.tertiaryContainer,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Indexing documents for semantic search...',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onTertiaryContainer,
+                      ),
+                ),
+              ),
+              Text(
+                '${(_vectorizationProgress * 100).toStringAsFixed(0)}%',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onTertiaryContainer,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LinearProgressIndicator(
+            value: _vectorizationProgress,
+            minHeight: 8,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$_vectorizedCount / $_totalDocsToVectorize documents',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onTertiaryContainer,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVectorizationStatsBanner() {
+    final stats = _vectorizationStats!;
+    final pending = stats['pending_documents'] ?? 0;
+    final vectorized = stats['vectorized_documents'] ?? 0;
+    final total = stats['total_documents'] ?? 0;
+
+    if (pending == 0 && vectorized > 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: Colors.green.withOpacity(0.1),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'All $total documents indexed for semantic search',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.green,
+                      fontWeight: FontWeight.w500,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (pending > 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: Colors.orange.withOpacity(0.1),
+        child: Row(
+          children: [
+            const Icon(Icons.info_outline, color: Colors.orange, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '$pending documents pending vectorization',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.orange,
+                    ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _startBackgroundVectorization,
+              icon: const Icon(Icons.play_arrow, size: 16),
+              label: const Text('Index Now'),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _buildSearchInput() {
@@ -400,46 +917,43 @@ class _AISearchScreenState extends State<AISearchScreen> {
             children: [
               Expanded(
                 child: Text(
-                  _searchService.isModelReady
-                      ? 'Ask anything about your documents'
-                      : 'Preparing AI model...',
+                  'Semantic search across your documents',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-              if (_searchService.isModelReady)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.check_circle, size: 14, color: Colors.green),
-                      SizedBox(width: 4),
-                      Text(
-                        'AI Ready',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.green,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green),
                 ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle, size: 14, color: Colors.green),
+                    const SizedBox(width: 4),
+                    Text(
+                      _searchService.isLLMReady ? 'AI + Vector' : 'Vector Search',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _queryController,
             decoration: InputDecoration(
-              hintText: 'e.g., "find invoices from last month"',
+              hintText: 'e.g., "receipts from coffee shops" or "tax documents 2024"',
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _isSearching
                   ? const Padding(
@@ -452,17 +966,17 @@ class _AISearchScreenState extends State<AISearchScreen> {
                     )
                   : IconButton(
                       icon: const Icon(Icons.send),
-                      onPressed: _isSearching || !_searchService.isModelReady
+                      onPressed: _isSearching || !_searchService.isReady
                           ? null
                           : () => _performSearch(),
                     ),
               filled: true,
               fillColor: Theme.of(context).colorScheme.surface,
             ),
-            onSubmitted: _isSearching || !_searchService.isModelReady
+            onSubmitted: _isSearching || !_searchService.isReady
                 ? null
                 : (_) => _performSearch(),
-            enabled: !_isSearching && _searchService.isModelReady,
+            enabled: !_isSearching && _searchService.isReady,
             maxLength: 500,
           ),
         ],
@@ -470,53 +984,28 @@ class _AISearchScreenState extends State<AISearchScreen> {
     );
   }
 
-  Widget _buildStatsBar() {
-    if (_lastResult == null) return const SizedBox.shrink();
-
-    final stats = _searchService.getRateLimitStats();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
-      child: Row(
-        children: [
-          const Icon(Icons.info_outline, size: 16),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Searches remaining: ${stats.remainingThisMinute}/min, '
-              '${stats.remainingThisHour}/hour',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-          if (kDebugMode && _lastResult != null)
-            TextButton.icon(
-              onPressed: _showSQLDialog,
-              icon: const Icon(Icons.code, size: 16),
-              label: const Text('View SQL'),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildExampleQueries() {
-    final examples = _searchService.getExampleQueries();
+    final examples = [
+      'receipts from last month',
+      'tax documents 2024',
+      'invoices over \$100',
+      'medical records',
+      'contracts and agreements',
+    ];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Try these examples:',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 8),
-          Wrap(
+    return ExpansionTile(
+      title: Text(
+        'Example queries',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      leading: const Icon(Icons.lightbulb_outline, size: 20),
+      initiallyExpanded: false,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Wrap(
             spacing: 8,
             runSpacing: 8,
             children: examples.map((example) {
@@ -530,8 +1019,8 @@ class _AISearchScreenState extends State<AISearchScreen> {
               );
             }).toList(),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -556,7 +1045,128 @@ class _AISearchScreenState extends State<AISearchScreen> {
       );
     }
 
-    if (_lastResult == null && !_searchService.isModelReady) {
+    // Show analysis result if available
+    if (_lastResult != null && _lastResult!.hasAnalysis) {
+      return SingleChildScrollView(
+        child: Column(
+          children: [
+            // Analysis Answer Card
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 2,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.auto_awesome,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'AI Analysis',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const Spacer(),
+                      if (_lastResult!.confidence != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _getConfidenceColor(_lastResult!.confidence!),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${(_lastResult!.confidence! * 100).toInt()}% confident',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _lastResult!.analysis!,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Based on ${_lastResult!.resultCount} document(s)',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onPrimaryContainer.withOpacity(0.7),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Source Documents Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.article,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Source Documents (${_documents.length})',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Document List
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: _documents.length,
+              itemBuilder: (context, index) {
+                return DocumentCard(
+                  document: _documents[index],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DocumentDetailScreen(
+                          document: _documents[index],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_lastResult == null && !_searchService.isReady) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -568,14 +1178,14 @@ class _AISearchScreenState extends State<AISearchScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Download AI model to start searching',
+              'Embedding model initializing...',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 48),
               child: Text(
-                'The Gemma 2B model enables natural language search with complete privacy.',
+                'The embedding model enables semantic vector search with complete privacy.',
                 textAlign: TextAlign.center,
               ),
             ),
@@ -590,18 +1200,18 @@ class _AISearchScreenState extends State<AISearchScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.psychology,
+              Icons.search,
               size: 80,
               color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
             ),
             const SizedBox(height: 24),
             Text(
-              'Enter a natural language query above',
+              'Search using natural language',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
             Text(
-              'AI-powered search with 100% privacy\n(All processing happens on your device)',
+              'Vector-based semantic search finds documents by meaning\n(All processing happens on your device)',
               style: Theme.of(context).textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
@@ -632,66 +1242,32 @@ class _AISearchScreenState extends State<AISearchScreen> {
       padding: const EdgeInsets.all(16),
       itemCount: _documents.length,
       itemBuilder: (context, index) {
-        return DocumentCard(document: _documents[index]);
+        return DocumentCard(
+          document: _documents[index],
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DocumentDetailScreen(
+                  document: _documents[index],
+                ),
+              ),
+            );
+          },
+        );
       },
     );
   }
 
-  void _showSQLDialog() {
-    if (_lastResult == null) return;
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Generated SQL'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Query: "${_lastResult!.query}"',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              const Text('Generated SQL:'),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: SelectableText(
-                  _lastResult!.sql,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Results: ${_lastResult!.resultCount} documents',
-              ),
-              Text(
-                'Time: ${_lastResult!.executionTime.inMilliseconds}ms',
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+  Color _getConfidenceColor(double confidence) {
+    if (confidence >= 0.8) return Colors.green;
+    if (confidence >= 0.5) return Colors.orange;
+    return Colors.red;
   }
 
   void _showAuditLog() {
-    final logs = _searchService.getAuditLog(limit: 50);
+    final logs = _searchService.getRecentSearches(limit: 50);
 
     showDialog(
       context: context,
@@ -711,7 +1287,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
                   size: 16,
                 ),
                 title: Text(
-                  log.userQuery,
+                  log.query,
                   style: const TextStyle(fontSize: 12),
                 ),
                 subtitle: Text(

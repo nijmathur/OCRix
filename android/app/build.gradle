@@ -73,6 +73,11 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    dependencies {
+        // Select TF ops support for BERT-based models
+        implementation 'org.tensorflow:tensorflow-lite-select-tf-ops:2.16.1'
+    }
 }
 
 flutter {

@@ -370,6 +370,46 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
       SettingsTile(
+        title: 'Use LLM for Categorization',
+        subtitle: settings.useLLMCategorization
+            ? 'Enabled (slower but smarter)'
+            : 'Disabled',
+        icon: Icons.psychology,
+        trailing: Switch(
+          value: settings.useLLMCategorization,
+          onChanged: (value) {
+            ref
+                .read(settingsNotifierProvider.notifier)
+                .toggleLLMCategorization();
+          },
+        ),
+        onTap: null,
+      ),
+      if (settings.useLLMCategorization)
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.orange.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.warning_amber, color: Colors.orange, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'LLM categorization uses AI for smarter document classification but will make scanning 2-3 seconds slower per document.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.orange.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      SettingsTile(
         title: 'OCR Confidence Threshold',
         subtitle: '${(settings.ocrConfidenceThreshold * 100).toInt()}%',
         icon: Icons.analytics,

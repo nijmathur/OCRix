@@ -46,10 +46,12 @@ class SQLQueryValidator {
       );
     }
 
-    // 2. Block dangerous keywords
+    // 2. Block dangerous keywords (using word boundaries)
     final upperSQL = normalized.toUpperCase();
     for (final keyword in blockedKeywords) {
-      if (upperSQL.contains(keyword)) {
+      // Use word boundary regex to avoid false positives like "created_at" containing "CREATE"
+      final pattern = RegExp(r'\b' + keyword + r'\b');
+      if (pattern.hasMatch(upperSQL)) {
         throw SecurityException(
           'Query contains blocked keyword: $keyword',
         );
@@ -133,9 +135,10 @@ class SQLQueryValidator {
     // Must have FROM
     if (!upper.contains('FROM')) return false;
 
-    // Should not have dangerous keywords
+    // Should not have dangerous keywords (using word boundaries)
     for (final keyword in blockedKeywords) {
-      if (upper.contains(keyword)) return false;
+      final pattern = RegExp(r'\b' + keyword + r'\b');
+      if (pattern.hasMatch(upper)) return false;
     }
 
     return true;

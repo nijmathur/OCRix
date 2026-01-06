@@ -25,6 +25,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    _tabController.addListener(() {
+      setState(() {}); // Rebuild when tab changes to update FAB visibility
+    });
   }
 
   @override
@@ -108,18 +111,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           _buildAnalyticsTab(documentsAsync),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ScannerScreen()),
-          );
-        },
-        icon: const Icon(Icons.camera_alt),
-        label: const Text('Scan Document'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-      ),
+      floatingActionButton: (_tabController.index == 1 || _tabController.index == 2)
+        ? null // Hide FAB on AI Search and Scanner tabs
+        : FloatingActionButton.extended(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ScannerScreen()),
+              );
+            },
+            icon: const Icon(Icons.camera_alt),
+            label: const Text('Scan Document'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Colors.white,
+          ),
     );
   }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_gemma/flutter_gemma.dart';
 import 'providers/document_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/biometric_auth_provider.dart';
@@ -18,6 +19,9 @@ import 'ui/screens/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize FlutterGemma for on-device LLM inference
+  await FlutterGemma.initialize();
 
   // Run app in error zone to catch async errors
   runZonedGuarded(
