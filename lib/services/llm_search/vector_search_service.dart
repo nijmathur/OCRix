@@ -25,9 +25,9 @@ class VectorSearchService {
   bool _isLLMReady = false;
 
   VectorSearchService(this._databaseService)
-      : _sanitizer = LLMInputSanitizer(),
-        _rateLimiter = LLMSearchRateLimiter(),
-        _auditLog = [];
+    : _sanitizer = LLMInputSanitizer(),
+      _rateLimiter = LLMSearchRateLimiter(),
+      _auditLog = [];
 
   /// Initialize the service
   Future<void> initialize() async {
@@ -110,7 +110,9 @@ class VectorSearchService {
   /// Vectorize a single document (called when new document is added)
   Future<void> vectorizeDocument(Map<String, dynamic> document) async {
     if (!_isEmbeddingModelReady) {
-      print('[VectorSearchService] Embedding model not ready, skipping vectorization');
+      print(
+        '[VectorSearchService] Embedding model not ready, skipping vectorization',
+      );
       return;
     }
 
@@ -161,19 +163,21 @@ class VectorSearchService {
 
       // TEMPORARY: Disable LLM analysis due to native crashes in flutter_gemma plugin
       // TODO: Re-enable when flutter_gemma 0.12.0+ is stable or switch to different LLM backend
-      if (false && _isLLMReady && _requiresAnalysis(sanitizedQuery) && documents.isNotEmpty) {
+      if (false &&
+          _isLLMReady &&
+          _requiresAnalysis(sanitizedQuery) &&
+          documents.isNotEmpty) {
         print('[VECTOR SEARCH] Performing LLM analysis...');
         try {
-          final analysisResult = await _gemmaService.analyzeDocuments(
-            userQuery: sanitizedQuery,
-            documents: documents,
-          ).timeout(
-            const Duration(seconds: 30),
-            onTimeout: () {
-              print('[VECTOR SEARCH] Analysis timed out');
-              throw TimeoutException('Analysis took too long');
-            },
-          );
+          final analysisResult = await _gemmaService
+              .analyzeDocuments(userQuery: sanitizedQuery, documents: documents)
+              .timeout(
+                const Duration(seconds: 30),
+                onTimeout: () {
+                  print('[VECTOR SEARCH] Analysis timed out');
+                  throw TimeoutException('Analysis took too long');
+                },
+              );
           analysis = analysisResult.answer;
           confidence = analysisResult.confidence;
           print('[VECTOR SEARCH] Analysis completed successfully');
@@ -251,15 +255,17 @@ class VectorSearchService {
     required bool success,
     String? error,
   }) {
-    _auditLog.add(SearchAuditEntry(
-      query: userQuery,
-      method: 'vector_search',
-      resultCount: resultCount,
-      executionTime: executionTime,
-      success: success,
-      timestamp: DateTime.now(),
-      error: error,
-    ));
+    _auditLog.add(
+      SearchAuditEntry(
+        query: userQuery,
+        method: 'vector_search',
+        resultCount: resultCount,
+        executionTime: executionTime,
+        success: success,
+        timestamp: DateTime.now(),
+        error: error,
+      ),
+    );
 
     // Keep audit log size manageable
     if (_auditLog.length > 100) {
@@ -267,7 +273,9 @@ class VectorSearchService {
     }
 
     final statusIcon = success ? '✓' : '✗';
-    print('[VECTOR SEARCH] $statusIcon [${DateTime.now().toIso8601String()}] "$userQuery" → $resultCount results in ${executionTime.inMilliseconds}ms${error != null ? ' (Error: $error)' : ''}');
+    print(
+      '[VECTOR SEARCH] $statusIcon [${DateTime.now().toIso8601String()}] "$userQuery" → $resultCount results in ${executionTime.inMilliseconds}ms${error != null ? ' (Error: $error)' : ''}',
+    );
   }
 
   /// Log suspicious query

@@ -18,9 +18,7 @@ class LLMSearchRateLimiter {
     final now = DateTime.now();
 
     // Clean up old timestamps (older than 1 hour)
-    _searchTimestamps.removeWhere(
-      (t) => now.difference(t).inHours >= 1,
-    );
+    _searchTimestamps.removeWhere((t) => now.difference(t).inHours >= 1);
 
     // Check hourly limit
     final searchesLastHour = _searchTimestamps.length;

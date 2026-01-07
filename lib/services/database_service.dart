@@ -328,7 +328,9 @@ class DatabaseService extends BaseService implements IDatabaseService {
       final defaultSettings = UserSettings.defaultSettings();
       await _insertUserSettings(db, defaultSettings);
 
-      logInfo('Database created successfully with all tables including vector search');
+      logInfo(
+        'Database created successfully with all tables including vector search',
+      );
     } catch (e) {
       logError('Failed to create database', e);
       throw DatabaseException(
@@ -908,7 +910,9 @@ class DatabaseService extends BaseService implements IDatabaseService {
         whereArgs: [documentId],
       );
 
-      logInfo('Document entities updated: $documentId (vendor: $vendor, amount: $amount, category: $category)');
+      logInfo(
+        'Document entities updated: $documentId (vendor: $vendor, amount: $amount, category: $category)',
+      );
     } catch (e) {
       logError('Failed to update document entities', e);
       throw DatabaseException(
@@ -943,18 +947,24 @@ class DatabaseService extends BaseService implements IDatabaseService {
   Future<Map<String, int>> getEntityExtractionStats() async {
     final db = await database;
     try {
-      final totalResult = await db.rawQuery('SELECT COUNT(*) as count FROM documents');
+      final totalResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM documents',
+      );
       final extractedResult = await db.rawQuery(
-          'SELECT COUNT(*) as count FROM documents WHERE entities_extracted_at IS NOT NULL');
+        'SELECT COUNT(*) as count FROM documents WHERE entities_extracted_at IS NOT NULL',
+      );
       final withVendorResult = await db.rawQuery(
-          'SELECT COUNT(*) as count FROM documents WHERE vendor IS NOT NULL');
+        'SELECT COUNT(*) as count FROM documents WHERE vendor IS NOT NULL',
+      );
       final withAmountResult = await db.rawQuery(
-          'SELECT COUNT(*) as count FROM documents WHERE amount IS NOT NULL');
+        'SELECT COUNT(*) as count FROM documents WHERE amount IS NOT NULL',
+      );
 
       return {
         'total_documents': (totalResult.first['count'] as int?) ?? 0,
         'extracted_documents': (extractedResult.first['count'] as int?) ?? 0,
-        'pending_documents': ((totalResult.first['count'] as int?) ?? 0) -
+        'pending_documents':
+            ((totalResult.first['count'] as int?) ?? 0) -
             ((extractedResult.first['count'] as int?) ?? 0),
         'documents_with_vendor': (withVendorResult.first['count'] as int?) ?? 0,
         'documents_with_amount': (withAmountResult.first['count'] as int?) ?? 0,

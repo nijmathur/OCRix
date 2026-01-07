@@ -44,16 +44,12 @@ class VectorDatabaseService {
     final textHash = _computeTextHash(text);
     final embeddingBytes = EmbeddingService.embeddingToBytes(embedding);
 
-    await _db.insert(
-      'document_embeddings',
-      {
-        'document_id': documentId,
-        'embedding': embeddingBytes,
-        'text_hash': textHash,
-        'created_at': DateTime.now().millisecondsSinceEpoch,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await _db.insert('document_embeddings', {
+      'document_id': documentId,
+      'embedding': embeddingBytes,
+      'text_hash': textHash,
+      'created_at': DateTime.now().millisecondsSinceEpoch,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     print('[VectorDatabaseService] Stored embedding for document: $documentId');
   }
@@ -97,18 +93,21 @@ class VectorDatabaseService {
       final embeddingBytes = row['embedding'] as Uint8List;
       final embedding = EmbeddingService.bytesToEmbedding(embeddingBytes);
 
-      final similarity = EmbeddingService.cosineSimilarity(queryEmbedding, embedding);
+      final similarity = EmbeddingService.cosineSimilarity(
+        queryEmbedding,
+        embedding,
+      );
 
       if (similarity >= minSimilarity) {
-        similarities.add({
-          'document_id': documentId,
-          'similarity': similarity,
-        });
+        similarities.add({'document_id': documentId, 'similarity': similarity});
       }
     }
 
     // Sort by similarity (highest first)
-    similarities.sort((a, b) => (b['similarity'] as double).compareTo(a['similarity'] as double));
+    similarities.sort(
+      (a, b) =>
+          (b['similarity'] as double).compareTo(a['similarity'] as double),
+    );
 
     // Limit results
     final topResults = similarities.take(limit).toList();
@@ -129,7 +128,9 @@ class VectorDatabaseService {
       }
     }
 
-    print('[VectorDatabaseService] Found ${results.length} similar documents for: "$queryText"');
+    print(
+      '[VectorDatabaseService] Found ${results.length} similar documents for: "$queryText"',
+    );
     return results;
   }
 
@@ -187,7 +188,9 @@ class VectorDatabaseService {
     int vectorized = 0;
     int skipped = 0;
 
-    print('[VectorDatabaseService] Starting vectorization of $total documents...');
+    print(
+      '[VectorDatabaseService] Starting vectorization of $total documents...',
+    );
 
     for (int i = 0; i < documents.length; i++) {
       final document = documents[i];
@@ -229,7 +232,9 @@ class VectorDatabaseService {
     }
 
     final duration = DateTime.now().difference(startTime);
-    print('[VectorDatabaseService] Vectorization complete: $vectorized vectorized, $skipped skipped in ${duration.inSeconds}s');
+    print(
+      '[VectorDatabaseService] Vectorization complete: $vectorized vectorized, $skipped skipped in ${duration.inSeconds}s',
+    );
 
     return VectorizationProgress(
       totalDocuments: total,
@@ -241,13 +246,17 @@ class VectorDatabaseService {
 
   /// Get vectorization statistics
   Future<Map<String, int>> getStatistics() async {
-    final totalDocs = Sqflite.firstIntValue(
-      await _db.rawQuery('SELECT COUNT(*) FROM documents'),
-    ) ?? 0;
+    final totalDocs =
+        Sqflite.firstIntValue(
+          await _db.rawQuery('SELECT COUNT(*) FROM documents'),
+        ) ??
+        0;
 
-    final vectorizedDocs = Sqflite.firstIntValue(
-      await _db.rawQuery('SELECT COUNT(*) FROM document_embeddings'),
-    ) ?? 0;
+    final vectorizedDocs =
+        Sqflite.firstIntValue(
+          await _db.rawQuery('SELECT COUNT(*) FROM document_embeddings'),
+        ) ??
+        0;
 
     return {
       'total_documents': totalDocs,
@@ -285,9 +294,11 @@ class VectorizationProgress {
     required this.duration,
   });
 
-  double get progress => totalDocuments > 0 ? vectorizedDocuments / totalDocuments : 0.0;
+  double get progress =>
+      totalDocuments > 0 ? vectorizedDocuments / totalDocuments : 0.0;
 
-  bool get isComplete => vectorizedDocuments + skippedDocuments >= totalDocuments;
+  bool get isComplete =>
+      vectorizedDocuments + skippedDocuments >= totalDocuments;
 
   @override
   String toString() {

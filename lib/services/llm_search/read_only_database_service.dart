@@ -71,9 +71,7 @@ class ReadOnlyDatabaseService {
 
     // Build WHERE clause
     if (searchTerm != null && searchTerm.isNotEmpty) {
-      conditions.add(
-        '(title LIKE ? OR content LIKE ? OR tags LIKE ?)',
-      );
+      conditions.add('(title LIKE ? OR content LIKE ? OR tags LIKE ?)');
       final term = '%$searchTerm%';
       arguments.addAll([term, term, term]);
     }
@@ -114,7 +112,10 @@ class ReadOnlyDatabaseService {
   }
 
   /// Get document count for a query (for pagination)
-  Future<int> countDocuments(String whereClause, List<dynamic> arguments) async {
+  Future<int> countDocuments(
+    String whereClause,
+    List<dynamic> arguments,
+  ) async {
     final sql = 'SELECT COUNT(*) as count FROM documents WHERE $whereClause';
     final validatedSQL = _validator.validateAndSanitizeSQL(sql);
 

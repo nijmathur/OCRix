@@ -40,9 +40,7 @@ class LLMInputSanitizer {
     final lowerQuery = normalized.toLowerCase();
     for (final pattern in dangerousPatterns) {
       if (lowerQuery.contains(pattern.toLowerCase())) {
-        throw SecurityException(
-          'Invalid characters detected in query',
-        );
+        throw SecurityException('Invalid characters detected in query');
       }
     }
 
@@ -50,9 +48,7 @@ class LLMInputSanitizer {
     // Allow: a-z, A-Z, 0-9, space, . , - ? ! ' " $ ( )
     final allowedCharsPattern = RegExp(r'''^[a-zA-Z0-9\s.,\-?!()'"\$]+$''');
     if (!allowedCharsPattern.hasMatch(normalized)) {
-      throw SecurityException(
-        'Query contains invalid characters',
-      );
+      throw SecurityException('Query contains invalid characters');
     }
 
     return normalized;

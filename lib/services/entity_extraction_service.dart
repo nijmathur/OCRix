@@ -13,11 +13,12 @@ class EntityExtractionService extends BaseService {
 
   // Extraction settings
   static const int _maxTextLength = 1500; // Max chars to send to LLM
-  static const double _extractionTemperature = 0.1; // Low for deterministic output
+  static const double _extractionTemperature =
+      0.1; // Low for deterministic output
   static const int _extractionTopK = 10;
 
   EntityExtractionService([GemmaModelService? gemmaService])
-      : _gemmaService = gemmaService ?? GemmaModelService();
+    : _gemmaService = gemmaService ?? GemmaModelService();
 
   @override
   String get serviceName => 'EntityExtractionService';
@@ -132,7 +133,9 @@ Response:''';
       // Parse VENDOR
       if (upperLine.startsWith('VENDOR:')) {
         final value = trimmed.substring(trimmed.indexOf(':') + 1).trim();
-        if (value.toUpperCase() != 'NONE' && value.isNotEmpty && value.length < 100) {
+        if (value.toUpperCase() != 'NONE' &&
+            value.isNotEmpty &&
+            value.length < 100) {
           vendor = _cleanVendorName(value);
         }
       }
@@ -157,12 +160,19 @@ Response:''';
 
       // Parse CATEGORY
       if (upperLine.startsWith('CATEGORY:')) {
-        final value = trimmed.substring(trimmed.indexOf(':') + 1).trim().toLowerCase();
+        final value = trimmed
+            .substring(trimmed.indexOf(':') + 1)
+            .trim()
+            .toLowerCase();
         category = EntityCategory.fromString(value);
       }
     }
 
-    final hasData = vendor != null || amount != null || transactionDate != null || category != null;
+    final hasData =
+        vendor != null ||
+        amount != null ||
+        transactionDate != null ||
+        category != null;
 
     return DocumentEntity(
       documentId: documentId,
@@ -181,9 +191,9 @@ Response:''';
 
     // Extract amount using regex
     double? amount;
-    final amountMatches = RegExp(r'\$\s*(\d+(?:,\d{3})*(?:\.\d{2})?)')
-        .allMatches(text)
-        .toList();
+    final amountMatches = RegExp(
+      r'\$\s*(\d+(?:,\d{3})*(?:\.\d{2})?)',
+    ).allMatches(text).toList();
     if (amountMatches.isNotEmpty) {
       // Use the largest amount as the total
       for (final match in amountMatches) {
@@ -199,7 +209,7 @@ Response:''';
     DateTime? transactionDate;
     final datePatterns = [
       RegExp(r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})'), // MM/DD/YYYY or DD/MM/YYYY
-      RegExp(r'(\d{1,2})[/-](\d{1,2})[/-](\d{2})'),  // MM/DD/YY
+      RegExp(r'(\d{1,2})[/-](\d{1,2})[/-](\d{2})'), // MM/DD/YY
       RegExp(r'(\d{4})[/-](\d{1,2})[/-](\d{1,2})'), // YYYY-MM-DD
     ];
 
@@ -217,7 +227,11 @@ Response:''';
     // Detect category from keywords
     EntityCategory? category = _detectCategory(lowerText);
 
-    final hasData = vendor != null || amount != null || transactionDate != null || category != null;
+    final hasData =
+        vendor != null ||
+        amount != null ||
+        transactionDate != null ||
+        category != null;
 
     return DocumentEntity(
       documentId: documentId,
@@ -275,16 +289,125 @@ Response:''';
   /// Detect category from keywords
   EntityCategory? _detectCategory(String text) {
     const categoryKeywords = {
-      EntityCategory.grocery: ['grocery', 'produce', 'dairy', 'meat', 'bakery', 'deli', 'kroger', 'walmart', 'safeway', 'publix', 'aldi', 'trader joe', 'whole foods'],
-      EntityCategory.restaurant: ['restaurant', 'cafe', 'diner', 'pizza', 'burger', 'coffee', 'starbucks', 'mcdonalds', 'chipotle', 'subway', 'tip', 'server', 'gratuity'],
-      EntityCategory.medical: ['medical', 'doctor', 'hospital', 'clinic', 'patient', 'diagnosis', 'treatment', 'prescription', 'copay', 'insurance'],
-      EntityCategory.pharmacy: ['pharmacy', 'rx', 'prescription', 'cvs', 'walgreens', 'rite aid', 'medication', 'drug'],
-      EntityCategory.utilities: ['utility', 'electric', 'water', 'internet', 'phone', 'cable', 'bill', 'account number', 'due date'],
-      EntityCategory.fuel: ['gas', 'fuel', 'gasoline', 'diesel', 'gallon', 'pump', 'shell', 'exxon', 'chevron', 'bp', 'speedway'],
-      EntityCategory.entertainment: ['movie', 'theater', 'concert', 'ticket', 'admission', 'entertainment', 'netflix', 'spotify'],
-      EntityCategory.retail: ['store', 'purchase', 'item', 'product', 'return', 'target', 'amazon', 'best buy', 'home depot'],
-      EntityCategory.financial: ['bank', 'credit', 'debit', 'transaction', 'deposit', 'withdrawal', 'balance', 'statement', 'fee', 'interest'],
-      EntityCategory.travel: ['airline', 'flight', 'hotel', 'rental', 'travel', 'booking', 'reservation', 'airport'],
+      EntityCategory.grocery: [
+        'grocery',
+        'produce',
+        'dairy',
+        'meat',
+        'bakery',
+        'deli',
+        'kroger',
+        'walmart',
+        'safeway',
+        'publix',
+        'aldi',
+        'trader joe',
+        'whole foods',
+      ],
+      EntityCategory.restaurant: [
+        'restaurant',
+        'cafe',
+        'diner',
+        'pizza',
+        'burger',
+        'coffee',
+        'starbucks',
+        'mcdonalds',
+        'chipotle',
+        'subway',
+        'tip',
+        'server',
+        'gratuity',
+      ],
+      EntityCategory.medical: [
+        'medical',
+        'doctor',
+        'hospital',
+        'clinic',
+        'patient',
+        'diagnosis',
+        'treatment',
+        'prescription',
+        'copay',
+        'insurance',
+      ],
+      EntityCategory.pharmacy: [
+        'pharmacy',
+        'rx',
+        'prescription',
+        'cvs',
+        'walgreens',
+        'rite aid',
+        'medication',
+        'drug',
+      ],
+      EntityCategory.utilities: [
+        'utility',
+        'electric',
+        'water',
+        'internet',
+        'phone',
+        'cable',
+        'bill',
+        'account number',
+        'due date',
+      ],
+      EntityCategory.fuel: [
+        'gas',
+        'fuel',
+        'gasoline',
+        'diesel',
+        'gallon',
+        'pump',
+        'shell',
+        'exxon',
+        'chevron',
+        'bp',
+        'speedway',
+      ],
+      EntityCategory.entertainment: [
+        'movie',
+        'theater',
+        'concert',
+        'ticket',
+        'admission',
+        'entertainment',
+        'netflix',
+        'spotify',
+      ],
+      EntityCategory.retail: [
+        'store',
+        'purchase',
+        'item',
+        'product',
+        'return',
+        'target',
+        'amazon',
+        'best buy',
+        'home depot',
+      ],
+      EntityCategory.financial: [
+        'bank',
+        'credit',
+        'debit',
+        'transaction',
+        'deposit',
+        'withdrawal',
+        'balance',
+        'statement',
+        'fee',
+        'interest',
+      ],
+      EntityCategory.travel: [
+        'airline',
+        'flight',
+        'hotel',
+        'rental',
+        'travel',
+        'booking',
+        'reservation',
+        'airport',
+      ],
     };
 
     int maxMatches = 0;
@@ -321,7 +444,9 @@ Response:''';
     }
 
     // Try US format (MM/DD/YYYY)
-    final usMatch = RegExp(r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})').firstMatch(value);
+    final usMatch = RegExp(
+      r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})',
+    ).firstMatch(value);
     if (usMatch != null) {
       try {
         return DateTime(

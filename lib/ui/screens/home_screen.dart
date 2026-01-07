@@ -103,28 +103,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         controller: _tabController,
         children: [
           _buildHomeTab(documentsAsync),
-          AISearchScreen(
-            databaseService: ref.read(databaseServiceProvider),
-          ),
+          AISearchScreen(databaseService: ref.read(databaseServiceProvider)),
           const ScannerScreen(),
           const DocumentListScreen(),
           _buildAnalyticsTab(documentsAsync),
         ],
       ),
-      floatingActionButton: (_tabController.index == 1 || _tabController.index == 2)
-        ? null // Hide FAB on AI Search and Scanner tabs
-        : FloatingActionButton.extended(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ScannerScreen()),
-              );
-            },
-            icon: const Icon(Icons.camera_alt),
-            label: const Text('Scan Document'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            foregroundColor: Colors.white,
-          ),
+      floatingActionButton:
+          (_tabController.index == 1 || _tabController.index == 2)
+          ? null // Hide FAB on AI Search and Scanner tabs
+          : FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ScannerScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.camera_alt),
+              label: const Text('Scan Document'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+            ),
     );
   }
 

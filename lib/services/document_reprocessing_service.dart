@@ -153,8 +153,10 @@ class DocumentReprocessingService extends BaseService {
 
           if (entity.hasData) {
             processed++;
-            logInfo('Extracted entities for ${doc.id}: '
-                'vendor=${entity.vendor}, amount=${entity.amount}');
+            logInfo(
+              'Extracted entities for ${doc.id}: '
+              'vendor=${entity.vendor}, amount=${entity.amount}',
+            );
           } else {
             skipped++;
             logInfo('No entities found for ${doc.id}');
@@ -174,8 +176,10 @@ class DocumentReprocessingService extends BaseService {
       }
 
       final duration = DateTime.now().difference(startTime);
-      logInfo('Reprocessing complete: $processed processed, $skipped skipped, '
-          '$errors errors in ${duration.inSeconds}s');
+      logInfo(
+        'Reprocessing complete: $processed processed, $skipped skipped, '
+        '$errors errors in ${duration.inSeconds}s',
+      );
 
       return ReprocessingResult(
         totalDocuments: total,
@@ -220,7 +224,9 @@ class DocumentReprocessingService extends BaseService {
         );
       }
 
-      logInfo('Reprocessed document $documentId: ${entity.hasData ? 'found entities' : 'no entities'}');
+      logInfo(
+        'Reprocessed document $documentId: ${entity.hasData ? 'found entities' : 'no entities'}',
+      );
       return entity.hasData;
     } catch (e) {
       logError('Failed to reprocess document $documentId', e);
@@ -232,14 +238,18 @@ class DocumentReprocessingService extends BaseService {
   Future<Map<String, int>> getReprocessingStats() async {
     try {
       if (_databaseService is DatabaseService) {
-        return await (_databaseService as DatabaseService).getEntityExtractionStats();
+        return await (_databaseService as DatabaseService)
+            .getEntityExtractionStats();
       }
 
       // Fallback if not using DatabaseService
       final db = await _databaseService.database;
-      final totalResult = await db.rawQuery('SELECT COUNT(*) as count FROM documents');
+      final totalResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM documents',
+      );
       final pendingResult = await db.rawQuery(
-          'SELECT COUNT(*) as count FROM documents WHERE entities_extracted_at IS NULL');
+        'SELECT COUNT(*) as count FROM documents WHERE entities_extracted_at IS NULL',
+      );
 
       return {
         'total_documents': (totalResult.first['count'] as int?) ?? 0,

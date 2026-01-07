@@ -111,7 +111,8 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
        _auditLoggingService = auditLoggingService,
        _troubleshootingLogger = troubleshootingLogger,
        _vectorSearchService = vectorSearchService,
-       _entityExtractionService = entityExtractionService ?? EntityExtractionService(),
+       _entityExtractionService =
+           entityExtractionService ?? EntityExtractionService(),
        super(const AsyncValue.loading()) {
     _loadDocuments();
   }

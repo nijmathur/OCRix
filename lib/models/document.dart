@@ -247,7 +247,8 @@ class Document extends Equatable {
       ),
       scanDate: DateTime.fromMillisecondsSinceEpoch(map['scan_date']),
       tags: (map['tags'] as String?)?.split(',') ?? [],
-      metadata: map['metadata'] != null &&
+      metadata:
+          map['metadata'] != null &&
               map['metadata'] is String &&
               (map['metadata'] as String).isNotEmpty
           ? Map<String, dynamic>.from(jsonDecode(map['metadata'] as String))
@@ -277,7 +278,9 @@ class Document extends Equatable {
       category: map['category'] as String?,
       entityConfidence: (map['entity_confidence'] as num?)?.toDouble() ?? 0.0,
       entitiesExtractedAt: map['entities_extracted_at'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['entities_extracted_at'] as int)
+          ? DateTime.fromMillisecondsSinceEpoch(
+              map['entities_extracted_at'] as int,
+            )
           : null,
     );
   }

@@ -86,7 +86,8 @@ class DocumentEntity extends Equatable {
       confidence: (map['entity_confidence'] as num?)?.toDouble() ?? 0.0,
       extractedAt: map['entities_extracted_at'] != null
           ? DateTime.fromMillisecondsSinceEpoch(
-              map['entities_extracted_at'] as int)
+              map['entities_extracted_at'] as int,
+            )
           : DateTime.now(),
     );
   }
@@ -134,14 +135,14 @@ class DocumentEntity extends Equatable {
 
   @override
   List<Object?> get props => [
-        documentId,
-        vendor,
-        amount,
-        transactionDate,
-        category,
-        confidence,
-        extractedAt,
-      ];
+    documentId,
+    vendor,
+    amount,
+    transactionDate,
+    category,
+    confidence,
+    extractedAt,
+  ];
 
   @override
   String toString() {

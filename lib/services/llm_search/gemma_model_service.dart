@@ -18,7 +18,8 @@ class GemmaModelService {
 
   static const ModelType modelType = ModelType.gemmaIt;
   static const int maxTokens = 256; // Reduced to prevent OUT_OF_RANGE errors
-  static const double temperature = 0.3; // Lower for more deterministic SQL generation
+  static const double temperature =
+      0.3; // Lower for more deterministic SQL generation
   static const int topK = 20; // Reduced for more focused output
   static const int randomSeed = 42; // Fixed seed for reproducibility
 
@@ -66,7 +67,9 @@ class GemmaModelService {
   Future<String> _getModelStoragePath() async {
     // Use external storage directory that persists across reinstalls
     // This creates: /sdcard/Android/media/com.ocrix.app/models/
-    final externalDirs = await getExternalStorageDirectories(type: StorageDirectory.documents);
+    final externalDirs = await getExternalStorageDirectories(
+      type: StorageDirectory.documents,
+    );
 
     if (externalDirs == null || externalDirs.isEmpty) {
       // Fallback to app documents if external storage unavailable
@@ -75,7 +78,9 @@ class GemmaModelService {
     }
 
     // Create a persistent models directory
-    final modelsDir = Directory(path.join(externalDirs.first.parent.parent.path, 'models'));
+    final modelsDir = Directory(
+      path.join(externalDirs.first.parent.parent.path, 'models'),
+    );
     if (!await modelsDir.exists()) {
       await modelsDir.create(recursive: true);
     }
@@ -95,10 +100,14 @@ class GemmaModelService {
       final sourceSize = await sourceFile.length();
 
       if (destSize == sourceSize) {
-        print('[GemmaModelService] Model already exists at $destPath (${destSize} bytes), skipping copy');
+        print(
+          '[GemmaModelService] Model already exists at $destPath (${destSize} bytes), skipping copy',
+        );
         return destPath;
       } else {
-        print('[GemmaModelService] Existing model size mismatch, re-copying...');
+        print(
+          '[GemmaModelService] Existing model size mismatch, re-copying...',
+        );
       }
     }
 
@@ -107,7 +116,9 @@ class GemmaModelService {
       throw Exception('Source file not found: $sourceFilePath');
     }
 
-    print('[GemmaModelService] Copying model from $sourceFilePath to $destPath');
+    print(
+      '[GemmaModelService] Copying model from $sourceFilePath to $destPath',
+    );
 
     // Copy file with progress tracking
     final sourceLength = await sourceFile.length();
@@ -120,7 +131,9 @@ class GemmaModelService {
       bytesWritten += chunk.length;
       final progress = bytesWritten / sourceLength;
       _progressController?.add(progress * 0.5); // First 50% for copying
-      print('[GemmaModelService] Copy progress: ${(progress * 100).toStringAsFixed(1)}%');
+      print(
+        '[GemmaModelService] Copy progress: ${(progress * 100).toStringAsFixed(1)}%',
+      );
     }
 
     await destSink.flush();
@@ -169,7 +182,9 @@ class GemmaModelService {
     _progressController ??= StreamController<double>.broadcast();
 
     try {
-      print('[GemmaModelService] Installing model from persistent storage: $modelPath');
+      print(
+        '[GemmaModelService] Installing model from persistent storage: $modelPath',
+      );
       await _installModelFromPath(modelPath, skipCopyProgress: true);
     } catch (e) {
       print('[GemmaModelService] Model installation failed: $e');
@@ -180,23 +195,29 @@ class GemmaModelService {
   }
 
   /// Internal method to install model from a given path
-  Future<void> _installModelFromPath(String modelPath, {bool skipCopyProgress = false}) async {
-    print('[GemmaModelService] Starting model installation from file: $modelPath');
+  Future<void> _installModelFromPath(
+    String modelPath, {
+    bool skipCopyProgress = false,
+  }) async {
+    print(
+      '[GemmaModelService] Starting model installation from file: $modelPath',
+    );
 
-    await FlutterGemma.installModel(modelType: modelType)
-        .fromFile(modelPath)
-        .withProgress((progress) {
-          // Adjust progress based on whether we skipped copy
-          if (skipCopyProgress) {
-            _installProgress = progress / 100.0;
-          } else {
-            // Second 50% for installation (first 50% was copy)
-            _installProgress = 0.5 + (progress / 100.0 * 0.5);
-          }
-          _progressController?.add(_installProgress);
-          print('[GemmaModelService] Installation progress: ${progress.toStringAsFixed(1)}%');
-        })
-        .install();
+    await FlutterGemma.installModel(
+      modelType: modelType,
+    ).fromFile(modelPath).withProgress((progress) {
+      // Adjust progress based on whether we skipped copy
+      if (skipCopyProgress) {
+        _installProgress = progress / 100.0;
+      } else {
+        // Second 50% for installation (first 50% was copy)
+        _installProgress = 0.5 + (progress / 100.0 * 0.5);
+      }
+      _progressController?.add(_installProgress);
+      print(
+        '[GemmaModelService] Installation progress: ${progress.toStringAsFixed(1)}%',
+      );
+    }).install();
 
     _progressController?.add(1.0);
     print('[GemmaModelService] Model installed successfully');
@@ -217,9 +238,7 @@ class GemmaModelService {
     try {
       print('[GemmaModelService] Initializing Gemma model...');
 
-      _model = await FlutterGemma.getActiveModel(
-        maxTokens: maxTokens,
-      );
+      _model = await FlutterGemma.getActiveModel(maxTokens: maxTokens);
 
       _isInitialized = true;
       print('[GemmaModelService] Model initialized successfully');
@@ -230,7 +249,10 @@ class GemmaModelService {
   }
 
   /// Generate SQL query from natural language using Gemma
-  Future<String> generateSQL(String naturalLanguageQuery, {int retryCount = 0}) async {
+  Future<String> generateSQL(
+    String naturalLanguageQuery, {
+    int retryCount = 0,
+  }) async {
     const maxRetries = 2;
 
     if (!_isInitialized || _model == null) {
@@ -239,7 +261,9 @@ class GemmaModelService {
 
     try {
       final prompt = _buildPrompt(naturalLanguageQuery);
-      print('[GemmaModelService] Generating SQL for: "$naturalLanguageQuery" (attempt ${retryCount + 1}/$maxRetries)');
+      print(
+        '[GemmaModelService] Generating SQL for: "$naturalLanguageQuery" (attempt ${retryCount + 1}/$maxRetries)',
+      );
 
       // Create chat session with parameters
       final chat = await _model!.createChat(
@@ -259,21 +283,34 @@ class GemmaModelService {
       if (response is TextResponse) {
         responseText = response.token;
       } else {
-        throw LLMInferenceException('Unexpected response type: ${response.runtimeType}');
+        throw LLMInferenceException(
+          'Unexpected response type: ${response.runtimeType}',
+        );
       }
 
-      print('[GemmaModelService] Raw response (length: ${responseText.length}): "$responseText"');
+      print(
+        '[GemmaModelService] Raw response (length: ${responseText.length}): "$responseText"',
+      );
 
       if (responseText.isEmpty) {
         // Try to reinitialize and retry if we get empty responses
         if (retryCount < maxRetries - 1) {
-          print('[GemmaModelService] Empty response detected, reinitializing model and retrying...');
+          print(
+            '[GemmaModelService] Empty response detected, reinitializing model and retrying...',
+          );
           await _reinitializeModel();
           // Retry with incremented counter
-          return await generateSQL(naturalLanguageQuery, retryCount: retryCount + 1);
+          return await generateSQL(
+            naturalLanguageQuery,
+            retryCount: retryCount + 1,
+          );
         } else {
-          print('[GemmaModelService] Empty response after $maxRetries attempts, giving up');
-          throw LLMInferenceException('Model generated empty response after $maxRetries attempts');
+          print(
+            '[GemmaModelService] Empty response after $maxRetries attempts, giving up',
+          );
+          throw LLMInferenceException(
+            'Model generated empty response after $maxRetries attempts',
+          );
         }
       }
 
@@ -303,7 +340,9 @@ class GemmaModelService {
   }
 
   /// Categorize document using LLM (for hybrid ML Kit + LLM approach)
-  Future<DocumentCategorizationResult> categorizeDocument(String extractedText) async {
+  Future<DocumentCategorizationResult> categorizeDocument(
+    String extractedText,
+  ) async {
     if (!_isInitialized || _model == null) {
       throw StateError('Model not initialized. Call initialize() first.');
     }
@@ -314,7 +353,8 @@ class GemmaModelService {
           ? extractedText.substring(0, 500)
           : extractedText;
 
-      final prompt = '''Analyze this document and extract information.
+      final prompt =
+          '''Analyze this document and extract information.
 
 Document text:
 """
@@ -393,7 +433,9 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
 
         // Extract tags
         if (trimmed.startsWith('tags:')) {
-          final tagsText = line.substring(line.toLowerCase().indexOf('tags:') + 'tags:'.length).trim();
+          final tagsText = line
+              .substring(line.toLowerCase().indexOf('tags:') + 'tags:'.length)
+              .trim();
           tags = tagsText
               .split(',')
               .map((t) => t.trim())
@@ -408,10 +450,7 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
       category = _parseCategory(response);
     }
 
-    return {
-      'category': category,
-      'tags': tags,
-    };
+    return {'category': category, 'tags': tags};
   }
 
   /// Parse category text to DocumentType
@@ -428,9 +467,16 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
 
     // Map to valid document types
     final validTypes = [
-      'invoice', 'receipt', 'contract', 'manual',
-      'businesscard', 'id', 'passport', 'license',
-      'certificate', 'other'
+      'invoice',
+      'receipt',
+      'contract',
+      'manual',
+      'businesscard',
+      'id',
+      'passport',
+      'license',
+      'certificate',
+      'other',
     ];
 
     // Direct match
@@ -442,11 +488,15 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
     if (cleaned.contains('invoice')) return 'invoice';
     if (cleaned.contains('receipt')) return 'receipt';
     if (cleaned.contains('contract')) return 'contract';
-    if (cleaned.contains('manual') || cleaned.contains('guide')) return 'manual';
-    if (cleaned.contains('business') && cleaned.contains('card')) return 'businessCard';
-    if (cleaned.contains('id') || cleaned.contains('identification')) return 'id';
+    if (cleaned.contains('manual') || cleaned.contains('guide'))
+      return 'manual';
+    if (cleaned.contains('business') && cleaned.contains('card'))
+      return 'businessCard';
+    if (cleaned.contains('id') || cleaned.contains('identification'))
+      return 'id';
     if (cleaned.contains('passport')) return 'passport';
-    if (cleaned.contains('license') || cleaned.contains('licence')) return 'license';
+    if (cleaned.contains('license') || cleaned.contains('licence'))
+      return 'license';
     if (cleaned.contains('certificate')) return 'certificate';
 
     // Default fallback
@@ -467,7 +517,9 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
 
     try {
       final prompt = _buildAnalysisPrompt(userQuery, documents);
-      print('[GemmaModelService] Analyzing ${documents.length} documents for: "$userQuery" (attempt ${retryCount + 1}/$maxRetries)');
+      print(
+        '[GemmaModelService] Analyzing ${documents.length} documents for: "$userQuery" (attempt ${retryCount + 1}/$maxRetries)',
+      );
 
       // Create chat session with higher temperature for analysis
       final chat = await _model!.createChat(
@@ -486,13 +538,17 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
       if (response is TextResponse) {
         responseText = response.token;
       } else {
-        throw LLMInferenceException('Unexpected response type: ${response.runtimeType}');
+        throw LLMInferenceException(
+          'Unexpected response type: ${response.runtimeType}',
+        );
       }
 
       if (responseText.isEmpty) {
         // Try to reinitialize and retry if we get empty responses
         if (retryCount < maxRetries - 1) {
-          print('[GemmaModelService] Empty analysis response detected, reinitializing model and retrying...');
+          print(
+            '[GemmaModelService] Empty analysis response detected, reinitializing model and retrying...',
+          );
           await _reinitializeModel();
           // Retry with incremented counter
           return await analyzeDocuments(
@@ -501,8 +557,12 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
             retryCount: retryCount + 1,
           );
         } else {
-          print('[GemmaModelService] Empty analysis response after $maxRetries attempts, giving up');
-          throw LLMInferenceException('Model generated empty analysis after $maxRetries attempts');
+          print(
+            '[GemmaModelService] Empty analysis response after $maxRetries attempts, giving up',
+          );
+          throw LLMInferenceException(
+            'Model generated empty analysis after $maxRetries attempts',
+          );
         }
       }
 
@@ -530,7 +590,10 @@ SQL:''';
   }
 
   /// Build prompt for document analysis (Stage 2)
-  String _buildAnalysisPrompt(String userQuery, List<Map<String, dynamic>> documents) {
+  String _buildAnalysisPrompt(
+    String userQuery,
+    List<Map<String, dynamic>> documents,
+  ) {
     // Limit documents to prevent token overflow (max 10 docs)
     final limitedDocs = documents.take(10).toList();
 
@@ -542,7 +605,9 @@ SQL:''';
       final type = doc['type'] ?? 'unknown';
 
       // Truncate text to first 300 characters to fit in token budget
-      final truncatedText = text.length > 300 ? '${text.substring(0, 300)}...' : text;
+      final truncatedText = text.length > 300
+          ? '${text.substring(0, 300)}...'
+          : text;
 
       docTexts.writeln('--- Document ${i + 1} ($type: $title) ---');
       docTexts.writeln(truncatedText);
@@ -571,12 +636,11 @@ Answer:''';
     final answer = response.trim();
 
     // Simple confidence heuristic
-    final confidence = answer.toLowerCase().contains('cannot determine') ? 0.3 : 0.8;
+    final confidence = answer.toLowerCase().contains('cannot determine')
+        ? 0.3
+        : 0.8;
 
-    return DocumentAnalysis(
-      answer: answer,
-      confidence: confidence,
-    );
+    return DocumentAnalysis(answer: answer, confidence: confidence);
   }
 
   /// Extract SQL query from LLM response
@@ -631,20 +695,29 @@ Answer:''';
 
     // Validate basic SQL structure
     if (!sql.toUpperCase().startsWith('SELECT')) {
-      throw LLMInferenceException('Generated query does not start with SELECT: $sql');
+      throw LLMInferenceException(
+        'Generated query does not start with SELECT: $sql',
+      );
     }
 
     // Auto-complete incomplete queries by adding FROM documents
     if (!sql.toUpperCase().contains('FROM')) {
-      print('[GemmaModelService] Incomplete query detected (no FROM clause): $sql');
+      print(
+        '[GemmaModelService] Incomplete query detected (no FROM clause): $sql',
+      );
       // Insert "FROM documents" after SELECT clause
-      final selectMatch = RegExp(r'SELECT\s+(.+)', caseSensitive: false).firstMatch(sql);
+      final selectMatch = RegExp(
+        r'SELECT\s+(.+)',
+        caseSensitive: false,
+      ).firstMatch(sql);
       if (selectMatch != null) {
         final selectPart = selectMatch.group(0)!;
         sql = '$selectPart FROM documents';
         print('[GemmaModelService] Auto-completed query: $sql');
       } else {
-        throw LLMInferenceException('Generated query is incomplete and cannot be auto-completed: $sql');
+        throw LLMInferenceException(
+          'Generated query is incomplete and cannot be auto-completed: $sql',
+        );
       }
     }
 
@@ -671,13 +744,11 @@ class DocumentAnalysis {
   final String answer;
   final double confidence; // 0.0 to 1.0
 
-  DocumentAnalysis({
-    required this.answer,
-    required this.confidence,
-  });
+  DocumentAnalysis({required this.answer, required this.confidence});
 
   @override
-  String toString() => 'DocumentAnalysis(answer: "$answer", confidence: $confidence)';
+  String toString() =>
+      'DocumentAnalysis(answer: "$answer", confidence: $confidence)';
 }
 
 /// Result from LLM document categorization
@@ -695,7 +766,8 @@ class DocumentCategorizationResult {
   });
 
   @override
-  String toString() => 'DocumentCategorizationResult(type: $type, tags: $tags, confidence: $confidence)';
+  String toString() =>
+      'DocumentCategorizationResult(type: $type, tags: $tags, confidence: $confidence)';
 }
 
 /// Exception for LLM inference errors

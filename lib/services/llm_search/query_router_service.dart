@@ -144,9 +144,9 @@ class QueryRouterService extends BaseService {
     EmbeddingService? embeddingService,
     VectorDatabaseService? vectorDbService,
     GemmaModelService? gemmaService,
-  })  : _embeddingService = embeddingService ?? EmbeddingService(),
-        _vectorDbService = vectorDbService,
-        _gemmaService = gemmaService;
+  }) : _embeddingService = embeddingService ?? EmbeddingService(),
+       _vectorDbService = vectorDbService,
+       _gemmaService = gemmaService;
 
   @override
   String get serviceName => 'QueryRouterService';
@@ -175,7 +175,9 @@ class QueryRouterService extends BaseService {
       }
 
       stopwatch.stop();
-      logInfo('Query processed in ${stopwatch.elapsedMilliseconds}ms, found ${result.documents.length} documents');
+      logInfo(
+        'Query processed in ${stopwatch.elapsedMilliseconds}ms, found ${result.documents.length} documents',
+      );
 
       return result;
     } catch (e, stackTrace) {
@@ -225,7 +227,8 @@ class QueryRouterService extends BaseService {
         'transaction_date': doc.transactionDate?.millisecondsSinceEpoch,
         'category': doc.category,
         'entity_confidence': doc.entityConfidence,
-        'entities_extracted_at': doc.entitiesExtractedAt?.millisecondsSinceEpoch,
+        'entities_extracted_at':
+            doc.entitiesExtractedAt?.millisecondsSinceEpoch,
         'image_data': doc.imageData,
         'thumbnail_data': doc.thumbnailData,
         'image_format': doc.imageFormat,
@@ -257,10 +260,16 @@ class QueryRouterService extends BaseService {
     final structuredPatterns = [
       RegExp(r'how much.*(spent|spend|cost|paid|pay)', caseSensitive: false),
       RegExp(r'total.*(at|from|on|for)\s+\w+', caseSensitive: false),
-      RegExp(r'(sum|total|average|avg|count)\s+(of|from|at)', caseSensitive: false),
+      RegExp(
+        r'(sum|total|average|avg|count)\s+(of|from|at)',
+        caseSensitive: false,
+      ),
       RegExp(r'(last|this|past)\s+(week|month|year)', caseSensitive: false),
       RegExp(r'\$\s*\d+', caseSensitive: false), // Dollar amounts
-      RegExp(r'(more|less|over|under|above|below)\s+than\s+\$?\d+', caseSensitive: false),
+      RegExp(
+        r'(more|less|over|under|above|below)\s+than\s+\$?\d+',
+        caseSensitive: false,
+      ),
       RegExp(r'between\s+\$?\d+\s+(and|to)\s+\$?\d+', caseSensitive: false),
     ];
 
@@ -271,7 +280,8 @@ class QueryRouterService extends BaseService {
     }
 
     // Also check for specific vendor + time queries
-    if (_detectVendorInQuery(lower) != null && _detectTimeRange(lower) != null) {
+    if (_detectVendorInQuery(lower) != null &&
+        _detectTimeRange(lower) != null) {
       return QueryType.structured;
     }
 
@@ -353,7 +363,8 @@ class QueryRouterService extends BaseService {
 
     // Calculate aggregation if requested
     AggregationResult? aggregation;
-    if (params.hasAggregation || query.toLowerCase().contains('how much') ||
+    if (params.hasAggregation ||
+        query.toLowerCase().contains('how much') ||
         query.toLowerCase().contains('total')) {
       final sum = documents.fold<double>(
         0.0,
@@ -425,7 +436,10 @@ class QueryRouterService extends BaseService {
         final doc = Document.fromMap(docMap);
         final docText = '${doc.title}. ${doc.extractedText}';
         final docEmbedding = await _embeddingService.generateEmbedding(docText);
-        final similarity = EmbeddingService.cosineSimilarity(queryEmbedding, docEmbedding);
+        final similarity = EmbeddingService.cosineSimilarity(
+          queryEmbedding,
+          docEmbedding,
+        );
 
         if (similarity > 0.3) {
           documents.add(doc);
@@ -475,7 +489,8 @@ class QueryRouterService extends BaseService {
 
         // TODO: Use Gemma to analyze documents with proper chat session
         // For now, return a summary of what was found
-        analysis = 'Based on ${semanticResult.documents.length} documents found.';
+        analysis =
+            'Based on ${semanticResult.documents.length} documents found.';
         confidence = 0.7;
 
         logInfo('LLM analysis completed');
@@ -510,12 +525,16 @@ class QueryRouterService extends BaseService {
     double? minAmount;
     double? maxAmount;
 
-    final overMatch = RegExp(r'(over|above|more than)\s+\$?(\d+(?:\.\d{2})?)').firstMatch(lower);
+    final overMatch = RegExp(
+      r'(over|above|more than)\s+\$?(\d+(?:\.\d{2})?)',
+    ).firstMatch(lower);
     if (overMatch != null) {
       minAmount = double.tryParse(overMatch.group(2)!);
     }
 
-    final underMatch = RegExp(r'(under|below|less than)\s+\$?(\d+(?:\.\d{2})?)').firstMatch(lower);
+    final underMatch = RegExp(
+      r'(under|below|less than)\s+\$?(\d+(?:\.\d{2})?)',
+    ).firstMatch(lower);
     if (underMatch != null) {
       maxAmount = double.tryParse(underMatch.group(2)!);
     }
@@ -523,9 +542,17 @@ class QueryRouterService extends BaseService {
     // Detect category
     String? category;
     final categories = [
-      'grocery', 'restaurant', 'medical', 'pharmacy',
-      'utilities', 'fuel', 'entertainment', 'retail',
-      'services', 'travel', 'financial',
+      'grocery',
+      'restaurant',
+      'medical',
+      'pharmacy',
+      'utilities',
+      'fuel',
+      'entertainment',
+      'retail',
+      'services',
+      'travel',
+      'financial',
     ];
     for (final cat in categories) {
       if (lower.contains(cat)) {
@@ -535,7 +562,10 @@ class QueryRouterService extends BaseService {
     }
 
     // Detect aggregation type
-    final wantSum = lower.contains('total') || lower.contains('how much') || lower.contains('sum');
+    final wantSum =
+        lower.contains('total') ||
+        lower.contains('how much') ||
+        lower.contains('sum');
     final wantAverage = lower.contains('average') || lower.contains('avg');
     final wantCount = lower.contains('how many') || lower.contains('count');
 
@@ -582,7 +612,9 @@ class QueryRouterService extends BaseService {
     }
 
     // Try to extract vendor after "at", "from", "on"
-    final prepositionMatch = RegExp(r'(?:at|from|on)\s+([a-z\s]+?)(?:\s+(?:last|this|in|for)|$)').firstMatch(query);
+    final prepositionMatch = RegExp(
+      r'(?:at|from|on)\s+([a-z\s]+?)(?:\s+(?:last|this|in|for)|$)',
+    ).firstMatch(query);
     if (prepositionMatch != null) {
       final extracted = prepositionMatch.group(1)?.trim();
       if (extracted != null && extracted.length > 2 && extracted.length < 30) {
@@ -661,8 +693,18 @@ class QueryRouterService extends BaseService {
 
   String _monthName(int month) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return months[month - 1];
   }
