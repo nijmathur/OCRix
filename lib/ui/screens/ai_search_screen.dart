@@ -124,8 +124,12 @@ class _AISearchScreenState extends State<AISearchScreen> {
       }
 
       // Auto-start vectorization if embedding model is ready but docs need vectorization
+      print('[AISearchScreen] Vectorization check: isReady=${_searchService.isReady}, pending=${vectorStats['pending_documents']}');
       if (_searchService.isReady && vectorStats['pending_documents']! > 0) {
+        print('[AISearchScreen] Starting auto-vectorization...');
         _startBackgroundVectorization();
+      } else {
+        print('[AISearchScreen] Skipping vectorization: isReady=${_searchService.isReady}, pending=${vectorStats['pending_documents']}');
       }
     } catch (e) {
       setState(() {

@@ -77,7 +77,7 @@ class VectorDatabaseService {
   Future<List<Map<String, dynamic>>> searchSimilar({
     required String queryText,
     int limit = 10,
-    double minSimilarity = 0.5,
+    double minSimilarity = 0.1,
   }) async {
     // Generate query embedding
     final queryEmbedding = await _embeddingService.generateEmbedding(queryText);
@@ -97,6 +97,8 @@ class VectorDatabaseService {
         queryEmbedding,
         embedding,
       );
+
+      print('[VectorDatabaseService] Document $documentId similarity: $similarity (threshold: $minSimilarity)');
 
       if (similarity >= minSimilarity) {
         similarities.add({'document_id': documentId, 'similarity': similarity});
@@ -257,6 +259,8 @@ class VectorDatabaseService {
           await _db.rawQuery('SELECT COUNT(*) FROM document_embeddings'),
         ) ??
         0;
+
+    print('[VectorDatabaseService] Stats: total=$totalDocs, vectorized=$vectorizedDocs, pending=${totalDocs - vectorizedDocs}');
 
     return {
       'total_documents': totalDocs,

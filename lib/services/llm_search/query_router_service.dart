@@ -135,6 +135,23 @@ class SQLQueryParams {
 
 /// Service for routing queries to appropriate search methods
 class QueryRouterService extends BaseService {
+  /// Common English stop words to filter from search queries
+  static const Set<String> _stopWords = {
+    'a', 'an', 'the', 'and', 'or', 'but', 'is', 'are', 'was', 'were',
+    'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
+    'will', 'would', 'could', 'should', 'may', 'might', 'must', 'shall',
+    'can', 'need', 'dare', 'ought', 'used', 'to', 'of', 'in', 'for',
+    'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through', 'during',
+    'before', 'after', 'above', 'below', 'between', 'under', 'again',
+    'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why',
+    'how', 'all', 'each', 'few', 'more', 'most', 'other', 'some', 'such',
+    'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very',
+    'just', 'also', 'now', 'i', 'me', 'my', 'we', 'our', 'you', 'your',
+    'he', 'him', 'his', 'she', 'her', 'it', 'its', 'they', 'them', 'their',
+    'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'am',
+    'many', 'much', 'any', 'both', 'get', 'got', 'buy', 'bought',
+  };
+
   final IDatabaseService _databaseService;
   final EmbeddingService _embeddingService;
   final VectorDatabaseService? _vectorDbService;
@@ -453,25 +470,51 @@ class QueryRouterService extends BaseService {
 
       // Use FTS if available, otherwise basic LIKE search
       try {
-        // Try FTS search first
-        final ftsResults = await db.rawQuery(
-          '''
-          SELECT d.*, s.rank as match_rank
-          FROM search_index s
-          JOIN documents d ON s.doc_id = d.id
-          WHERE search_index MATCH ?
-          ORDER BY s.rank
-          LIMIT 20
-          ''',
-          [query],
-        );
+        // Extract keywords and stem them for FTS5 search
+        final ftsKeywords = query
+            .toLowerCase()
+            .split(RegExp(r'\s+'))
+            .where((w) => w.length > 2)
+            .where((w) => !_stopWords.contains(w))
+            .toList();
 
-        if (ftsResults.isNotEmpty) {
-          for (final result in ftsResults) {
-            documents.add(Document.fromMap(result));
-            // Convert rank to similarity (lower rank = better match)
-            final rank = (result['match_rank'] as num?)?.toDouble() ?? 0.0;
-            similarities.add(1.0 / (1.0 + rank.abs()));
+        // Add stemmed versions
+        final ftsTerms = <String>{};
+        for (final k in ftsKeywords) {
+          ftsTerms.add(k);
+          if (k.endsWith('ies') && k.length > 4) {
+            ftsTerms.add('${k.substring(0, k.length - 3)}y');
+          } else if (k.endsWith('es') && k.length > 3) {
+            ftsTerms.add(k.substring(0, k.length - 2));
+          } else if (k.endsWith('s') && k.length > 3) {
+            ftsTerms.add(k.substring(0, k.length - 1));
+          }
+        }
+
+        // Build FTS5 query with OR between terms and wildcards
+        final ftsQuery = ftsTerms.map((t) => '$t*').join(' OR ');
+
+        if (ftsQuery.isNotEmpty) {
+          // Try FTS5 search first - use bm25() for ranking
+          final ftsResults = await db.rawQuery(
+            '''
+            SELECT d.*, bm25(search_index) as match_rank
+            FROM search_index s
+            JOIN documents d ON s.doc_id = d.id
+            WHERE search_index MATCH ?
+            ORDER BY bm25(search_index)
+            LIMIT 20
+            ''',
+            [ftsQuery],
+          );
+
+          if (ftsResults.isNotEmpty) {
+            for (final result in ftsResults) {
+              documents.add(Document.fromMap(result));
+              // Convert rank to similarity (lower rank = better match)
+              final rank = (result['match_rank'] as num?)?.toDouble() ?? 0.0;
+              similarities.add(1.0 / (1.0 + rank.abs()));
+            }
           }
         }
       } catch (e) {
@@ -485,13 +528,35 @@ class QueryRouterService extends BaseService {
             .split(' ')
             .where((w) => w.length > 2)
             .toList();
-        if (keywords.isNotEmpty) {
-          final whereClauses = keywords
+
+        // Also add stemmed versions (basic plural handling)
+        final stemmedKeywords = <String>{};
+        for (final k in keywords) {
+          stemmedKeywords.add(k);
+          // Strip common plural/verb suffixes for better matching
+          if (k.endsWith('ies') && k.length > 4) {
+            stemmedKeywords.add('${k.substring(0, k.length - 3)}y'); // berries -> berry
+          } else if (k.endsWith('es') && k.length > 3) {
+            stemmedKeywords.add(k.substring(0, k.length - 2)); // boxes -> box
+          } else if (k.endsWith('s') && k.length > 3) {
+            stemmedKeywords.add(k.substring(0, k.length - 1)); // yogurts -> yogurt
+          }
+          if (k.endsWith('ing') && k.length > 4) {
+            stemmedKeywords.add(k.substring(0, k.length - 3)); // buying -> buy
+          }
+          if (k.endsWith('ed') && k.length > 3) {
+            stemmedKeywords.add(k.substring(0, k.length - 2)); // purchased -> purchas
+          }
+        }
+
+        final allKeywords = stemmedKeywords.toList();
+        if (allKeywords.isNotEmpty) {
+          final whereClauses = allKeywords
               .map(
                 (_) => '(LOWER(title) LIKE ? OR LOWER(extracted_text) LIKE ?)',
               )
               .join(' OR ');
-          final args = keywords.expand((k) => ['%$k%', '%$k%']).toList();
+          final args = allKeywords.expand((k) => ['%$k%', '%$k%']).toList();
 
           final results = await db.rawQuery(
             'SELECT * FROM documents WHERE $whereClauses ORDER BY updated_at DESC LIMIT 20',

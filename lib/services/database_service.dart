@@ -1,6 +1,9 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:sqflite/sqflite.dart' hide DatabaseException;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' hide DatabaseException;
+import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/document.dart';
@@ -104,6 +107,16 @@ class DatabaseService extends BaseService implements IDatabaseService {
         await encryptionService.initialize();
       }
 
+      // Initialize FFI for mobile platforms to get FTS5 support
+      if (Platform.isAndroid || Platform.isIOS) {
+        // Apply workaround for Android file open limitations
+        await applyWorkaroundToOpenSqlite3OnOldAndroidVersions();
+        // Use FFI database factory for FTS5 support
+        sqfliteFfiInit();
+        databaseFactory = databaseFactoryFfi;
+        logInfo('Initialized SQLite FFI with FTS5 support');
+      }
+
       // Mobile/Desktop platforms
       final documentsPath =
           _databasePathOverride ??
@@ -192,17 +205,15 @@ class DatabaseService extends BaseService implements IDatabaseService {
         CREATE INDEX idx_document_pages_page_num ON document_pages(document_id, page_number)
       ''');
 
-      // Create search index table with FTS5 (if available)
+      // Create search index table with FTS5 (standalone, not external content)
       try {
         await db.execute('''
           CREATE VIRTUAL TABLE search_index USING fts5(
-            doc_id,
+            doc_id UNINDEXED,
             title,
             extracted_text,
             tags,
-            notes,
-            content='documents',
-            content_rowid='rowid'
+            notes
           )
         ''');
         logInfo('FTS5 search index created successfully');
@@ -215,8 +226,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
             title TEXT,
             extracted_text TEXT,
             tags TEXT,
-            notes TEXT,
-            FOREIGN KEY (doc_id) REFERENCES documents (id)
+            notes TEXT
           )
         ''');
         logInfo('Fallback search table created');
@@ -345,7 +355,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     logInfo('Database upgraded from version $oldVersion to $newVersion');
 
     if (oldVersion < 3) {
-      // Drop and recreate search_index table with correct schema
+      // Drop and recreate search_index table with FTS5
       try {
         await db.execute('DROP TABLE IF EXISTS search_index');
         logInfo('Dropped old search_index table');
@@ -353,21 +363,31 @@ class DatabaseService extends BaseService implements IDatabaseService {
         logWarning('Error dropping search_index table: $e');
       }
 
-      // Recreate with correct schema
+      // Recreate with FTS5 for full-text search (standalone, not external content)
       try {
+        await db.execute('''
+          CREATE VIRTUAL TABLE search_index USING fts5(
+            doc_id UNINDEXED,
+            title,
+            extracted_text,
+            tags,
+            notes
+          )
+        ''');
+        logInfo('Recreated search_index table with FTS5');
+      } catch (e) {
+        logWarning('FTS5 not available, creating fallback table: $e');
+        // Fallback to regular table if FTS5 not available
         await db.execute('''
           CREATE TABLE search_index (
             doc_id TEXT PRIMARY KEY,
             title TEXT,
             extracted_text TEXT,
             tags TEXT,
-            notes TEXT,
-            FOREIGN KEY (doc_id) REFERENCES documents (id)
+            notes TEXT
           )
         ''');
-        logInfo('Recreated search_index table with correct schema');
-      } catch (e) {
-        logError('Error recreating search_index table', e);
+        logInfo('Recreated search_index as regular table (fallback)');
       }
     }
 
@@ -623,6 +643,84 @@ class DatabaseService extends BaseService implements IDatabaseService {
       }
 
       logInfo('Database upgraded to version 10 with entity extraction columns');
+    }
+
+    if (oldVersion < 11) {
+      // Ensure all entity columns exist (fix for databases that skipped migration)
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN vendor TEXT
+        ''');
+        logInfo('Added vendor column to documents table');
+      } catch (e) {
+        logWarning('Vendor column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN amount REAL
+        ''');
+        logInfo('Added amount column to documents table');
+      } catch (e) {
+        logWarning('Amount column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN transaction_date INTEGER
+        ''');
+        logInfo('Added transaction_date column to documents table');
+      } catch (e) {
+        logWarning('Transaction_date column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN category TEXT
+        ''');
+        logInfo('Added category column to documents table');
+      } catch (e) {
+        logWarning('Category column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN entity_confidence REAL DEFAULT 0.0
+        ''');
+        logInfo('Added entity_confidence column to documents table');
+      } catch (e) {
+        logWarning('Entity_confidence column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN entities_extracted_at INTEGER
+        ''');
+        logInfo('Added entities_extracted_at column to documents table');
+      } catch (e) {
+        logWarning('Entities_extracted_at column may already exist: $e');
+      }
+
+      // Create indexes for efficient entity queries
+      try {
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_vendor ON documents(vendor)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_amount ON documents(amount)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_transaction_date ON documents(transaction_date)
+        ''');
+        logInfo('Created entity column indexes');
+      } catch (e) {
+        logError('Error creating entity column indexes', e);
+      }
+
+      logInfo('Database upgraded to version 11 with entity extraction columns (fix)');
     }
   }
 
@@ -1178,7 +1276,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
           SELECT d.* FROM documents d
           JOIN search_index s ON d.id = s.doc_id
           WHERE search_index MATCH ?
-          ORDER BY rank
+          ORDER BY bm25(search_index)
         ''',
           [sanitizedQuery],
         );

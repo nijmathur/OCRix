@@ -149,7 +149,7 @@ class VectorSearchService {
       final documents = await _vectorDB.searchSimilar(
         queryText: sanitizedQuery,
         limit: 10,
-        minSimilarity: 0.5,
+        minSimilarity: 0.1,
       );
 
       print('[VECTOR SEARCH] Found ${documents.length} similar documents');
