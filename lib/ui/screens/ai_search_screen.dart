@@ -67,9 +67,6 @@ class _AISearchScreenState extends State<AISearchScreen> {
       // Initialize VectorSearchService
       _searchService = VectorSearchService(widget.databaseService);
 
-      // Initialize QueryRouterService for intelligent query routing
-      _queryRouter = QueryRouterService(widget.databaseService);
-
       // Initialize DocumentReprocessingService for entity extraction
       _reprocessingService = DocumentReprocessingService(
         widget.databaseService,
@@ -81,6 +78,12 @@ class _AISearchScreenState extends State<AISearchScreen> {
       });
 
       await _searchService.initialize();
+
+      // Initialize QueryRouterService with VectorSearchService for intelligent query routing
+      _queryRouter = QueryRouterService(
+        widget.databaseService,
+        vectorSearchService: _searchService,
+      );
 
       // Check if embedding model was just loaded successfully
       final embeddingReady = _searchService.isReady;
@@ -578,6 +581,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
     }
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Row(
           children: [
@@ -597,56 +601,74 @@ class _AISearchScreenState extends State<AISearchScreen> {
       ),
       body: Column(
         children: [
-          // Embedding Model Loading Indicator
-          if (_isDownloadingEmbeddingModel) _buildEmbeddingModelLoading(),
+          // Scrollable banner section with constrained height
+          Flexible(
+            flex: 0,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.35,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Embedding Model Loading Indicator
+                    if (_isDownloadingEmbeddingModel)
+                      _buildEmbeddingModelLoading(),
 
-          // Embedding Model Success Banner
-          if (_showEmbeddingSuccess && _searchService.isReady)
-            _buildEmbeddingModelSuccess(),
+                    // Embedding Model Success Banner
+                    if (_showEmbeddingSuccess && _searchService.isReady)
+                      _buildEmbeddingModelSuccess(),
 
-          // Gemma Model Success Banner
-          if (_showGemmaSuccess && _searchService.isLLMReady)
-            _buildGemmaModelSuccess(),
+                    // Gemma Model Success Banner
+                    if (_showGemmaSuccess && _searchService.isLLMReady)
+                      _buildGemmaModelSuccess(),
 
-          // Embedding Model Status Banner (if not ready and not loading)
-          if (!_searchService.isReady && !_isDownloadingEmbeddingModel)
-            _buildEmbeddingModelBanner(),
+                    // Embedding Model Status Banner (if not ready and not loading)
+                    if (!_searchService.isReady &&
+                        !_isDownloadingEmbeddingModel)
+                      _buildEmbeddingModelBanner(),
 
-          // Gemma Model Download Banner (optional, for analysis)
-          if (_searchService.isReady &&
-              !_searchService.isLLMReady &&
-              !_isDownloadingGemmaModel &&
-              !_showGemmaSuccess)
-            _buildGemmaModelBanner(),
+                    // Gemma Model Download Banner (optional, for analysis)
+                    // Only show if no other banners are showing to reduce clutter
+                    if (_searchService.isReady &&
+                        !_searchService.isLLMReady &&
+                        !_isDownloadingGemmaModel &&
+                        !_showGemmaSuccess &&
+                        !_isVectorizing &&
+                        !_isReprocessing)
+                      _buildGemmaModelBanner(),
 
-          // Download Progress (Gemma)
-          if (_isDownloadingGemmaModel) _buildGemmaDownloadProgress(),
+                    // Download Progress (Gemma)
+                    if (_isDownloadingGemmaModel) _buildGemmaDownloadProgress(),
 
-          // Vectorization Progress
-          if (_isVectorizing) _buildVectorizationProgress(),
+                    // Vectorization Progress
+                    if (_isVectorizing) _buildVectorizationProgress(),
 
-          // Entity Reprocessing Progress
-          if (_isReprocessing) _buildReprocessingProgress(),
+                    // Entity Reprocessing Progress
+                    if (_isReprocessing) _buildReprocessingProgress(),
 
-          // Vectorization Stats Banner
-          if (_searchService.isReady &&
-              !_isVectorizing &&
-              _vectorizationStats != null &&
-              !_showEmbeddingSuccess)
-            _buildVectorizationStatsBanner(),
+                    // Vectorization Stats Banner (compact version)
+                    if (_searchService.isReady &&
+                        !_isVectorizing &&
+                        _vectorizationStats != null &&
+                        !_showEmbeddingSuccess)
+                      _buildVectorizationStatsBanner(),
 
-          // Entity Extraction Stats Banner
-          if (_searchService.isReady &&
-              !_isReprocessing &&
-              _entityExtractionStats != null)
-            _buildEntityExtractionStatsBanner(),
+                    // Entity Extraction Stats Banner (only show if needed)
+                    if (_searchService.isReady &&
+                        !_isReprocessing &&
+                        _entityExtractionStats != null &&
+                        (_entityExtractionStats!['pending_documents'] ?? 0) > 0)
+                      _buildEntityExtractionStatsBanner(),
+                  ],
+                ),
+              ),
+            ),
+          ),
 
-          // Search Input Section
+          // Search Input Section - Always visible
           if (_searchService.isReady) _buildSearchInput(),
-
-          // Example Queries (chips) - TEMPORARILY DISABLED FOR DEBUGGING
-          // if (_searchService.isReady && _lastResult == null)
-          //   _buildExampleQueries(),
 
           // Results Section
           Expanded(child: _buildResults()),
@@ -1168,85 +1190,43 @@ class _AISearchScreenState extends State<AISearchScreen> {
 
   Widget _buildSearchInput() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Semantic search across your documents',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
+      child: TextField(
+        controller: _queryController,
+        decoration: InputDecoration(
+          hintText: 'Search your documents...',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _isSearching
+              ? const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.send),
+                  onPressed: _isSearching || !_searchService.isReady
+                      ? null
+                      : () => _performSearch(),
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.green),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.check_circle,
-                      size: 14,
-                      color: Colors.green,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _searchService.isLLMReady
-                          ? 'AI + Vector'
-                          : 'Vector Search',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surface,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _queryController,
-            decoration: InputDecoration(
-              hintText:
-                  'e.g., "receipts from coffee shops" or "tax documents 2024"',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _isSearching
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : IconButton(
-                      icon: const Icon(Icons.send),
-                      onPressed: _isSearching || !_searchService.isReady
-                          ? null
-                          : () => _performSearch(),
-                    ),
-              filled: true,
-              fillColor: Theme.of(context).colorScheme.surface,
-            ),
-            onSubmitted: _isSearching || !_searchService.isReady
-                ? null
-                : (_) => _performSearch(),
-            enabled: !_isSearching && _searchService.isReady,
-            maxLength: 500,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(24),
+            borderSide: BorderSide.none,
           ),
-        ],
+        ),
+        onSubmitted: _isSearching || !_searchService.isReady
+            ? null
+            : (_) => _performSearch(),
+        enabled: !_isSearching && _searchService.isReady,
       ),
     );
   }

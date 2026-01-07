@@ -8,6 +8,7 @@ import '../../models/document.dart';
 import '../embedding_service.dart';
 import '../vector_database_service.dart';
 import 'gemma_model_service.dart';
+import 'vector_search_service.dart';
 
 /// Types of queries that can be processed
 enum QueryType {
@@ -138,15 +139,18 @@ class QueryRouterService extends BaseService {
   final EmbeddingService _embeddingService;
   final VectorDatabaseService? _vectorDbService;
   final GemmaModelService? _gemmaService;
+  final VectorSearchService? _vectorSearchService;
 
   QueryRouterService(
     this._databaseService, {
     EmbeddingService? embeddingService,
     VectorDatabaseService? vectorDbService,
     GemmaModelService? gemmaService,
+    VectorSearchService? vectorSearchService,
   }) : _embeddingService = embeddingService ?? EmbeddingService(),
        _vectorDbService = vectorDbService,
-       _gemmaService = gemmaService;
+       _gemmaService = gemmaService,
+       _vectorSearchService = vectorSearchService;
 
   @override
   String get serviceName => 'QueryRouterService';
@@ -404,19 +408,32 @@ class QueryRouterService extends BaseService {
     String query,
     Stopwatch stopwatch,
   ) async {
-    // Initialize embedding service if needed
-    if (!_embeddingService.isInitialized) {
-      await _embeddingService.initialize();
-    }
-
-    // Generate query embedding
-    final queryEmbedding = await _embeddingService.generateEmbedding(query);
-
-    // Search vector database
     List<Document> documents = [];
     List<double> similarities = [];
 
-    if (_vectorDbService != null) {
+    // Use VectorSearchService if available (preferred path)
+    if (_vectorSearchService != null && _vectorSearchService.isReady) {
+      logInfo('Using VectorSearchService for semantic search');
+      try {
+        final result = await _vectorSearchService.search(query);
+        // VectorSearchResult uses 'results' as List<Map<String, dynamic>>
+        for (final row in result.results) {
+          documents.add(Document.fromMap(row));
+          // Use similarity from result if available, otherwise use document confidence
+          final similarity =
+              (row['similarity'] as num?)?.toDouble() ??
+              (row['confidence_score'] as num?)?.toDouble() ??
+              0.5;
+          similarities.add(similarity);
+        }
+      } catch (e) {
+        logWarning('VectorSearchService search failed, trying fallback: $e');
+      }
+    }
+
+    // If VectorSearchService didn't return results, try VectorDatabaseService
+    if (documents.isEmpty && _vectorDbService != null) {
+      logInfo('Using VectorDatabaseService for semantic search');
       final results = await _vectorDbService.searchSimilar(
         queryText: query,
         limit: 20,
@@ -427,37 +444,65 @@ class QueryRouterService extends BaseService {
         documents.add(Document.fromMap(result));
         similarities.add((result['similarity'] as double?) ?? 0.0);
       }
-    } else {
-      // Fallback: search all documents and compute similarity
-      final db = await _databaseService.database;
-      final allDocs = await db.query('documents', limit: 100);
+    }
 
-      for (final docMap in allDocs) {
-        final doc = Document.fromMap(docMap);
-        final docText = '${doc.title}. ${doc.extractedText}';
-        final docEmbedding = await _embeddingService.generateEmbedding(docText);
-        final similarity = EmbeddingService.cosineSimilarity(
-          queryEmbedding,
-          docEmbedding,
+    // Final fallback: search all documents using basic text matching
+    if (documents.isEmpty) {
+      logInfo('Using fallback text search for semantic query');
+      final db = await _databaseService.database;
+
+      // Use FTS if available, otherwise basic LIKE search
+      try {
+        // Try FTS search first
+        final ftsResults = await db.rawQuery(
+          '''
+          SELECT d.*, s.rank as match_rank
+          FROM search_index s
+          JOIN documents d ON s.doc_id = d.id
+          WHERE search_index MATCH ?
+          ORDER BY s.rank
+          LIMIT 20
+          ''',
+          [query],
         );
 
-        if (similarity > 0.3) {
-          documents.add(doc);
-          similarities.add(similarity);
+        if (ftsResults.isNotEmpty) {
+          for (final result in ftsResults) {
+            documents.add(Document.fromMap(result));
+            // Convert rank to similarity (lower rank = better match)
+            final rank = (result['match_rank'] as num?)?.toDouble() ?? 0.0;
+            similarities.add(1.0 / (1.0 + rank.abs()));
+          }
         }
+      } catch (e) {
+        logWarning('FTS search failed, using LIKE search: $e');
       }
 
-      // Sort by similarity
-      final indexed = List.generate(documents.length, (i) => i);
-      indexed.sort((a, b) => similarities[b].compareTo(similarities[a]));
+      // If FTS didn't work, use basic LIKE search
+      if (documents.isEmpty) {
+        final keywords = query
+            .toLowerCase()
+            .split(' ')
+            .where((w) => w.length > 2)
+            .toList();
+        if (keywords.isNotEmpty) {
+          final whereClauses = keywords
+              .map(
+                (_) => '(LOWER(title) LIKE ? OR LOWER(extracted_text) LIKE ?)',
+              )
+              .join(' OR ');
+          final args = keywords.expand((k) => ['%$k%', '%$k%']).toList();
 
-      documents = indexed.map((i) => documents[i]).toList();
-      similarities = indexed.map((i) => similarities[i]).toList();
+          final results = await db.rawQuery(
+            'SELECT * FROM documents WHERE $whereClauses ORDER BY updated_at DESC LIMIT 20',
+            args,
+          );
 
-      // Limit to top 20
-      if (documents.length > 20) {
-        documents = documents.sublist(0, 20);
-        similarities = similarities.sublist(0, 20);
+          for (final result in results) {
+            documents.add(Document.fromMap(result));
+            similarities.add(0.5); // Default similarity for text matches
+          }
+        }
       }
     }
 
