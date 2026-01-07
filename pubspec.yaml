@@ -73,7 +73,6 @@ dependencies:
 
     # TensorFlow Lite for embeddings
     tflite_flutter: ^0.12.1
-    dart_bert_tokenizer: ^1.0.2
 
 dev_dependencies:
     flutter_test:

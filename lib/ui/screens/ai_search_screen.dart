@@ -1,5 +1,5 @@
 /// AI-Powered Search Screen
-/// Vector-based semantic search with optional LLM analysis
+/// Hybrid NLP search with entity extraction, vector search, and LLM analysis
 library;
 
 import 'package:flutter/material.dart';
@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../services/llm_search/vector_search_service.dart';
 import '../../services/llm_search/gemma_model_service.dart';
+import '../../services/llm_search/query_router_service.dart';
+import '../../services/document_reprocessing_service.dart';
 import '../../core/interfaces/database_service_interface.dart';
 import '../../models/document.dart';
 import '../widgets/document_card.dart';
@@ -28,12 +30,15 @@ class _AISearchScreenState extends State<AISearchScreen> {
   final _queryController = TextEditingController();
   late final VectorSearchService _searchService;
   late final GemmaModelService _gemmaService;
+  late final QueryRouterService _queryRouter;
+  late final DocumentReprocessingService _reprocessingService;
 
   bool _isInitializing = true;
   bool _isSearching = false;
   bool _isDownloadingGemmaModel = false;
   bool _isDownloadingEmbeddingModel = false;
   bool _isVectorizing = false;
+  bool _isReprocessing = false;
   bool _modelFileAvailable = false;
   bool _embeddingModelJustLoaded = false;
   bool _gemmaModelJustInstalled = false;
@@ -42,12 +47,17 @@ class _AISearchScreenState extends State<AISearchScreen> {
   double _gemmaDownloadProgress = 0.0;
   double _embeddingDownloadProgress = 0.0;
   double _vectorizationProgress = 0.0;
+  double _reprocessingProgress = 0.0;
   int _vectorizedCount = 0;
   int _totalDocsToVectorize = 0;
+  int _reprocessedCount = 0;
+  int _totalDocsToReprocess = 0;
   VectorSearchResult? _lastResult;
+  QueryRouterResult? _lastRoutedResult;
   String? _error;
   List<Document> _documents = [];
   Map<String, int>? _vectorizationStats;
+  Map<String, int>? _entityExtractionStats;
 
   @override
   void initState() {
@@ -59,6 +69,12 @@ class _AISearchScreenState extends State<AISearchScreen> {
     try {
       // Initialize VectorSearchService
       _searchService = VectorSearchService(widget.databaseService);
+
+      // Initialize QueryRouterService for intelligent query routing
+      _queryRouter = QueryRouterService(widget.databaseService);
+
+      // Initialize DocumentReprocessingService for entity extraction
+      _reprocessingService = DocumentReprocessingService(widget.databaseService);
 
       // Show loading state for embedding model
       setState(() {
@@ -75,13 +91,17 @@ class _AISearchScreenState extends State<AISearchScreen> {
       final fileAvailable = await _gemmaService.isModelFileAvailable();
 
       // Get vectorization statistics
-      final stats = await _searchService.getVectorizationStats();
+      final vectorStats = await _searchService.getVectorizationStats();
+
+      // Get entity extraction statistics
+      final entityStats = await _reprocessingService.getReprocessingStats();
 
       setState(() {
         _isInitializing = false;
         _isDownloadingEmbeddingModel = false;
         _modelFileAvailable = fileAvailable;
-        _vectorizationStats = stats;
+        _vectorizationStats = vectorStats;
+        _entityExtractionStats = entityStats;
 
         // Show success banner if embedding model loaded
         if (embeddingReady) {
@@ -102,7 +122,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
       }
 
       // Auto-start vectorization if embedding model is ready but docs need vectorization
-      if (_searchService.isReady && stats['pending_documents']! > 0) {
+      if (_searchService.isReady && vectorStats['pending_documents']! > 0) {
         _startBackgroundVectorization();
       }
     } catch (e) {
@@ -165,6 +185,62 @@ class _AISearchScreenState extends State<AISearchScreen> {
         setState(() {
           _isVectorizing = false;
           _error = 'Vectorization failed: $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _startEntityReprocessing() async {
+    if (_isReprocessing) return;
+
+    setState(() {
+      _isReprocessing = true;
+      _reprocessingProgress = 0.0;
+      _reprocessedCount = 0;
+      _totalDocsToReprocess = _entityExtractionStats?['pending_documents'] ?? 0;
+    });
+
+    try {
+      print('[AISearchScreen] Starting entity extraction reprocessing...');
+
+      final result = await _reprocessingService.reprocessAllDocuments(
+        onProgress: (current, total) {
+          if (mounted) {
+            setState(() {
+              _reprocessedCount = current;
+              _totalDocsToReprocess = total;
+              _reprocessingProgress = total > 0 ? current / total : 0.0;
+            });
+          }
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _isReprocessing = false;
+        });
+
+        // Refresh stats
+        final entityStats = await _reprocessingService.getReprocessingStats();
+        setState(() {
+          _entityExtractionStats = entityStats;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Entity extraction complete! ${result.processedDocuments} documents processed in ${result.duration.inSeconds}s',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isReprocessing = false;
+          _error = 'Entity extraction failed: $e';
         });
       }
     }
@@ -384,30 +460,33 @@ class _AISearchScreenState extends State<AISearchScreen> {
     setState(() {
       _isSearching = true;
       _error = null;
+      _lastRoutedResult = null;
     });
 
     try {
-      // Perform vector search
-      final result = await _searchService.search(query);
+      // Use QueryRouterService for intelligent routing
+      final routedResult = await _queryRouter.routeAndExecute(query);
 
       // Convert results to Document objects
-      final documents = result.results
+      final documents = routedResult.documents
           .map((row) => Document.fromMap(row))
           .toList();
 
       setState(() {
-        _lastResult = result;
+        _lastRoutedResult = routedResult;
+        _lastResult = null; // Clear old result type
         _documents = documents;
         _isSearching = false;
       });
 
-      // Show success message
+      // Show success message with query type
       if (mounted) {
+        final queryTypeLabel = _getQueryTypeLabel(routedResult.queryType);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Found ${result.resultCount} document(s) in '
-              '${result.executionTime.inMilliseconds}ms',
+              'Found ${routedResult.documents.length} document(s) via $queryTypeLabel '
+              'in ${routedResult.executionTime.inMilliseconds}ms',
             ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
@@ -442,6 +521,39 @@ class _AISearchScreenState extends State<AISearchScreen> {
           ),
         );
       }
+    }
+  }
+
+  String _getQueryTypeLabel(QueryType type) {
+    switch (type) {
+      case QueryType.structured:
+        return 'SQL';
+      case QueryType.semantic:
+        return 'Vector';
+      case QueryType.complex:
+        return 'AI';
+    }
+  }
+
+  Color _getQueryTypeColor(QueryType type) {
+    switch (type) {
+      case QueryType.structured:
+        return Colors.blue;
+      case QueryType.semantic:
+        return Colors.purple;
+      case QueryType.complex:
+        return Colors.orange;
+    }
+  }
+
+  IconData _getQueryTypeIcon(QueryType type) {
+    switch (type) {
+      case QueryType.structured:
+        return Icons.table_chart;
+      case QueryType.semantic:
+        return Icons.hub;
+      case QueryType.complex:
+        return Icons.auto_awesome;
     }
   }
 
@@ -510,9 +622,17 @@ class _AISearchScreenState extends State<AISearchScreen> {
           if (_isVectorizing)
             _buildVectorizationProgress(),
 
+          // Entity Reprocessing Progress
+          if (_isReprocessing)
+            _buildReprocessingProgress(),
+
           // Vectorization Stats Banner
           if (_searchService.isReady && !_isVectorizing && _vectorizationStats != null && !_showEmbeddingSuccess)
             _buildVectorizationStatsBanner(),
+
+          // Entity Extraction Stats Banner
+          if (_searchService.isReady && !_isReprocessing && _entityExtractionStats != null)
+            _buildEntityExtractionStatsBanner(),
 
           // Search Input Section
           if (_searchService.isReady)
@@ -906,6 +1026,125 @@ class _AISearchScreenState extends State<AISearchScreen> {
     return const SizedBox.shrink();
   }
 
+  Widget _buildReprocessingProgress() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: Colors.deepPurple.withOpacity(0.1),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Extracting entities from documents...',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: Colors.deepPurple,
+                      ),
+                ),
+              ),
+              Text(
+                '${(_reprocessingProgress * 100).toStringAsFixed(0)}%',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LinearProgressIndicator(
+            value: _reprocessingProgress,
+            minHeight: 8,
+            borderRadius: BorderRadius.circular(4),
+            color: Colors.deepPurple,
+            backgroundColor: Colors.deepPurple.withOpacity(0.2),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$_reprocessedCount / $_totalDocsToReprocess documents',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.deepPurple,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEntityExtractionStatsBanner() {
+    final stats = _entityExtractionStats!;
+    final pending = stats['pending_documents'] ?? 0;
+    final extracted = stats['extracted_documents'] ?? 0;
+    final total = stats['total_documents'] ?? 0;
+
+    // Don't show if no documents
+    if (total == 0) {
+      return const SizedBox.shrink();
+    }
+
+    // All documents have entities extracted
+    if (pending == 0 && extracted > 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: Colors.deepPurple.withOpacity(0.1),
+        child: Row(
+          children: [
+            const Icon(Icons.auto_fix_high, color: Colors.deepPurple, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Entity data extracted from $extracted documents',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.deepPurple,
+                      fontWeight: FontWeight.w500,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Some documents pending entity extraction
+    if (pending > 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: Colors.deepPurple.withOpacity(0.1),
+        child: Row(
+          children: [
+            const Icon(Icons.auto_fix_high, color: Colors.deepPurple, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '$pending documents need entity extraction',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.deepPurple,
+                    ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _startEntityReprocessing,
+              icon: const Icon(Icons.play_arrow, size: 16, color: Colors.deepPurple),
+              label: const Text('Extract Entities', style: TextStyle(color: Colors.deepPurple)),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
   Widget _buildSearchInput() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1045,7 +1284,141 @@ class _AISearchScreenState extends State<AISearchScreen> {
       );
     }
 
-    // Show analysis result if available
+    // Show routed result with aggregation
+    if (_lastRoutedResult != null) {
+      return SingleChildScrollView(
+        child: Column(
+          children: [
+            // Query Type Badge and Info
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _getQueryTypeColor(_lastRoutedResult!.queryType).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _getQueryTypeColor(_lastRoutedResult!.queryType),
+                  width: 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        _getQueryTypeIcon(_lastRoutedResult!.queryType),
+                        color: _getQueryTypeColor(_lastRoutedResult!.queryType),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _getQueryTypeLabel(_lastRoutedResult!.queryType) + ' Search',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: _getQueryTypeColor(_lastRoutedResult!.queryType),
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getQueryTypeColor(_lastRoutedResult!.queryType),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${_lastRoutedResult!.documents.length} results',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Query: "${_lastRoutedResult!.query}"',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: _getQueryTypeColor(_lastRoutedResult!.queryType).withOpacity(0.8),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Aggregation Result Card (for structured queries with totals)
+            if (_lastRoutedResult!.aggregation != null)
+              _buildAggregationCard(_lastRoutedResult!.aggregation!),
+
+            // Source Documents Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.article,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Documents (${_documents.length})',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Document List
+            if (_documents.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    const Icon(Icons.search_off, size: 48, color: Colors.grey),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No matching documents found',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey,
+                          ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                itemCount: _documents.length,
+                itemBuilder: (context, index) {
+                  return DocumentCard(
+                    document: _documents[index],
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DocumentDetailScreen(
+                            document: _documents[index],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+          ],
+        ),
+      );
+    }
+
+    // Show legacy analysis result if available
     if (_lastResult != null && _lastResult!.hasAnalysis) {
       return SingleChildScrollView(
         child: Column(
@@ -1166,7 +1539,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
       );
     }
 
-    if (_lastResult == null && !_searchService.isReady) {
+    if (_lastResult == null && _lastRoutedResult == null && !_searchService.isReady) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1194,7 +1567,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
       );
     }
 
-    if (_lastResult == null) {
+    if (_lastResult == null && _lastRoutedResult == null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1210,17 +1583,23 @@ class _AISearchScreenState extends State<AISearchScreen> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            Text(
-              'Vector-based semantic search finds documents by meaning\n(All processing happens on your device)',
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.center,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                'Try queries like:\n'
+                '• "How much did I spend on Kroger?"\n'
+                '• "Show me all medical bills"\n'
+                '• "Receipts from last month"',
+                style: Theme.of(context).textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
             ),
           ],
         ),
       );
     }
 
-    if (_documents.isEmpty) {
+    if (_documents.isEmpty && _lastResult != null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1256,6 +1635,148 @@ class _AISearchScreenState extends State<AISearchScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildAggregationCard(AggregationResult aggregation) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green.shade400, Colors.green.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.calculate, color: Colors.white, size: 24),
+              const SizedBox(width: 8),
+              const Text(
+                'Summary',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              if (aggregation.vendor != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    aggregation.vendor!,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (aggregation.totalAmount != null) ...[
+            const Text(
+              'Total Spent',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '\$${aggregation.totalAmount!.toStringAsFixed(2)}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildAggregationStat(
+                'Documents',
+                aggregation.documentCount.toString(),
+                Icons.description,
+              ),
+              const SizedBox(width: 16),
+              if (aggregation.averageAmount != null)
+                _buildAggregationStat(
+                  'Average',
+                  '\$${aggregation.averageAmount!.toStringAsFixed(2)}',
+                  Icons.trending_flat,
+                ),
+            ],
+          ),
+          if (aggregation.dateRange != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Period: ${aggregation.dateRange}',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAggregationStat(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white70, size: 16),
+          const SizedBox(width: 6),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 10,
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

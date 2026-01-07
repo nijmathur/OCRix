@@ -544,6 +544,84 @@ class DatabaseService extends BaseService implements IDatabaseService {
         logError('Error ensuring vector embeddings support', e);
       }
     }
+
+    if (oldVersion < 10) {
+      // Add entity extraction columns for NLP querying
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN vendor TEXT
+        ''');
+        logInfo('Added vendor column to documents table');
+      } catch (e) {
+        logWarning('Vendor column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN amount REAL
+        ''');
+        logInfo('Added amount column to documents table');
+      } catch (e) {
+        logWarning('Amount column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN transaction_date INTEGER
+        ''');
+        logInfo('Added transaction_date column to documents table');
+      } catch (e) {
+        logWarning('Transaction_date column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN category TEXT
+        ''');
+        logInfo('Added category column to documents table');
+      } catch (e) {
+        logWarning('Category column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN entity_confidence REAL DEFAULT 0.0
+        ''');
+        logInfo('Added entity_confidence column to documents table');
+      } catch (e) {
+        logWarning('Entity_confidence column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN entities_extracted_at INTEGER
+        ''');
+        logInfo('Added entities_extracted_at column to documents table');
+      } catch (e) {
+        logWarning('Entities_extracted_at column may already exist: $e');
+      }
+
+      // Create indexes for efficient entity queries
+      try {
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_vendor ON documents(vendor)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_amount ON documents(amount)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_transaction_date ON documents(transaction_date)
+        ''');
+        logInfo('Created entity column indexes');
+      } catch (e) {
+        logError('Error creating entity column indexes', e);
+      }
+
+      logInfo('Database upgraded to version 10 with entity extraction columns');
+    }
   }
 
   /// Create SQLite triggers for automatic audit logging
@@ -799,6 +877,97 @@ class DatabaseService extends BaseService implements IDatabaseService {
         'Failed to update document: ${e.toString()}',
         originalError: e,
       );
+    }
+  }
+
+  /// Update only the entity extraction fields for a document
+  /// Used by EntityExtractionService to update extracted entities without
+  /// modifying other document fields
+  Future<void> updateDocumentEntities({
+    required String documentId,
+    String? vendor,
+    double? amount,
+    DateTime? transactionDate,
+    String? category,
+    required double entityConfidence,
+  }) async {
+    final db = await database;
+    try {
+      await db.update(
+        'documents',
+        {
+          'vendor': vendor,
+          'amount': amount,
+          'transaction_date': transactionDate?.millisecondsSinceEpoch,
+          'category': category,
+          'entity_confidence': entityConfidence,
+          'entities_extracted_at': DateTime.now().millisecondsSinceEpoch,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'id = ?',
+        whereArgs: [documentId],
+      );
+
+      logInfo('Document entities updated: $documentId (vendor: $vendor, amount: $amount, category: $category)');
+    } catch (e) {
+      logError('Failed to update document entities', e);
+      throw DatabaseException(
+        'Failed to update document entities: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  /// Get documents that haven't had entities extracted yet
+  Future<List<Document>> getDocumentsWithoutEntities({int? limit}) async {
+    final db = await database;
+    try {
+      final maps = await db.query(
+        'documents',
+        where: 'entities_extracted_at IS NULL',
+        orderBy: 'created_at DESC',
+        limit: limit,
+      );
+
+      return maps.map((map) => _mapToDocument(map)).toList();
+    } catch (e) {
+      logError('Failed to get documents without entities', e);
+      throw DatabaseException(
+        'Failed to get documents without entities: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  /// Get entity extraction statistics
+  Future<Map<String, int>> getEntityExtractionStats() async {
+    final db = await database;
+    try {
+      final totalResult = await db.rawQuery('SELECT COUNT(*) as count FROM documents');
+      final extractedResult = await db.rawQuery(
+          'SELECT COUNT(*) as count FROM documents WHERE entities_extracted_at IS NOT NULL');
+      final withVendorResult = await db.rawQuery(
+          'SELECT COUNT(*) as count FROM documents WHERE vendor IS NOT NULL');
+      final withAmountResult = await db.rawQuery(
+          'SELECT COUNT(*) as count FROM documents WHERE amount IS NOT NULL');
+
+      return {
+        'total_documents': (totalResult.first['count'] as int?) ?? 0,
+        'extracted_documents': (extractedResult.first['count'] as int?) ?? 0,
+        'pending_documents': ((totalResult.first['count'] as int?) ?? 0) -
+            ((extractedResult.first['count'] as int?) ?? 0),
+        'documents_with_vendor': (withVendorResult.first['count'] as int?) ?? 0,
+        'documents_with_amount': (withAmountResult.first['count'] as int?) ?? 0,
+      };
+    } catch (e) {
+      logError('Failed to get entity extraction stats', e);
+      return {
+        'total_documents': 0,
+        'extracted_documents': 0,
+        'pending_documents': 0,
+        'documents_with_vendor': 0,
+        'documents_with_amount': 0,
+      };
     }
   }
 
