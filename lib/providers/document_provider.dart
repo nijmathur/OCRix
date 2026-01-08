@@ -23,6 +23,10 @@ import 'audit_provider.dart';
 import 'troubleshooting_logger_provider.dart';
 import '../core/interfaces/troubleshooting_logger_interface.dart';
 import '../models/document_page.dart';
+import '../services/llm_search/gemma_model_service.dart';
+import '../services/llm_search/vector_search_service.dart';
+import '../services/entity_extraction_service.dart';
+import '../services/database_service.dart' show DatabaseService;
 
 // Service providers - using interfaces for dependency inversion
 final databaseServiceProvider = Provider<IDatabaseService>((ref) {
@@ -84,6 +88,8 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
   final IImageProcessingService _imageProcessingService;
   final AuditLoggingService? _auditLoggingService;
   final ITroubleshootingLogger? _troubleshootingLogger;
+  final VectorSearchService? _vectorSearchService;
+  final EntityExtractionService? _entityExtractionService;
 
   int _currentPage = 0;
   bool _hasMore = true;
@@ -98,10 +104,15 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
     IImageProcessingService? imageProcessingService,
     AuditLoggingService? auditLoggingService,
     ITroubleshootingLogger? troubleshootingLogger,
+    VectorSearchService? vectorSearchService,
+    EntityExtractionService? entityExtractionService,
   }) : _imageProcessingService =
            imageProcessingService ?? ImageProcessingService(),
        _auditLoggingService = auditLoggingService,
        _troubleshootingLogger = troubleshootingLogger,
+       _vectorSearchService = vectorSearchService,
+       _entityExtractionService =
+           entityExtractionService ?? EntityExtractionService(),
        super(const AsyncValue.loading()) {
     _loadDocuments();
   }
@@ -214,8 +225,57 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       // Extract text using OCR from original image
       final ocrResult = await _ocrService.extractTextFromImage(imagePath);
 
-      // Categorize document
-      final documentType = await _ocrService.categorizeDocument(ocrResult.text);
+      // Categorize document - use LLM if enabled, otherwise use ML Kit
+      DocumentType documentType;
+      List<String> extractedTags = [];
+      bool useLLM = false;
+
+      try {
+        final settings = await _databaseService.getUserSettings();
+        useLLM = settings.useLLMCategorization;
+      } catch (e) {
+        _troubleshootingLogger?.warning(
+          'Failed to load settings, using default categorization',
+          tag: 'DocumentNotifier',
+          error: e,
+        );
+      }
+
+      try {
+        if (useLLM) {
+          // Use LLM categorization (smarter but slower)
+          _troubleshootingLogger?.info(
+            'Using LLM categorization',
+            tag: 'DocumentNotifier',
+          );
+          final gemmaService = GemmaModelService();
+          await gemmaService.initialize();
+          final result = await gemmaService.categorizeDocument(ocrResult.text);
+          documentType = DocumentType.values.firstWhere(
+            (e) => e.name == result.type,
+            orElse: () => DocumentType.other,
+          );
+          extractedTags = result.tags;
+          _troubleshootingLogger?.info(
+            'LLM categorized as: $documentType (confidence: ${result.confidence}, tags: $extractedTags)',
+            tag: 'DocumentNotifier',
+          );
+        } else {
+          // Use keyword-based categorization (faster)
+          documentType = await _ocrService.categorizeDocument(ocrResult.text);
+        }
+      } catch (e) {
+        _troubleshootingLogger?.warning(
+          'Categorization failed, falling back to keyword-based',
+          tag: 'DocumentNotifier',
+          error: e,
+        );
+        // Fallback to keyword-based categorization
+        documentType = await _ocrService.categorizeDocument(ocrResult.text);
+      }
+
+      // Merge user-provided tags with LLM-extracted tags
+      final allTags = <String>{...tags, ...extractedTags}.toList();
 
       // Create document with image data and thumbnail
       final document = Document.create(
@@ -236,11 +296,17 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         deviceInfo: 'Flutter App',
         notes: notes,
         location: location,
-        tags: tags,
+        tags: allTags,
       );
 
       // Save to database
       final documentId = await _databaseService.insertDocument(document);
+
+      // Vectorize document in background (non-blocking)
+      _vectorizeDocumentAsync(document);
+
+      // Extract entities in background (non-blocking)
+      _extractEntitiesAsync(document);
 
       // Clean up file system image after storing in database
       // Since we store processed images and thumbnails in DB, we don't need the file
@@ -354,6 +420,12 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         final page = pages[i].copyWith(documentId: documentId);
         await _databaseService.saveDocumentPage(page);
       }
+
+      // Vectorize document in background (non-blocking)
+      _vectorizeDocumentAsync(document);
+
+      // Extract entities in background (non-blocking)
+      _extractEntitiesAsync(document);
 
       // Log user action (INFO level)
       await _auditLoggingService?.logInfoAction(
@@ -497,6 +569,93 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       );
       return [];
     }
+  }
+
+  /// Vectorize document asynchronously in the background (non-blocking)
+  void _vectorizeDocumentAsync(Document document) {
+    final vectorService = _vectorSearchService;
+    if (vectorService == null || !vectorService.isReady) {
+      // Silently skip if vector search service is not available
+      return;
+    }
+
+    // Run vectorization in background without blocking
+    Future.microtask(() async {
+      try {
+        final documentMap = {
+          'id': document.id,
+          'title': document.title,
+          'extracted_text': document.extractedText,
+        };
+        await vectorService.vectorizeDocument(documentMap);
+        _troubleshootingLogger?.info(
+          'Document vectorized successfully: ${document.id}',
+          tag: 'DocumentNotifier',
+        );
+      } catch (e) {
+        // Fail silently, just log the error
+        _troubleshootingLogger?.warning(
+          'Failed to vectorize document: ${document.id}',
+          tag: 'DocumentNotifier',
+          error: e,
+        );
+      }
+    });
+  }
+
+  /// Extract entities from document asynchronously in the background (non-blocking)
+  void _extractEntitiesAsync(Document document) {
+    final entityService = _entityExtractionService;
+    if (entityService == null) {
+      // Silently skip if entity extraction service is not available
+      return;
+    }
+
+    // Skip if document has empty text
+    if (document.extractedText.trim().isEmpty) {
+      return;
+    }
+
+    // Run entity extraction in background without blocking
+    Future.microtask(() async {
+      try {
+        final entity = await entityService.extractEntities(
+          document.id,
+          document.extractedText,
+        );
+
+        // Only update if meaningful entities were found
+        if (entity.hasData && _databaseService is DatabaseService) {
+          await (_databaseService as DatabaseService).updateDocumentEntities(
+            documentId: document.id,
+            vendor: entity.vendor,
+            amount: entity.amount,
+            transactionDate: entity.transactionDate,
+            category: entity.category?.name,
+            entityConfidence: entity.confidence,
+          );
+
+          _troubleshootingLogger?.info(
+            'Entities extracted for ${document.id}: '
+            'vendor=${entity.vendor}, amount=${entity.amount}, '
+            'category=${entity.category?.name}',
+            tag: 'DocumentNotifier',
+          );
+        } else {
+          _troubleshootingLogger?.info(
+            'No entities found for document: ${document.id}',
+            tag: 'DocumentNotifier',
+          );
+        }
+      } catch (e) {
+        // Fail silently, just log the error
+        _troubleshootingLogger?.warning(
+          'Failed to extract entities from document: ${document.id}',
+          tag: 'DocumentNotifier',
+          error: e,
+        );
+      }
+    });
   }
 
   String _generateTitle(String text, DocumentType type) {

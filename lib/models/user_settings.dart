@@ -18,6 +18,10 @@ class UserSettings extends Equatable {
   final String theme;
   final bool notificationsEnabled;
   final bool autoCategorization;
+
+  @JsonKey(defaultValue: false)
+  final bool useLLMCategorization;
+
   final double ocrConfidenceThreshold;
   final bool backupEnabled;
   final DateTime? lastBackupAt;
@@ -37,6 +41,7 @@ class UserSettings extends Equatable {
     required this.theme,
     required this.notificationsEnabled,
     required this.autoCategorization,
+    required this.useLLMCategorization,
     required this.ocrConfidenceThreshold,
     required this.backupEnabled,
     this.lastBackupAt,
@@ -58,6 +63,7 @@ class UserSettings extends Equatable {
       theme: 'system',
       notificationsEnabled: true,
       autoCategorization: false,
+      useLLMCategorization: false,
       ocrConfidenceThreshold: 0.7,
       backupEnabled: false,
       customSettings: {},
@@ -78,6 +84,7 @@ class UserSettings extends Equatable {
     String? theme,
     bool? notificationsEnabled,
     bool? autoCategorization,
+    bool? useLLMCategorization,
     double? ocrConfidenceThreshold,
     bool? backupEnabled,
     DateTime? lastBackupAt,
@@ -98,6 +105,7 @@ class UserSettings extends Equatable {
       theme: theme ?? this.theme,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       autoCategorization: autoCategorization ?? this.autoCategorization,
+      useLLMCategorization: useLLMCategorization ?? this.useLLMCategorization,
       ocrConfidenceThreshold:
           ocrConfidenceThreshold ?? this.ocrConfidenceThreshold,
       backupEnabled: backupEnabled ?? this.backupEnabled,
@@ -125,6 +133,7 @@ class UserSettings extends Equatable {
     theme,
     notificationsEnabled,
     autoCategorization,
+    useLLMCategorization,
     ocrConfidenceThreshold,
     backupEnabled,
     lastBackupAt,

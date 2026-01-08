@@ -21,12 +21,15 @@ class DocumentCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildImageSection(context),
-            _buildContentSection(context),
-          ],
+        child: SizedBox(
+          height: 280, // Fixed height for consistent card size
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildImageSection(context),
+              _buildContentSection(context),
+            ],
+          ),
         ),
       ),
     );

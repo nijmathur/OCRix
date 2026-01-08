@@ -188,6 +188,16 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
     }
   }
 
+  Future<void> toggleLLMCategorization() async {
+    final currentSettings = state.value;
+    if (currentSettings != null) {
+      final updatedSettings = currentSettings.copyWith(
+        useLLMCategorization: !currentSettings.useLLMCategorization,
+      );
+      await updateSettings(updatedSettings);
+    }
+  }
+
   Future<void> updateOCRConfidenceThreshold(double threshold) async {
     final currentSettings = state.value;
     if (currentSettings != null) {

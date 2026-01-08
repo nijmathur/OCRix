@@ -1,6 +1,9 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:sqflite/sqflite.dart' hide DatabaseException;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' hide DatabaseException;
+import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/document.dart';
@@ -104,6 +107,16 @@ class DatabaseService extends BaseService implements IDatabaseService {
         await encryptionService.initialize();
       }
 
+      // Initialize FFI for mobile platforms to get FTS5 support
+      if (Platform.isAndroid || Platform.isIOS) {
+        // Apply workaround for Android file open limitations
+        await applyWorkaroundToOpenSqlite3OnOldAndroidVersions();
+        // Use FFI database factory for FTS5 support
+        sqfliteFfiInit();
+        databaseFactory = databaseFactoryFfi;
+        logInfo('Initialized SQLite FFI with FTS5 support');
+      }
+
       // Mobile/Desktop platforms
       final documentsPath =
           _databasePathOverride ??
@@ -192,17 +205,15 @@ class DatabaseService extends BaseService implements IDatabaseService {
         CREATE INDEX idx_document_pages_page_num ON document_pages(document_id, page_number)
       ''');
 
-      // Create search index table with FTS5 (if available)
+      // Create search index table with FTS5 (standalone, not external content)
       try {
         await db.execute('''
           CREATE VIRTUAL TABLE search_index USING fts5(
-            doc_id,
+            doc_id UNINDEXED,
             title,
             extracted_text,
             tags,
-            notes,
-            content='documents',
-            content_rowid='rowid'
+            notes
           )
         ''');
         logInfo('FTS5 search index created successfully');
@@ -215,8 +226,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
             title TEXT,
             extracted_text TEXT,
             tags TEXT,
-            notes TEXT,
-            FOREIGN KEY (doc_id) REFERENCES documents (id)
+            notes TEXT
           )
         ''');
         logInfo('Fallback search table created');
@@ -307,11 +317,30 @@ class DatabaseService extends BaseService implements IDatabaseService {
       // Note: SQLite triggers can't easily calculate checksums or maintain chains,
       // so we use application-level logging which is more reliable
 
+      // Create document_embeddings table for vector semantic search
+      await db.execute('''
+        CREATE TABLE document_embeddings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          document_id TEXT NOT NULL UNIQUE,
+          embedding BLOB NOT NULL,
+          text_hash TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+        )
+      ''');
+      await db.execute('''
+        CREATE INDEX idx_document_embeddings_doc_id
+        ON document_embeddings(document_id)
+      ''');
+      logInfo('Created document_embeddings table for vector search');
+
       // Insert default settings
       final defaultSettings = UserSettings.defaultSettings();
       await _insertUserSettings(db, defaultSettings);
 
-      logInfo('Database created successfully with audit_entries table');
+      logInfo(
+        'Database created successfully with all tables including vector search',
+      );
     } catch (e) {
       logError('Failed to create database', e);
       throw DatabaseException(
@@ -326,7 +355,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     logInfo('Database upgraded from version $oldVersion to $newVersion');
 
     if (oldVersion < 3) {
-      // Drop and recreate search_index table with correct schema
+      // Drop and recreate search_index table with FTS5
       try {
         await db.execute('DROP TABLE IF EXISTS search_index');
         logInfo('Dropped old search_index table');
@@ -334,21 +363,31 @@ class DatabaseService extends BaseService implements IDatabaseService {
         logWarning('Error dropping search_index table: $e');
       }
 
-      // Recreate with correct schema
+      // Recreate with FTS5 for full-text search (standalone, not external content)
       try {
+        await db.execute('''
+          CREATE VIRTUAL TABLE search_index USING fts5(
+            doc_id UNINDEXED,
+            title,
+            extracted_text,
+            tags,
+            notes
+          )
+        ''');
+        logInfo('Recreated search_index table with FTS5');
+      } catch (e) {
+        logWarning('FTS5 not available, creating fallback table: $e');
+        // Fallback to regular table if FTS5 not available
         await db.execute('''
           CREATE TABLE search_index (
             doc_id TEXT PRIMARY KEY,
             title TEXT,
             extracted_text TEXT,
             tags TEXT,
-            notes TEXT,
-            FOREIGN KEY (doc_id) REFERENCES documents (id)
+            notes TEXT
           )
         ''');
-        logInfo('Recreated search_index table with correct schema');
-      } catch (e) {
-        logError('Error recreating search_index table', e);
+        logInfo('Recreated search_index as regular table (fallback)');
       }
     }
 
@@ -476,6 +515,212 @@ class DatabaseService extends BaseService implements IDatabaseService {
       } catch (e) {
         logError('Error adding multi-page support', e);
       }
+    }
+
+    if (oldVersion < 8) {
+      // Add vector embeddings support for semantic search
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS document_embeddings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_id TEXT NOT NULL UNIQUE,
+            embedding BLOB NOT NULL,
+            text_hash TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+          )
+        ''');
+        logInfo('Created document_embeddings table');
+
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_document_embeddings_doc_id
+          ON document_embeddings(document_id)
+        ''');
+        logInfo('Created indexes for document_embeddings table');
+      } catch (e) {
+        logError('Error adding vector embeddings support', e);
+      }
+    }
+
+    if (oldVersion < 9) {
+      // Ensure document_embeddings table exists (fix for databases that were already at v8)
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS document_embeddings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_id TEXT NOT NULL UNIQUE,
+            embedding BLOB NOT NULL,
+            text_hash TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+          )
+        ''');
+        logInfo('Ensured document_embeddings table exists');
+
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_document_embeddings_doc_id
+          ON document_embeddings(document_id)
+        ''');
+        logInfo('Ensured indexes for document_embeddings table exist');
+      } catch (e) {
+        logError('Error ensuring vector embeddings support', e);
+      }
+    }
+
+    if (oldVersion < 10) {
+      // Add entity extraction columns for NLP querying
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN vendor TEXT
+        ''');
+        logInfo('Added vendor column to documents table');
+      } catch (e) {
+        logWarning('Vendor column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN amount REAL
+        ''');
+        logInfo('Added amount column to documents table');
+      } catch (e) {
+        logWarning('Amount column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN transaction_date INTEGER
+        ''');
+        logInfo('Added transaction_date column to documents table');
+      } catch (e) {
+        logWarning('Transaction_date column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN category TEXT
+        ''');
+        logInfo('Added category column to documents table');
+      } catch (e) {
+        logWarning('Category column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN entity_confidence REAL DEFAULT 0.0
+        ''');
+        logInfo('Added entity_confidence column to documents table');
+      } catch (e) {
+        logWarning('Entity_confidence column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN entities_extracted_at INTEGER
+        ''');
+        logInfo('Added entities_extracted_at column to documents table');
+      } catch (e) {
+        logWarning('Entities_extracted_at column may already exist: $e');
+      }
+
+      // Create indexes for efficient entity queries
+      try {
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_vendor ON documents(vendor)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_amount ON documents(amount)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_transaction_date ON documents(transaction_date)
+        ''');
+        logInfo('Created entity column indexes');
+      } catch (e) {
+        logError('Error creating entity column indexes', e);
+      }
+
+      logInfo('Database upgraded to version 10 with entity extraction columns');
+    }
+
+    if (oldVersion < 11) {
+      // Ensure all entity columns exist (fix for databases that skipped migration)
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN vendor TEXT
+        ''');
+        logInfo('Added vendor column to documents table');
+      } catch (e) {
+        logWarning('Vendor column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN amount REAL
+        ''');
+        logInfo('Added amount column to documents table');
+      } catch (e) {
+        logWarning('Amount column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN transaction_date INTEGER
+        ''');
+        logInfo('Added transaction_date column to documents table');
+      } catch (e) {
+        logWarning('Transaction_date column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN category TEXT
+        ''');
+        logInfo('Added category column to documents table');
+      } catch (e) {
+        logWarning('Category column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN entity_confidence REAL DEFAULT 0.0
+        ''');
+        logInfo('Added entity_confidence column to documents table');
+      } catch (e) {
+        logWarning('Entity_confidence column may already exist: $e');
+      }
+
+      try {
+        await db.execute('''
+          ALTER TABLE documents ADD COLUMN entities_extracted_at INTEGER
+        ''');
+        logInfo('Added entities_extracted_at column to documents table');
+      } catch (e) {
+        logWarning('Entities_extracted_at column may already exist: $e');
+      }
+
+      // Create indexes for efficient entity queries
+      try {
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_vendor ON documents(vendor)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_amount ON documents(amount)
+        ''');
+        await db.execute('''
+          CREATE INDEX IF NOT EXISTS idx_documents_transaction_date ON documents(transaction_date)
+        ''');
+        logInfo('Created entity column indexes');
+      } catch (e) {
+        logError('Error creating entity column indexes', e);
+      }
+
+      logInfo('Database upgraded to version 11 with entity extraction columns (fix)');
     }
   }
 
@@ -735,6 +980,105 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  /// Update only the entity extraction fields for a document
+  /// Used by EntityExtractionService to update extracted entities without
+  /// modifying other document fields
+  Future<void> updateDocumentEntities({
+    required String documentId,
+    String? vendor,
+    double? amount,
+    DateTime? transactionDate,
+    String? category,
+    required double entityConfidence,
+  }) async {
+    final db = await database;
+    try {
+      await db.update(
+        'documents',
+        {
+          'vendor': vendor,
+          'amount': amount,
+          'transaction_date': transactionDate?.millisecondsSinceEpoch,
+          'category': category,
+          'entity_confidence': entityConfidence,
+          'entities_extracted_at': DateTime.now().millisecondsSinceEpoch,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'id = ?',
+        whereArgs: [documentId],
+      );
+
+      logInfo(
+        'Document entities updated: $documentId (vendor: $vendor, amount: $amount, category: $category)',
+      );
+    } catch (e) {
+      logError('Failed to update document entities', e);
+      throw DatabaseException(
+        'Failed to update document entities: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  /// Get documents that haven't had entities extracted yet
+  Future<List<Document>> getDocumentsWithoutEntities({int? limit}) async {
+    final db = await database;
+    try {
+      final maps = await db.query(
+        'documents',
+        where: 'entities_extracted_at IS NULL',
+        orderBy: 'created_at DESC',
+        limit: limit,
+      );
+
+      return maps.map((map) => _mapToDocument(map)).toList();
+    } catch (e) {
+      logError('Failed to get documents without entities', e);
+      throw DatabaseException(
+        'Failed to get documents without entities: ${e.toString()}',
+        originalError: e,
+      );
+    }
+  }
+
+  /// Get entity extraction statistics
+  Future<Map<String, int>> getEntityExtractionStats() async {
+    final db = await database;
+    try {
+      final totalResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM documents',
+      );
+      final extractedResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM documents WHERE entities_extracted_at IS NOT NULL',
+      );
+      final withVendorResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM documents WHERE vendor IS NOT NULL',
+      );
+      final withAmountResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM documents WHERE amount IS NOT NULL',
+      );
+
+      return {
+        'total_documents': (totalResult.first['count'] as int?) ?? 0,
+        'extracted_documents': (extractedResult.first['count'] as int?) ?? 0,
+        'pending_documents':
+            ((totalResult.first['count'] as int?) ?? 0) -
+            ((extractedResult.first['count'] as int?) ?? 0),
+        'documents_with_vendor': (withVendorResult.first['count'] as int?) ?? 0,
+        'documents_with_amount': (withAmountResult.first['count'] as int?) ?? 0,
+      };
+    } catch (e) {
+      logError('Failed to get entity extraction stats', e);
+      return {
+        'total_documents': 0,
+        'extracted_documents': 0,
+        'pending_documents': 0,
+        'documents_with_vendor': 0,
+        'documents_with_amount': 0,
+      };
+    }
+  }
+
   @override
   Future<void> deleteDocument(String id) async {
     final db = await database;
@@ -932,7 +1276,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
           SELECT d.* FROM documents d
           JOIN search_index s ON d.id = s.doc_id
           WHERE search_index MATCH ?
-          ORDER BY rank
+          ORDER BY bm25(search_index)
         ''',
           [sanitizedQuery],
         );

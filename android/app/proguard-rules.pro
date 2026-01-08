@@ -56,6 +56,17 @@
 -keep class javax.crypto.** { *; }
 -dontwarn javax.crypto.**
 
+# Keep MediaPipe classes for LLM inference
+-keep class com.google.mediapipe.** { *; }
+-keep interface com.google.mediapipe.** { *; }
+-keepclassmembers class com.google.mediapipe.** { *; }
+-dontwarn com.google.mediapipe.**
+
+# Keep MediaPipe proto classes specifically
+-keep class com.google.mediapipe.proto.** { *; }
+-dontwarn com.google.mediapipe.proto.CalculatorProfileProto$CalculatorProfile
+-dontwarn com.google.mediapipe.proto.GraphTemplateProto$CalculatorGraphTemplate
+
 # Ignore missing Play Core library (deferred components not used)
 -dontwarn com.google.android.play.core.splitcompat.**
 -dontwarn com.google.android.play.core.splitinstall.**

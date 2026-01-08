@@ -55,6 +55,14 @@ class Document extends Equatable {
   final bool isMultiPage;
   final int pageCount;
 
+  // Entity extraction fields (for NLP querying)
+  final String? vendor;
+  final double? amount;
+  final DateTime? transactionDate;
+  final String? category;
+  final double entityConfidence;
+  final DateTime? entitiesExtractedAt;
+
   const Document({
     required this.id,
     required this.title,
@@ -84,6 +92,12 @@ class Document extends Equatable {
     this.lastSyncedAt,
     this.isMultiPage = false,
     this.pageCount = 1,
+    this.vendor,
+    this.amount,
+    this.transactionDate,
+    this.category,
+    this.entityConfidence = 0.0,
+    this.entitiesExtractedAt,
   });
 
   factory Document.create({
@@ -169,6 +183,12 @@ class Document extends Equatable {
     DateTime? lastSyncedAt,
     bool? isMultiPage,
     int? pageCount,
+    String? vendor,
+    double? amount,
+    DateTime? transactionDate,
+    String? category,
+    double? entityConfidence,
+    DateTime? entitiesExtractedAt,
   }) {
     return Document(
       id: id ?? this.id,
@@ -199,6 +219,69 @@ class Document extends Equatable {
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
       isMultiPage: isMultiPage ?? this.isMultiPage,
       pageCount: pageCount ?? this.pageCount,
+      vendor: vendor ?? this.vendor,
+      amount: amount ?? this.amount,
+      transactionDate: transactionDate ?? this.transactionDate,
+      category: category ?? this.category,
+      entityConfidence: entityConfidence ?? this.entityConfidence,
+      entitiesExtractedAt: entitiesExtractedAt ?? this.entitiesExtractedAt,
+    );
+  }
+
+  /// Create Document from database map (snake_case columns)
+  factory Document.fromMap(Map<String, dynamic> map) {
+    return Document(
+      id: map['id'],
+      title: map['title'],
+      imageData: map['image_data'] as Uint8List?,
+      thumbnailData: map['thumbnail_data'] as Uint8List?,
+      imageFormat: map['image_format'] ?? 'jpeg',
+      imageSize: map['image_size'] as int?,
+      imageWidth: map['image_width'] as int?,
+      imageHeight: map['image_height'] as int?,
+      imagePath: map['image_path'],
+      extractedText: map['extracted_text'] ?? '',
+      type: DocumentType.values.firstWhere(
+        (e) => e.name == map['type'],
+        orElse: () => DocumentType.other,
+      ),
+      scanDate: DateTime.fromMillisecondsSinceEpoch(map['scan_date']),
+      tags: (map['tags'] as String?)?.split(',') ?? [],
+      metadata:
+          map['metadata'] != null &&
+              map['metadata'] is String &&
+              (map['metadata'] as String).isNotEmpty
+          ? Map<String, dynamic>.from(jsonDecode(map['metadata'] as String))
+          : const {},
+      storageProvider: map['storage_provider'],
+      isEncrypted: map['is_encrypted'] == 1,
+      confidenceScore: map['confidence_score'],
+      detectedLanguage: map['detected_language'],
+      deviceInfo: map['device_info'],
+      notes: map['notes'],
+      location: map['location'],
+      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at']),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at']),
+      isSynced: map['is_synced'] == 1,
+      cloudId: map['cloud_id'],
+      lastSyncedAt: map['last_synced_at'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['last_synced_at'])
+          : null,
+      isMultiPage: (map['is_multi_page'] ?? 0) == 1,
+      pageCount: map['page_count'] ?? 1,
+      // Entity extraction fields
+      vendor: map['vendor'] as String?,
+      amount: (map['amount'] as num?)?.toDouble(),
+      transactionDate: map['transaction_date'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['transaction_date'] as int)
+          : null,
+      category: map['category'] as String?,
+      entityConfidence: (map['entity_confidence'] as num?)?.toDouble() ?? 0.0,
+      entitiesExtractedAt: map['entities_extracted_at'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(
+              map['entities_extracted_at'] as int,
+            )
+          : null,
     );
   }
 
@@ -236,7 +319,23 @@ class Document extends Equatable {
     lastSyncedAt,
     isMultiPage,
     pageCount,
+    vendor,
+    amount,
+    transactionDate,
+    category,
+    entityConfidence,
+    entitiesExtractedAt,
   ];
+
+  /// Check if entity data has been extracted
+  bool get hasEntityData => entitiesExtractedAt != null;
+
+  /// Check if document has meaningful entity data
+  bool get hasEntities =>
+      vendor != null ||
+      amount != null ||
+      transactionDate != null ||
+      category != null;
 }
 
 enum DocumentType {

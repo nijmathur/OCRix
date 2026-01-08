@@ -22,6 +22,7 @@ UserSettings _$UserSettingsFromJson(Map<String, dynamic> json) => UserSettings(
   theme: json['theme'] as String,
   notificationsEnabled: json['notificationsEnabled'] as bool,
   autoCategorization: json['autoCategorization'] as bool,
+  useLLMCategorization: json['useLLMCategorization'] as bool? ?? false,
   ocrConfidenceThreshold: (json['ocrConfidenceThreshold'] as num).toDouble(),
   backupEnabled: json['backupEnabled'] as bool,
   lastBackupAt: json['lastBackupAt'] == null
@@ -45,6 +46,7 @@ Map<String, dynamic> _$UserSettingsToJson(UserSettings instance) =>
       'theme': instance.theme,
       'notificationsEnabled': instance.notificationsEnabled,
       'autoCategorization': instance.autoCategorization,
+      'useLLMCategorization': instance.useLLMCategorization,
       'ocrConfidenceThreshold': instance.ocrConfidenceThreshold,
       'backupEnabled': instance.backupEnabled,
       'lastBackupAt': instance.lastBackupAt?.toIso8601String(),

@@ -7,7 +7,7 @@ class AppConfig {
   // Database configuration
   static const String databaseName = 'privacy_documents.db';
   static const int databaseVersion =
-      7; // Multi-page documents and image enhancement
+      11; // Force migration for entities_extracted_at column
 
   // Audit database configuration (now uses main database)
   // Kept for backward compatibility, but audit_entries table is in main database

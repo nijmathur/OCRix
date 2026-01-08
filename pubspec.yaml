@@ -67,6 +67,13 @@ dependencies:
     connectivity_plus: ^7.0.0
     http: ^1.1.0
 
+    # On-device LLM (MediaPipe + Gemma)
+    flutter_gemma: ^0.11.15
+    collection: ^1.18.0
+
+    # TensorFlow Lite for embeddings
+    tflite_flutter: ^0.12.1
+
 dev_dependencies:
     flutter_test:
         sdk: flutter
@@ -84,6 +91,7 @@ flutter:
     assets:
         - assets/images/
         - assets/icons/
+        - assets/models/
 
     # fonts:
     #     - family: Roboto
