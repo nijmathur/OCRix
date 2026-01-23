@@ -7,8 +7,10 @@ import 'dart:typed_data';
 import 'dart:math' as math;
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:logger/logger.dart';
 
 class EmbeddingService {
+  final Logger _logger = Logger();
   static const int embeddingDimension = 384;
   static const int _ngramSize = 3; // Character trigrams
   static const int _wordNgramSize = 2; // Word bigrams for better semantics
@@ -101,7 +103,7 @@ class EmbeddingService {
 
     // No external model needed - using hash-based embeddings
     _isInitialized = true;
-    print(
+    _logger.i(
       '[EmbeddingService] Initialized with hash-based embeddings (${embeddingDimension}D)',
     );
   }
@@ -432,6 +434,6 @@ class EmbeddingService {
   /// Dispose resources
   void dispose() {
     _isInitialized = false;
-    print('[EmbeddingService] Disposed');
+    _logger.i('[EmbeddingService] Disposed');
   }
 }

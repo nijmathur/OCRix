@@ -625,8 +625,9 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         );
 
         // Only update if meaningful entities were found
-        if (entity.hasData && _databaseService is DatabaseService) {
-          await (_databaseService as DatabaseService).updateDocumentEntities(
+        final dbService = _databaseService;
+        if (entity.hasData && dbService is DatabaseService) {
+          await dbService.updateDocumentEntities(
             documentId: document.id,
             vendor: entity.vendor,
             amount: entity.amount,

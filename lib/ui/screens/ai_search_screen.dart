@@ -38,11 +38,9 @@ class _AISearchScreenState extends State<AISearchScreen> {
   bool _isReprocessing = false;
   bool _modelFileAvailable = false;
   bool _embeddingModelJustLoaded = false;
-  bool _gemmaModelJustInstalled = false;
   bool _showEmbeddingSuccess = false;
   bool _showGemmaSuccess = false;
   double _gemmaDownloadProgress = 0.0;
-  double _embeddingDownloadProgress = 0.0;
   double _vectorizationProgress = 0.0;
   double _reprocessingProgress = 0.0;
   int _vectorizedCount = 0;
@@ -286,7 +284,6 @@ class _AISearchScreenState extends State<AISearchScreen> {
         setState(() {
           _isDownloadingGemmaModel = false;
           _gemmaDownloadProgress = 1.0;
-          _gemmaModelJustInstalled = true;
           _showGemmaSuccess = true;
         });
 
@@ -399,7 +396,6 @@ class _AISearchScreenState extends State<AISearchScreen> {
         setState(() {
           _isDownloadingGemmaModel = false;
           _gemmaDownloadProgress = 1.0;
-          _gemmaModelJustInstalled = true;
           _showGemmaSuccess = true;
         });
 
@@ -1235,6 +1231,8 @@ class _AISearchScreenState extends State<AISearchScreen> {
     );
   }
 
+  // TODO: Re-enable example queries in UI
+  /*
   Widget _buildExampleQueries() {
     final examples = [
       'receipts from last month',
@@ -1274,6 +1272,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
       ],
     );
   }
+  */
 
   Widget _buildResults() {
     if (_error != null) {

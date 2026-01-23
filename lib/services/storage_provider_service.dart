@@ -206,11 +206,6 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
         user = await _googleSignIn.authenticate(scopeHint: _scopes);
       }
 
-      if (user == null) {
-        logger.w('Google Sign-In cancelled or failed');
-        return false;
-      }
-
       _currentUser = user;
 
       // Get access token for Drive API using authorizationClient
@@ -221,11 +216,7 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       if (clientAuth == null) {
         // Need to authorize scopes
         logger.i('Requesting authorization for Drive scopes');
-        final newAuth = await user.authorizationClient.authorizeScopes(_scopes);
-        if (newAuth == null) {
-          logger.e('Failed to authorize Drive scopes');
-          return false;
-        }
+        await user.authorizationClient.authorizeScopes(_scopes);
 
         // Get the access token after authorization
         final finalAuth = await user.authorizationClient.authorizationForScopes(

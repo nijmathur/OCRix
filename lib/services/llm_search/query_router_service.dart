@@ -5,7 +5,6 @@ library;
 import '../../core/base/base_service.dart';
 import '../../core/interfaces/database_service_interface.dart';
 import '../../models/document.dart';
-import '../embedding_service.dart';
 import '../vector_database_service.dart';
 import 'gemma_model_service.dart';
 import 'vector_search_service.dart';
@@ -153,19 +152,16 @@ class QueryRouterService extends BaseService {
   };
 
   final IDatabaseService _databaseService;
-  final EmbeddingService _embeddingService;
   final VectorDatabaseService? _vectorDbService;
   final GemmaModelService? _gemmaService;
   final VectorSearchService? _vectorSearchService;
 
   QueryRouterService(
     this._databaseService, {
-    EmbeddingService? embeddingService,
     VectorDatabaseService? vectorDbService,
     GemmaModelService? gemmaService,
     VectorSearchService? vectorSearchService,
-  }) : _embeddingService = embeddingService ?? EmbeddingService(),
-       _vectorDbService = vectorDbService,
+  }) : _vectorDbService = vectorDbService,
        _gemmaService = gemmaService,
        _vectorSearchService = vectorSearchService;
 
@@ -593,9 +589,10 @@ class QueryRouterService extends BaseService {
     String? analysis;
     double? confidence;
 
-    if (_gemmaService != null && await _gemmaService!.isModelDownloaded()) {
+    final gemmaService = _gemmaService;
+    if (gemmaService != null && await gemmaService.isModelDownloaded()) {
       try {
-        await _gemmaService!.initialize();
+        await gemmaService.initialize();
 
         // TODO: Use Gemma to analyze documents with proper chat session
         // For now, return a summary of what was found

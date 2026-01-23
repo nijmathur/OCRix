@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter_gemma/flutter_gemma.dart';
+import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
@@ -13,6 +14,8 @@ class GemmaModelService {
   static final GemmaModelService _instance = GemmaModelService._internal();
   factory GemmaModelService() => _instance;
   GemmaModelService._internal();
+
+  final Logger _logger = Logger();
 
   static const String modelFileName = 'gemma2-2b-it.task';
 
@@ -41,7 +44,7 @@ class GemmaModelService {
     try {
       return FlutterGemma.hasActiveModel();
     } catch (e) {
-      print('[GemmaModelService] Error checking model: $e');
+      _logger.i('[GemmaModelService] Error checking model: $e');
       return false;
     }
   }
@@ -53,11 +56,11 @@ class GemmaModelService {
       final modelFile = File(modelPath);
       final exists = await modelFile.exists();
       if (exists) {
-        print('[GemmaModelService] Model file found at: $modelPath');
+        _logger.i('[GemmaModelService] Model file found at: $modelPath');
       }
       return exists;
     } catch (e) {
-      print('[GemmaModelService] Error checking model file: $e');
+      _logger.i('[GemmaModelService] Error checking model file: $e');
       return false;
     }
   }
@@ -100,12 +103,12 @@ class GemmaModelService {
       final sourceSize = await sourceFile.length();
 
       if (destSize == sourceSize) {
-        print(
+        _logger.i(
           '[GemmaModelService] Model already exists at $destPath (${destSize} bytes), skipping copy',
         );
         return destPath;
       } else {
-        print(
+        _logger.i(
           '[GemmaModelService] Existing model size mismatch, re-copying...',
         );
       }
@@ -116,7 +119,7 @@ class GemmaModelService {
       throw Exception('Source file not found: $sourceFilePath');
     }
 
-    print(
+    _logger.i(
       '[GemmaModelService] Copying model from $sourceFilePath to $destPath',
     );
 
@@ -131,7 +134,7 @@ class GemmaModelService {
       bytesWritten += chunk.length;
       final progress = bytesWritten / sourceLength;
       _progressController?.add(progress * 0.5); // First 50% for copying
-      print(
+      _logger.i(
         '[GemmaModelService] Copy progress: ${(progress * 100).toStringAsFixed(1)}%',
       );
     }
@@ -139,7 +142,7 @@ class GemmaModelService {
     await destSink.flush();
     await destSink.close();
 
-    print('[GemmaModelService] Model copied successfully to: $destPath');
+    _logger.i('[GemmaModelService] Model copied successfully to: $destPath');
     return destPath;
   }
 
@@ -158,7 +161,7 @@ class GemmaModelService {
 
       await _installModelFromPath(modelPath);
     } catch (e) {
-      print('[GemmaModelService] Model installation failed: $e');
+      _logger.i('[GemmaModelService] Model installation failed: $e');
       rethrow;
     } finally {
       _isInstalling = false;
@@ -182,12 +185,12 @@ class GemmaModelService {
     _progressController ??= StreamController<double>.broadcast();
 
     try {
-      print(
+      _logger.i(
         '[GemmaModelService] Installing model from persistent storage: $modelPath',
       );
       await _installModelFromPath(modelPath, skipCopyProgress: true);
     } catch (e) {
-      print('[GemmaModelService] Model installation failed: $e');
+      _logger.i('[GemmaModelService] Model installation failed: $e');
       rethrow;
     } finally {
       _isInstalling = false;
@@ -199,7 +202,7 @@ class GemmaModelService {
     String modelPath, {
     bool skipCopyProgress = false,
   }) async {
-    print(
+    _logger.i(
       '[GemmaModelService] Starting model installation from file: $modelPath',
     );
 
@@ -214,13 +217,13 @@ class GemmaModelService {
         _installProgress = 0.5 + (progress / 100.0 * 0.5);
       }
       _progressController?.add(_installProgress);
-      print(
+      _logger.i(
         '[GemmaModelService] Installation progress: ${progress.toStringAsFixed(1)}%',
       );
     }).install();
 
     _progressController?.add(1.0);
-    print('[GemmaModelService] Model installed successfully');
+    _logger.i('[GemmaModelService] Model installed successfully');
   }
 
   /// Initialize Gemma model for inference
@@ -236,14 +239,14 @@ class GemmaModelService {
     }
 
     try {
-      print('[GemmaModelService] Initializing Gemma model...');
+      _logger.i('[GemmaModelService] Initializing Gemma model...');
 
       _model = await FlutterGemma.getActiveModel(maxTokens: maxTokens);
 
       _isInitialized = true;
-      print('[GemmaModelService] Model initialized successfully');
+      _logger.i('[GemmaModelService] Model initialized successfully');
     } catch (e) {
-      print('[GemmaModelService] Model initialization failed: $e');
+      _logger.i('[GemmaModelService] Model initialization failed: $e');
       rethrow;
     }
   }
@@ -261,7 +264,7 @@ class GemmaModelService {
 
     try {
       final prompt = _buildPrompt(naturalLanguageQuery);
-      print(
+      _logger.i(
         '[GemmaModelService] Generating SQL for: "$naturalLanguageQuery" (attempt ${retryCount + 1}/$maxRetries)',
       );
 
@@ -288,14 +291,14 @@ class GemmaModelService {
         );
       }
 
-      print(
+      _logger.i(
         '[GemmaModelService] Raw response (length: ${responseText.length}): "$responseText"',
       );
 
       if (responseText.isEmpty) {
         // Try to reinitialize and retry if we get empty responses
         if (retryCount < maxRetries - 1) {
-          print(
+          _logger.i(
             '[GemmaModelService] Empty response detected, reinitializing model and retrying...',
           );
           await _reinitializeModel();
@@ -305,7 +308,7 @@ class GemmaModelService {
             retryCount: retryCount + 1,
           );
         } else {
-          print(
+          _logger.i(
             '[GemmaModelService] Empty response after $maxRetries attempts, giving up',
           );
           throw LLMInferenceException(
@@ -316,10 +319,10 @@ class GemmaModelService {
 
       final sqlQuery = _extractSQL(responseText);
 
-      print('[GemmaModelService] Generated SQL: $sqlQuery');
+      _logger.i('[GemmaModelService] Generated SQL: $sqlQuery');
       return sqlQuery;
     } catch (e) {
-      print('[GemmaModelService] SQL generation failed: $e');
+      _logger.i('[GemmaModelService] SQL generation failed: $e');
       throw LLMInferenceException('Failed to generate SQL: $e');
     }
   }
@@ -327,15 +330,15 @@ class GemmaModelService {
   /// Reinitialize the model to fix stuck states
   Future<void> _reinitializeModel() async {
     try {
-      print('[GemmaModelService] Reinitializing model...');
+      _logger.i('[GemmaModelService] Reinitializing model...');
       _model?.close();
       _model = null;
       _isInitialized = false;
 
       await initialize();
-      print('[GemmaModelService] Model reinitialized successfully');
+      _logger.i('[GemmaModelService] Model reinitialized successfully');
     } catch (e) {
-      print('[GemmaModelService] Model reinitialization failed: $e');
+      _logger.i('[GemmaModelService] Model reinitialization failed: $e');
     }
   }
 
@@ -373,7 +376,7 @@ Example:
 Category: receipt
 Tags: Walmart, groceries, \$45.67, 2024-01-02''';
 
-      print('[GemmaModelService] Categorizing document...');
+      _logger.i('[GemmaModelService] Categorizing document...');
 
       final chat = await _model!.createChat(
         temperature: 0.1, // Low temperature for consistent categorization
@@ -399,7 +402,7 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
       final category = parsedResult['category'] as String;
       final tags = parsedResult['tags'] as List<String>;
 
-      print('[GemmaModelService] Categorized as: $category with tags: $tags');
+      _logger.i('[GemmaModelService] Categorized as: $category with tags: $tags');
 
       return DocumentCategorizationResult(
         type: category,
@@ -408,7 +411,7 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
         rawResponse: responseText,
       );
     } catch (e) {
-      print('[GemmaModelService] Categorization failed: $e');
+      _logger.i('[GemmaModelService] Categorization failed: $e');
       throw LLMInferenceException('Failed to categorize document: $e');
     }
   }
@@ -445,7 +448,7 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
         }
       }
     } catch (e) {
-      print('[GemmaModelService] Failed to parse structured response: $e');
+      _logger.i('[GemmaModelService] Failed to parse structured response: $e');
       // Fallback: try to extract category from anywhere in response
       category = _parseCategory(response);
     }
@@ -517,7 +520,7 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
 
     try {
       final prompt = _buildAnalysisPrompt(userQuery, documents);
-      print(
+      _logger.i(
         '[GemmaModelService] Analyzing ${documents.length} documents for: "$userQuery" (attempt ${retryCount + 1}/$maxRetries)',
       );
 
@@ -546,7 +549,7 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
       if (responseText.isEmpty) {
         // Try to reinitialize and retry if we get empty responses
         if (retryCount < maxRetries - 1) {
-          print(
+          _logger.i(
             '[GemmaModelService] Empty analysis response detected, reinitializing model and retrying...',
           );
           await _reinitializeModel();
@@ -557,7 +560,7 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
             retryCount: retryCount + 1,
           );
         } else {
-          print(
+          _logger.i(
             '[GemmaModelService] Empty analysis response after $maxRetries attempts, giving up',
           );
           throw LLMInferenceException(
@@ -568,10 +571,10 @@ Tags: Walmart, groceries, \$45.67, 2024-01-02''';
 
       final analysis = _parseAnalysis(responseText);
 
-      print('[GemmaModelService] Analysis complete: ${analysis.answer}');
+      _logger.i('[GemmaModelService] Analysis complete: ${analysis.answer}');
       return analysis;
     } catch (e) {
-      print('[GemmaModelService] Document analysis failed: $e');
+      _logger.i('[GemmaModelService] Document analysis failed: $e');
       throw LLMInferenceException('Failed to analyze documents: $e');
     }
   }
@@ -702,7 +705,7 @@ Answer:''';
 
     // Auto-complete incomplete queries by adding FROM documents
     if (!sql.toUpperCase().contains('FROM')) {
-      print(
+      _logger.i(
         '[GemmaModelService] Incomplete query detected (no FROM clause): $sql',
       );
       // Insert "FROM documents" after SELECT clause
@@ -713,7 +716,7 @@ Answer:''';
       if (selectMatch != null) {
         final selectPart = selectMatch.group(0)!;
         sql = '$selectPart FROM documents';
-        print('[GemmaModelService] Auto-completed query: $sql');
+        _logger.i('[GemmaModelService] Auto-completed query: $sql');
       } else {
         throw LLMInferenceException(
           'Generated query is incomplete and cannot be auto-completed: $sql',

@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:io' show Platform;
-import 'package:sqflite/sqflite.dart' hide DatabaseException;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' hide DatabaseException;
 import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 import 'package:path/path.dart';
@@ -86,6 +85,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
 
   /// Database getter for backward compatibility
   /// Use initialize() instead for new code
+  @override
   Future<Database> get database async {
     if (!_isInitialized) {
       await initialize();
@@ -721,33 +721,6 @@ class DatabaseService extends BaseService implements IDatabaseService {
       }
 
       logInfo('Database upgraded to version 11 with entity extraction columns (fix)');
-    }
-  }
-
-  /// Create SQLite triggers for automatic audit logging
-  /// Note: Triggers write basic audit info, but checksums are calculated in app code
-  /// This ensures tamper-proofing while keeping it simple
-  Future<void> _createAuditTriggers(Database db) async {
-    try {
-      // Drop existing triggers if they exist (for migrations)
-      await db.execute('DROP TRIGGER IF EXISTS audit_documents_insert');
-      await db.execute('DROP TRIGGER IF EXISTS audit_documents_update');
-      await db.execute('DROP TRIGGER IF EXISTS audit_documents_delete');
-
-      // Note: We're not using triggers for now because:
-      // 1. Checksums need to be calculated in app code (requires crypto)
-      // 2. Chain linking requires reading last entry
-      // 3. SQLite triggers can't easily do this
-      //
-      // Instead, we rely on application-level logging which is more reliable
-      // and can properly implement tamper-proofing with checksums and chaining
-
-      logInfo(
-        'Audit triggers skipped - using application-level logging for tamper-proofing',
-      );
-    } catch (e) {
-      logError('Failed to create audit triggers', e);
-      // Don't throw - triggers are nice-to-have, not critical
     }
   }
 
@@ -1718,7 +1691,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
   Future<void> deleteDocumentPages(String documentId) async {
     try {
       final db = await database;
-      final count = await db.delete(
+      await db.delete(
         'document_pages',
         where: 'document_id = ?',
         whereArgs: [documentId],

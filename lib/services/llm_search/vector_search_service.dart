@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'package:logger/logger.dart';
 import 'input_sanitizer.dart';
 import 'rate_limiter.dart';
 import 'gemma_model_service.dart';
@@ -11,6 +12,7 @@ import '../vector_database_service.dart';
 import '../../core/interfaces/database_service_interface.dart';
 
 class VectorSearchService {
+  final Logger _logger = Logger();
   final IDatabaseService _databaseService;
   final LLMInputSanitizer _sanitizer;
   final LLMSearchRateLimiter _rateLimiter;
@@ -33,7 +35,7 @@ class VectorSearchService {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    print('[VectorSearchService] Initializing...');
+    _logger.i('[VectorSearchService] Initializing...');
 
     // Initialize embedding service
     _embeddingService = EmbeddingService();
@@ -41,9 +43,9 @@ class VectorSearchService {
     try {
       await _embeddingService.initialize();
       _isEmbeddingModelReady = true;
-      print('[VectorSearchService] Embedding model ready');
+      _logger.i('[VectorSearchService] Embedding model ready');
     } catch (e) {
-      print('[VectorSearchService] Embedding model failed to initialize: $e');
+      _logger.i('[VectorSearchService] Embedding model failed to initialize: $e');
       _isEmbeddingModelReady = false;
     }
 
@@ -58,13 +60,13 @@ class VectorSearchService {
       try {
         await _gemmaService.initialize();
       } catch (e) {
-        print('[VectorSearchService] LLM initialization failed: $e');
+        _logger.i('[VectorSearchService] LLM initialization failed: $e');
         _isLLMReady = false;
       }
     }
 
     _isInitialized = true;
-    print('[VectorSearchService] Initialization complete');
+    _logger.i('[VectorSearchService] Initialization complete');
   }
 
   /// Check if ready for vector search
@@ -79,13 +81,13 @@ class VectorSearchService {
     _isLLMReady = await _gemmaService.isModelDownloaded();
 
     if (!wasReady && _isLLMReady) {
-      print('[VectorSearchService] LLM is now available, initializing...');
+      _logger.i('[VectorSearchService] LLM is now available, initializing...');
       try {
         // Initialize this service's Gemma instance
         await _gemmaService.initialize();
-        print('[VectorSearchService] LLM initialized successfully');
+        _logger.i('[VectorSearchService] LLM initialized successfully');
       } catch (e) {
-        print('[VectorSearchService] LLM initialization failed: $e');
+        _logger.i('[VectorSearchService] LLM initialization failed: $e');
         _isLLMReady = false;
       }
     }
@@ -110,7 +112,7 @@ class VectorSearchService {
   /// Vectorize a single document (called when new document is added)
   Future<void> vectorizeDocument(Map<String, dynamic> document) async {
     if (!_isEmbeddingModelReady) {
-      print(
+      _logger.i(
         '[VectorSearchService] Embedding model not ready, skipping vectorization',
       );
       return;
@@ -152,7 +154,7 @@ class VectorSearchService {
         minSimilarity: 0.1,
       );
 
-      print('[VECTOR SEARCH] Found ${documents.length} similar documents');
+      _logger.i('[VECTOR SEARCH] Found ${documents.length} similar documents');
 
       stopwatch.stop();
       _rateLimiter.recordSearch();
@@ -163,32 +165,33 @@ class VectorSearchService {
 
       // TEMPORARY: Disable LLM analysis due to native crashes in flutter_gemma plugin
       // TODO: Re-enable when flutter_gemma 0.12.0+ is stable or switch to different LLM backend
-      if (false &&
-          _isLLMReady &&
+      /*
+      if (_isLLMReady &&
           _requiresAnalysis(sanitizedQuery) &&
           documents.isNotEmpty) {
-        print('[VECTOR SEARCH] Performing LLM analysis...');
+        _logger.i('[VECTOR SEARCH] Performing LLM analysis...');
         try {
           final analysisResult = await _gemmaService
               .analyzeDocuments(userQuery: sanitizedQuery, documents: documents)
               .timeout(
                 const Duration(seconds: 30),
                 onTimeout: () {
-                  print('[VECTOR SEARCH] Analysis timed out');
+                  _logger.i('[VECTOR SEARCH] Analysis timed out');
                   throw TimeoutException('Analysis took too long');
                 },
               );
           analysis = analysisResult.answer;
           confidence = analysisResult.confidence;
-          print('[VECTOR SEARCH] Analysis completed successfully');
+          _logger.i('[VECTOR SEARCH] Analysis completed successfully');
         } catch (e, stackTrace) {
-          print('[VECTOR SEARCH] Analysis failed: $e');
-          print('[VECTOR SEARCH] Stack trace: $stackTrace');
+          _logger.i('[VECTOR SEARCH] Analysis failed: $e');
+          _logger.i('[VECTOR SEARCH] Stack trace: $stackTrace');
           // Gracefully continue without analysis - just show documents
           analysis = null;
           confidence = null;
         }
       }
+      */
 
       _logSearch(
         userQuery: userQuery,
@@ -228,6 +231,8 @@ class VectorSearchService {
   }
 
   /// Check if query requires LLM analysis
+  // TODO: Re-enable when LLM analysis is re-enabled
+  /*
   bool _requiresAnalysis(String query) {
     final analyticalKeywords = [
       'how much',
@@ -246,6 +251,7 @@ class VectorSearchService {
     final lowerQuery = query.toLowerCase();
     return analyticalKeywords.any((keyword) => lowerQuery.contains(keyword));
   }
+  */
 
   /// Log search for audit purposes
   void _logSearch({
@@ -273,14 +279,14 @@ class VectorSearchService {
     }
 
     final statusIcon = success ? '✓' : '✗';
-    print(
+    _logger.i(
       '[VECTOR SEARCH] $statusIcon [${DateTime.now().toIso8601String()}] "$userQuery" → $resultCount results in ${executionTime.inMilliseconds}ms${error != null ? ' (Error: $error)' : ''}',
     );
   }
 
   /// Log suspicious query
   void _logSuspiciousQuery(String query) {
-    print('[VECTOR SEARCH] ⚠️ Suspicious query detected: "$query"');
+    _logger.i('[VECTOR SEARCH] ⚠️ Suspicious query detected: "$query"');
   }
 
   /// Get recent searches for debugging

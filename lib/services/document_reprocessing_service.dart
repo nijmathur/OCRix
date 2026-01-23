@@ -140,8 +140,9 @@ class DocumentReprocessingService extends BaseService {
           );
 
           // Update database with extracted entities
-          if (_databaseService is DatabaseService) {
-            await (_databaseService as DatabaseService).updateDocumentEntities(
+          final dbService = _databaseService;
+          if (dbService is DatabaseService) {
+            await dbService.updateDocumentEntities(
               documentId: doc.id,
               vendor: entity.vendor,
               amount: entity.amount,
@@ -213,8 +214,9 @@ class DocumentReprocessingService extends BaseService {
         doc.extractedText,
       );
 
-      if (_databaseService is DatabaseService) {
-        await (_databaseService as DatabaseService).updateDocumentEntities(
+      final dbService = _databaseService;
+      if (dbService is DatabaseService) {
+        await dbService.updateDocumentEntities(
           documentId: doc.id,
           vendor: entity.vendor,
           amount: entity.amount,
@@ -237,9 +239,9 @@ class DocumentReprocessingService extends BaseService {
   /// Get reprocessing statistics
   Future<Map<String, int>> getReprocessingStats() async {
     try {
-      if (_databaseService is DatabaseService) {
-        return await (_databaseService as DatabaseService)
-            .getEntityExtractionStats();
+      final dbService = _databaseService;
+      if (dbService is DatabaseService) {
+        return await dbService.getEntityExtractionStats();
       }
 
       // Fallback if not using DatabaseService
