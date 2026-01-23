@@ -1,0 +1,67 @@
+Analyzing OCRix...                                              
+
+   info - 'logAudit' is deprecated and shouldn't be used. Use AuditLoggingService for proper user tracking - lib\services\database_export_service.dart:151:32 - deprecated_member_use_from_same_package
+   info - 'logAudit' is deprecated and shouldn't be used. Use AuditLoggingService for proper user tracking - lib\services\database_export_service.dart:325:32 - deprecated_member_use_from_same_package
+   info - 'logAudit' is deprecated and shouldn't be used. Use AuditLoggingService for proper user tracking - lib\services\database_export_service.dart:451:30 - deprecated_member_use_from_same_package
+   info - Unnecessary braces in a string interpolation - lib\services\llm_search\gemma_model_service.dart:107:67 - unnecessary_brace_in_string_interps
+   info - Statements in an if should be enclosed in a block - lib\services\llm_search\gemma_model_service.dart:495:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\llm_search\gemma_model_service.dart:497:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\llm_search\gemma_model_service.dart:499:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\llm_search\gemma_model_service.dart:502:7 - curly_braces_in_flow_control_structures
+   info - The 'if' statement could be replaced by a null-aware assignment - lib\services\llm_search\gemma_model_service.dart:687:16 - prefer_conditional_assignment
+   info - The 'if' statement could be replaced by a null-aware assignment - lib\services\storage_provider_service.dart:205:7 - prefer_conditional_assignment
+  error - Instance members can't be accessed from a static method - lib\services\vector_database_service.dart:37:5 - instance_member_access_from_static
+   info - Don't invoke 'print' in production code - lib\ui\screens\ai_search_screen.dart:125:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\ui\screens\ai_search_screen.dart:127:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\ui\screens\ai_search_screen.dart:130:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\ui\screens\ai_search_screen.dart:152:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\ui\screens\ai_search_screen.dart:177:30 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\ui\screens\ai_search_screen.dart:208:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\ui\screens\ai_search_screen.dart:233:30 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\ui\screens\ai_search_screen.dart:304:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\ui\screens\ai_search_screen.dart:308:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\ui\screens\ai_search_screen.dart:416:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\ui\screens\ai_search_screen.dart:420:11 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:711:27 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:755:27 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:836:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:848:63 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1014:29 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1036:30 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1068:32 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1103:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1132:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1155:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1311:19 - deprecated_member_use
+   info - Use interpolation to compose strings and values - lib\ui\screens\ai_search_screen.dart:1329:25 - prefer_interpolation_to_compose_strings
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1368:25 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1389:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1397:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1523:56 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1540:45 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1548:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1592:60 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1620:60 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1696:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1725:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\ai_search_screen.dart:1788:29 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\settings_screen.dart:393:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\screens\settings_screen.dart:395:53 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps - lib\ui\screens\settings_screen.dart:814:7 - use_build_context_synchronously
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:272:17 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:273:17 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:281:17 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:282:17 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:290:17 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:291:17 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:299:17 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:300:17 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:322:17 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:323:17 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:331:17 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:332:17 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:340:17 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:341:17 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:349:17 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\ui\widgets\camera_preview.dart:350:17 - deprecated_member_use
+
