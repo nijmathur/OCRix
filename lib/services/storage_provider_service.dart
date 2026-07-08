@@ -406,7 +406,7 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
   }
 }
 
-class StorageProviderService extends BaseService
+final class StorageProviderService extends BaseService
     implements IStorageProviderService {
   final Map<StorageProviderType, StorageProviderInterface> _providers = {};
   IEncryptionService? _encryptionService;
@@ -521,9 +521,7 @@ class StorageProviderService extends BaseService
       return uploadedPath;
     } catch (e) {
       logError('Failed to upload document', e);
-      if (e is StorageException) {
-        rethrow;
-      }
+      if (e is StorageException) rethrow;
       throw StorageException(
         'Failed to upload document: ${e.toString()}',
         originalError: e,
@@ -545,9 +543,7 @@ class StorageProviderService extends BaseService
       return downloadedPath;
     } catch (e) {
       logError('Failed to download document', e);
-      if (e is StorageException) {
-        rethrow;
-      }
+      if (e is StorageException) rethrow;
       throw StorageException(
         'Failed to download document: ${e.toString()}',
         originalError: e,
@@ -566,9 +562,7 @@ class StorageProviderService extends BaseService
       logInfo('Document deleted: $documentId from $providerType');
     } catch (e) {
       logError('Failed to delete document', e);
-      if (e is StorageException) {
-        rethrow;
-      }
+      if (e is StorageException) rethrow;
       throw StorageException(
         'Failed to delete document: ${e.toString()}',
         originalError: e,

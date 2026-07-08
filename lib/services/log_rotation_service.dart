@@ -6,7 +6,8 @@ import '../core/config/app_config.dart';
 import '../core/base/base_service.dart';
 
 /// Service for log rotation (SOLID - Single Responsibility, DRY - Reusable)
-class LogRotationService extends BaseService implements ILogRotationService {
+final class LogRotationService extends BaseService
+    implements ILogRotationService {
   final ILogFileService _logFileService;
   Duration _rotationInterval = AppConfig.logRotationInterval;
   DateTime? _lastRotationTime;

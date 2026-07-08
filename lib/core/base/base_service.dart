@@ -3,7 +3,7 @@ import '../interfaces/troubleshooting_logger_interface.dart';
 
 /// Base class for services to reduce boilerplate
 /// Integrates with troubleshooting logger for user-facing logs
-abstract class BaseService {
+abstract base class BaseService {
   /// Logger instance for the service (console logging)
   final Logger logger = Logger();
 

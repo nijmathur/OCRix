@@ -8,7 +8,7 @@ import '../core/config/app_config.dart';
 import '../core/exceptions/app_exceptions.dart';
 
 /// Service for logging audit events with level-based filtering
-class AuditLoggingService extends BaseService {
+final class AuditLoggingService extends BaseService {
   final IAuditDatabaseService _auditDatabase;
   AuditLogLevel _currentLevel = AppConfig.defaultAuditLogLevel;
   String? _currentUserId;

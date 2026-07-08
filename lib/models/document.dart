@@ -4,23 +4,9 @@ import 'package:uuid/uuid.dart';
 import 'dart:typed_data';
 import 'dart:convert';
 
+import '../utils/json_converters.dart';
+
 part 'document.g.dart';
-
-class Uint8ListConverter implements JsonConverter<Uint8List?, String?> {
-  const Uint8ListConverter();
-
-  @override
-  Uint8List? fromJson(String? json) {
-    if (json == null) return null;
-    return Uint8List.fromList(base64Decode(json));
-  }
-
-  @override
-  String? toJson(Uint8List? object) {
-    if (object == null) return null;
-    return base64Encode(object);
-  }
-}
 
 @JsonSerializable()
 class Document extends Equatable {
@@ -352,53 +338,29 @@ enum DocumentType {
 }
 
 extension DocumentTypeExtension on DocumentType {
-  String get displayName {
-    switch (this) {
-      case DocumentType.receipt:
-        return 'Receipt';
-      case DocumentType.contract:
-        return 'Contract';
-      case DocumentType.manual:
-        return 'Manual';
-      case DocumentType.invoice:
-        return 'Invoice';
-      case DocumentType.businessCard:
-        return 'Business Card';
-      case DocumentType.id:
-        return 'ID Document';
-      case DocumentType.passport:
-        return 'Passport';
-      case DocumentType.license:
-        return 'License';
-      case DocumentType.certificate:
-        return 'Certificate';
-      case DocumentType.other:
-        return 'Other';
-    }
-  }
+  String get displayName => switch (this) {
+    DocumentType.receipt => 'Receipt',
+    DocumentType.contract => 'Contract',
+    DocumentType.manual => 'Manual',
+    DocumentType.invoice => 'Invoice',
+    DocumentType.businessCard => 'Business Card',
+    DocumentType.id => 'ID Document',
+    DocumentType.passport => 'Passport',
+    DocumentType.license => 'License',
+    DocumentType.certificate => 'Certificate',
+    DocumentType.other => 'Other',
+  };
 
-  String get iconName {
-    switch (this) {
-      case DocumentType.receipt:
-        return 'receipt';
-      case DocumentType.contract:
-        return 'description';
-      case DocumentType.manual:
-        return 'menu_book';
-      case DocumentType.invoice:
-        return 'request_quote';
-      case DocumentType.businessCard:
-        return 'contact_page';
-      case DocumentType.id:
-        return 'badge';
-      case DocumentType.passport:
-        return 'travel_explore';
-      case DocumentType.license:
-        return 'card_membership';
-      case DocumentType.certificate:
-        return 'workspace_premium';
-      case DocumentType.other:
-        return 'insert_drive_file';
-    }
-  }
+  String get iconName => switch (this) {
+    DocumentType.receipt => 'receipt',
+    DocumentType.contract => 'description',
+    DocumentType.manual => 'menu_book',
+    DocumentType.invoice => 'request_quote',
+    DocumentType.businessCard => 'contact_page',
+    DocumentType.id => 'badge',
+    DocumentType.passport => 'travel_explore',
+    DocumentType.license => 'card_membership',
+    DocumentType.certificate => 'workspace_premium',
+    DocumentType.other => 'insert_drive_file',
+  };
 }

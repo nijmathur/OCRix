@@ -2,7 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
 /// Interface for camera operations
-abstract class ICameraService {
+abstract interface class ICameraService {
   /// Get available cameras
   List<CameraDescription> get cameras;
 

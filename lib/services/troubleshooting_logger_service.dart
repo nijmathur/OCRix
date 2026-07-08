@@ -11,7 +11,7 @@ import '../core/exceptions/app_exceptions.dart';
 import 'log_formatter_service.dart';
 
 /// Main troubleshooting logger service (SOLID - Open/Closed, Dependency Inversion)
-class TroubleshootingLoggerService extends BaseService
+final class TroubleshootingLoggerService extends BaseService
     implements ITroubleshootingLogger {
   final ILogFileService _logFileService;
   final ILogRotationService _rotationService;

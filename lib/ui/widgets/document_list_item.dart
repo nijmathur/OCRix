@@ -240,30 +240,18 @@ class DocumentListItem extends StatelessWidget {
     );
   }
 
-  IconData _getDocumentTypeIcon(DocumentType type) {
-    switch (type) {
-      case DocumentType.receipt:
-        return Icons.receipt;
-      case DocumentType.contract:
-        return Icons.description;
-      case DocumentType.manual:
-        return Icons.menu_book;
-      case DocumentType.invoice:
-        return Icons.request_quote;
-      case DocumentType.businessCard:
-        return Icons.contact_page;
-      case DocumentType.id:
-        return Icons.badge;
-      case DocumentType.passport:
-        return Icons.travel_explore;
-      case DocumentType.license:
-        return Icons.card_membership;
-      case DocumentType.certificate:
-        return Icons.workspace_premium;
-      case DocumentType.other:
-        return Icons.insert_drive_file;
-    }
-  }
+  IconData _getDocumentTypeIcon(DocumentType type) => switch (type) {
+    DocumentType.receipt => Icons.receipt,
+    DocumentType.contract => Icons.description,
+    DocumentType.manual => Icons.menu_book,
+    DocumentType.invoice => Icons.request_quote,
+    DocumentType.businessCard => Icons.contact_page,
+    DocumentType.id => Icons.badge,
+    DocumentType.passport => Icons.travel_explore,
+    DocumentType.license => Icons.card_membership,
+    DocumentType.certificate => Icons.workspace_premium,
+    DocumentType.other => Icons.insert_drive_file,
+  };
 
   Color _getConfidenceColor(BuildContext context, double confidence) {
     if (confidence >= 0.8) {

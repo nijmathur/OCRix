@@ -8,7 +8,7 @@ import '../models/document_entity.dart';
 import 'llm_search/gemma_model_service.dart';
 
 /// Service for extracting structured entities from document text using LLM
-class EntityExtractionService extends BaseService {
+final class EntityExtractionService extends BaseService {
   final GemmaModelService _gemmaService;
 
   // Extraction settings

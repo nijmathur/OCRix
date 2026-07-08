@@ -4,7 +4,7 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import '../core/base/base_service.dart';
 import '../core/exceptions/app_exceptions.dart';
 
-class AuthService extends BaseService {
+final class AuthService extends BaseService {
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
   GoogleSignInAccount? _currentUser;

@@ -1,7 +1,7 @@
 import '../models/log_level.dart';
 
 /// Interface for troubleshooting logger (SOLID - Interface Segregation)
-abstract class ITroubleshootingLogger {
+abstract interface class ITroubleshootingLogger {
   /// Log a debug message
   Future<void> debug(
     String message, {

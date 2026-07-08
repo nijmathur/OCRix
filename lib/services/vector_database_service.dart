@@ -98,7 +98,9 @@ class VectorDatabaseService {
         embedding,
       );
 
-      print('[VectorDatabaseService] Document $documentId similarity: $similarity (threshold: $minSimilarity)');
+      print(
+        '[VectorDatabaseService] Document $documentId similarity: $similarity (threshold: $minSimilarity)',
+      );
 
       if (similarity >= minSimilarity) {
         similarities.add({'document_id': documentId, 'similarity': similarity});
@@ -260,7 +262,9 @@ class VectorDatabaseService {
         ) ??
         0;
 
-    print('[VectorDatabaseService] Stats: total=$totalDocs, vectorized=$vectorizedDocs, pending=${totalDocs - vectorizedDocs}');
+    print(
+      '[VectorDatabaseService] Stats: total=$totalDocs, vectorized=$vectorizedDocs, pending=${totalDocs - vectorizedDocs}',
+    );
 
     return {
       'total_documents': totalDocs,

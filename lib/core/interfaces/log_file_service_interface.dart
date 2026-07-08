@@ -1,7 +1,7 @@
 import '../models/log_entry.dart';
 
 /// Interface for log file operations (SOLID - Interface Segregation)
-abstract class ILogFileService {
+abstract interface class ILogFileService {
   /// Write a log entry to file
   Future<void> writeEntry(LogEntry entry);
 

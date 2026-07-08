@@ -9,7 +9,7 @@ import '../core/interfaces/camera_service_interface.dart';
 import '../core/base/base_service.dart';
 import '../core/exceptions/app_exceptions.dart';
 
-class CameraService extends BaseService
+final class CameraService extends BaseService
     with ChangeNotifier
     implements ICameraService {
   CameraController? _controller;
@@ -48,9 +48,7 @@ class CameraService extends BaseService
       logInfo('Camera service initialized with ${_cameras.length} cameras');
     } catch (e) {
       logError('Failed to initialize camera service', e);
-      if (e is CameraException) {
-        rethrow;
-      }
+      if (e is CameraException) rethrow;
       throw CameraException(
         'Failed to initialize camera service: ${e.toString()}',
         originalError: e,
@@ -90,9 +88,7 @@ class CameraService extends BaseService
       logInfo('Camera controller initialized for ${camera.name}');
     } catch (e) {
       logError('Failed to initialize camera controller', e);
-      if (e is CameraException) {
-        rethrow;
-      }
+      if (e is CameraException) rethrow;
       throw CameraException(
         'Failed to initialize camera controller: ${e.toString()}',
         originalError: e,
@@ -146,9 +142,7 @@ class CameraService extends BaseService
       return bytes.toList();
     } catch (e) {
       logError('Failed to capture image bytes', e);
-      if (e is CameraException) {
-        rethrow;
-      }
+      if (e is CameraException) rethrow;
       throw CameraException(
         'Failed to capture image bytes: ${e.toString()}',
         originalError: e,
@@ -191,9 +185,7 @@ class CameraService extends BaseService
       return filePath;
     } catch (e) {
       logError('Failed to process and save image', e);
-      if (e is CameraException) {
-        rethrow;
-      }
+      if (e is CameraException) rethrow;
       throw CameraException(
         'Failed to process and save image: ${e.toString()}',
         originalError: e,
@@ -230,9 +222,7 @@ class CameraService extends BaseService
       logInfo('Camera preview started');
     } catch (e) {
       logError('Failed to start camera preview', e);
-      if (e is CameraException) {
-        rethrow;
-      }
+      if (e is CameraException) rethrow;
       throw CameraException(
         'Failed to start camera preview: ${e.toString()}',
         originalError: e,

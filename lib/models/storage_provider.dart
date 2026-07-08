@@ -42,35 +42,21 @@ class StorageProvider extends Equatable {
 enum StorageProviderType { local, googleDrive, oneDrive, dropbox, box }
 
 extension StorageProviderTypeExtension on StorageProviderType {
-  String get displayName {
-    switch (this) {
-      case StorageProviderType.local:
-        return 'Local Storage';
-      case StorageProviderType.googleDrive:
-        return 'Google Drive';
-      case StorageProviderType.oneDrive:
-        return 'OneDrive';
-      case StorageProviderType.dropbox:
-        return 'Dropbox';
-      case StorageProviderType.box:
-        return 'Box';
-    }
-  }
+  String get displayName => switch (this) {
+    StorageProviderType.local => 'Local Storage',
+    StorageProviderType.googleDrive => 'Google Drive',
+    StorageProviderType.oneDrive => 'OneDrive',
+    StorageProviderType.dropbox => 'Dropbox',
+    StorageProviderType.box => 'Box',
+  };
 
-  String get iconName {
-    switch (this) {
-      case StorageProviderType.local:
-        return 'storage';
-      case StorageProviderType.googleDrive:
-        return 'cloud';
-      case StorageProviderType.oneDrive:
-        return 'cloud';
-      case StorageProviderType.dropbox:
-        return 'cloud';
-      case StorageProviderType.box:
-        return 'cloud';
-    }
-  }
+  String get iconName => switch (this) {
+    StorageProviderType.local => 'storage',
+    StorageProviderType.googleDrive => 'cloud',
+    StorageProviderType.oneDrive => 'cloud',
+    StorageProviderType.dropbox => 'cloud',
+    StorageProviderType.box => 'cloud',
+  };
 
   bool get isCloudProvider {
     return this != StorageProviderType.local;

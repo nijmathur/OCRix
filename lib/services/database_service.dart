@@ -19,7 +19,7 @@ import '../core/exceptions/app_exceptions.dart';
 import '../services/audit_logging_service.dart';
 import 'encryption_service.dart';
 
-class DatabaseService extends BaseService implements IDatabaseService {
+final class DatabaseService extends BaseService implements IDatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
   DatabaseService._internal();
@@ -720,7 +720,9 @@ class DatabaseService extends BaseService implements IDatabaseService {
         logError('Error creating entity column indexes', e);
       }
 
-      logInfo('Database upgraded to version 11 with entity extraction columns (fix)');
+      logInfo(
+        'Database upgraded to version 11 with entity extraction columns (fix)',
+      );
     }
   }
 

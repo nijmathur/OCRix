@@ -124,12 +124,16 @@ class _AISearchScreenState extends State<AISearchScreen> {
       }
 
       // Auto-start vectorization if embedding model is ready but docs need vectorization
-      print('[AISearchScreen] Vectorization check: isReady=${_searchService.isReady}, pending=${vectorStats['pending_documents']}');
+      print(
+        '[AISearchScreen] Vectorization check: isReady=${_searchService.isReady}, pending=${vectorStats['pending_documents']}',
+      );
       if (_searchService.isReady && vectorStats['pending_documents']! > 0) {
         print('[AISearchScreen] Starting auto-vectorization...');
         _startBackgroundVectorization();
       } else {
-        print('[AISearchScreen] Skipping vectorization: isReady=${_searchService.isReady}, pending=${vectorStats['pending_documents']}');
+        print(
+          '[AISearchScreen] Skipping vectorization: isReady=${_searchService.isReady}, pending=${vectorStats['pending_documents']}',
+        );
       }
     } catch (e) {
       setState(() {
@@ -534,38 +538,23 @@ class _AISearchScreenState extends State<AISearchScreen> {
     }
   }
 
-  String _getQueryTypeLabel(QueryType type) {
-    switch (type) {
-      case QueryType.structured:
-        return 'SQL';
-      case QueryType.semantic:
-        return 'Vector';
-      case QueryType.complex:
-        return 'AI';
-    }
-  }
+  String _getQueryTypeLabel(QueryType type) => switch (type) {
+    QueryType.structured => 'SQL',
+    QueryType.semantic => 'Vector',
+    QueryType.complex => 'AI',
+  };
 
-  Color _getQueryTypeColor(QueryType type) {
-    switch (type) {
-      case QueryType.structured:
-        return Colors.blue;
-      case QueryType.semantic:
-        return Colors.purple;
-      case QueryType.complex:
-        return Colors.orange;
-    }
-  }
+  Color _getQueryTypeColor(QueryType type) => switch (type) {
+    QueryType.structured => Colors.blue,
+    QueryType.semantic => Colors.purple,
+    QueryType.complex => Colors.orange,
+  };
 
-  IconData _getQueryTypeIcon(QueryType type) {
-    switch (type) {
-      case QueryType.structured:
-        return Icons.table_chart;
-      case QueryType.semantic:
-        return Icons.hub;
-      case QueryType.complex:
-        return Icons.auto_awesome;
-    }
-  }
+  IconData _getQueryTypeIcon(QueryType type) => switch (type) {
+    QueryType.structured => Icons.table_chart,
+    QueryType.semantic => Icons.hub,
+    QueryType.complex => Icons.auto_awesome,
+  };
 
   @override
   Widget build(BuildContext context) {

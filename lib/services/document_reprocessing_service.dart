@@ -42,7 +42,7 @@ class ReprocessingResult {
 }
 
 /// Service for batch reprocessing documents to extract entities
-class DocumentReprocessingService extends BaseService {
+final class DocumentReprocessingService extends BaseService {
   final IDatabaseService _databaseService;
   final EntityExtractionService _entityService;
 

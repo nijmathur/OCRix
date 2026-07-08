@@ -648,77 +648,43 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  String _getStorageProviderName(String provider) {
-    switch (provider) {
-      case 'local':
-        return 'Local Storage';
-      case 'googleDrive':
-        return 'Google Drive';
-      case 'oneDrive':
-        return 'OneDrive';
-      case 'dropbox':
-        return 'Dropbox';
-      case 'box':
-        return 'Box';
-      default:
-        return 'Unknown';
-    }
-  }
+  String _getStorageProviderName(String provider) => switch (provider) {
+    'local' => 'Local Storage',
+    'googleDrive' => 'Google Drive',
+    'oneDrive' => 'OneDrive',
+    'dropbox' => 'Dropbox',
+    'box' => 'Box',
+    _ => 'Unknown',
+  };
 
-  String _getThemeName(String theme) {
-    switch (theme) {
-      case 'light':
-        return 'Light';
-      case 'dark':
-        return 'Dark';
-      case 'system':
-        return 'System';
-      default:
-        return 'System';
-    }
-  }
+  String _getThemeName(String theme) => switch (theme) {
+    'light' => 'Light',
+    'dark' => 'Dark',
+    'system' => 'System',
+    _ => 'System',
+  };
 
-  String _getLanguageName(String language) {
-    switch (language) {
-      case 'en':
-        return 'English';
-      case 'es':
-        return 'Spanish';
-      case 'fr':
-        return 'French';
-      case 'de':
-        return 'German';
-      default:
-        return 'English';
-    }
-  }
+  String _getLanguageName(String language) => switch (language) {
+    'en' => 'English',
+    'es' => 'Spanish',
+    'fr' => 'French',
+    'de' => 'German',
+    _ => 'English',
+  };
 
-  String _getDocumentTypeName(String type) {
-    switch (type) {
-      case 'receipt':
-        return 'Receipt';
-      case 'contract':
-        return 'Contract';
-      case 'manual':
-        return 'Manual';
-      case 'invoice':
-        return 'Invoice';
-      case 'businessCard':
-        return 'Business Card';
-      case 'id':
-        return 'ID Document';
-      case 'passport':
-        return 'Passport';
-      case 'license':
-        return 'License';
-      case 'certificate':
-        return 'Certificate';
-      case 'other':
-        return 'Other';
-      default:
-        return 'Other';
-    }
-  }
+  String _getDocumentTypeName(String type) => switch (type) {
+    'receipt' => 'Receipt',
+    'contract' => 'Contract',
+    'manual' => 'Manual',
+    'invoice' => 'Invoice',
+    'businessCard' => 'Business Card',
+    'id' => 'ID Document',
+    'passport' => 'Passport',
+    'license' => 'License',
+    'certificate' => 'Certificate',
+    'other' => 'Other',
+    _ => 'Other',
+  };
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';

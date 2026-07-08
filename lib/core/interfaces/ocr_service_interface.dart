@@ -2,7 +2,7 @@ import '../../models/document.dart';
 import '../models/ocr_result.dart';
 
 /// Interface for OCR operations
-abstract class IOCRService {
+abstract interface class IOCRService {
   /// Initialize the OCR service
   Future<void> initialize();
 

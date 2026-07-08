@@ -9,7 +9,8 @@ import '../core/interfaces/encryption_service_interface.dart';
 import '../core/base/base_service.dart';
 import '../core/exceptions/app_exceptions.dart';
 
-class EncryptionService extends BaseService implements IEncryptionService {
+final class EncryptionService extends BaseService
+    implements IEncryptionService {
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final LocalAuthentication _localAuth = LocalAuthentication();
 
@@ -100,9 +101,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       return base64.encode(result);
     } catch (e) {
       logError('Failed to encrypt text', e);
-      if (e is EncryptionException) {
-        rethrow;
-      }
+      if (e is EncryptionException) rethrow;
       throw EncryptionException(
         'Failed to encrypt text: ${e.toString()}',
         originalError: e,
@@ -145,9 +144,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       return decrypted;
     } catch (e) {
       logError('Failed to decrypt text', e);
-      if (e is EncryptionException) {
-        rethrow;
-      }
+      if (e is EncryptionException) rethrow;
       throw EncryptionException(
         'Failed to decrypt text: ${e.toString()}',
         originalError: e,
@@ -186,9 +183,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       return result.toList();
     } catch (e) {
       logError('Failed to encrypt bytes', e);
-      if (e is EncryptionException) {
-        rethrow;
-      }
+      if (e is EncryptionException) rethrow;
       throw EncryptionException(
         'Failed to encrypt bytes: ${e.toString()}',
         originalError: e,
@@ -231,9 +226,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       return decrypted.toList();
     } catch (e) {
       logError('Failed to decrypt bytes', e);
-      if (e is EncryptionException) {
-        rethrow;
-      }
+      if (e is EncryptionException) rethrow;
       throw EncryptionException(
         'Failed to decrypt bytes: ${e.toString()}',
         originalError: e,
@@ -261,9 +254,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       return encryptedFilePath;
     } catch (e) {
       logError('Failed to encrypt file', e);
-      if (e is EncryptionException) {
-        rethrow;
-      }
+      if (e is EncryptionException) rethrow;
       throw EncryptionException(
         'Failed to encrypt file: ${e.toString()}',
         originalError: e,
@@ -293,9 +284,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       return decryptedFilePath;
     } catch (e) {
       logError('Failed to decrypt file', e);
-      if (e is EncryptionException) {
-        rethrow;
-      }
+      if (e is EncryptionException) rethrow;
       throw EncryptionException(
         'Failed to decrypt file: ${e.toString()}',
         originalError: e,
@@ -508,9 +497,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       return encryptedFilePath;
     } catch (e) {
       logError('Failed to encrypt file with password', e);
-      if (e is EncryptionException) {
-        rethrow;
-      }
+      if (e is EncryptionException) rethrow;
       throw EncryptionException(
         'Failed to encrypt file with password: ${e.toString()}',
         originalError: e,
@@ -571,9 +558,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       return decryptedFilePath;
     } catch (e) {
       logError('Failed to decrypt file with password', e);
-      if (e is EncryptionException) {
-        rethrow;
-      }
+      if (e is EncryptionException) rethrow;
       throw EncryptionException(
         'Failed to decrypt file with password: ${e.toString()}',
         originalError: e,
@@ -608,9 +593,7 @@ class EncryptionService extends BaseService implements IEncryptionService {
       return digest.toString();
     } catch (e) {
       logError('Failed to generate file hash', e);
-      if (e is EncryptionException) {
-        rethrow;
-      }
+      if (e is EncryptionException) rethrow;
       throw EncryptionException(
         'Failed to generate file hash: ${e.toString()}',
         originalError: e,

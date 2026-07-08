@@ -103,8 +103,8 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
       );
 
       String errorMessage;
-      if (e is AuthException) {
-        errorMessage = e.message;
+      if (e case AuthException(:final message)) {
+        errorMessage = message;
         _troubleshootingLogger?.error(
           'AuthException during biometric enable',
           tag: 'BiometricAuthNotifier',

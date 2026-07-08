@@ -7,7 +7,7 @@ import 'dart:typed_data';
 import 'package:sqflite/sqflite.dart';
 
 /// Interface for database operations
-abstract class IDatabaseService {
+abstract interface class IDatabaseService {
   /// Get database instance (for advanced queries)
   Future<Database> get database;
 

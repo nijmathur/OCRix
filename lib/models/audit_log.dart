@@ -95,34 +95,19 @@ enum AuditAction {
 }
 
 extension AuditActionExtension on AuditAction {
-  String get displayName {
-    switch (this) {
-      case AuditAction.create:
-        return 'Create';
-      case AuditAction.read:
-        return 'Read';
-      case AuditAction.update:
-        return 'Update';
-      case AuditAction.delete:
-        return 'Delete';
-      case AuditAction.sync:
-        return 'Sync';
-      case AuditAction.export:
-        return 'Export';
-      case AuditAction.import:
-        return 'Import';
-      case AuditAction.login:
-        return 'Login';
-      case AuditAction.logout:
-        return 'Logout';
-      case AuditAction.encrypt:
-        return 'Encrypt';
-      case AuditAction.decrypt:
-        return 'Decrypt';
-      case AuditAction.backup:
-        return 'Backup';
-      case AuditAction.restore:
-        return 'Restore';
-    }
-  }
+  String get displayName => switch (this) {
+    AuditAction.create => 'Create',
+    AuditAction.read => 'Read',
+    AuditAction.update => 'Update',
+    AuditAction.delete => 'Delete',
+    AuditAction.sync => 'Sync',
+    AuditAction.export => 'Export',
+    AuditAction.import => 'Import',
+    AuditAction.login => 'Login',
+    AuditAction.logout => 'Logout',
+    AuditAction.encrypt => 'Encrypt',
+    AuditAction.decrypt => 'Decrypt',
+    AuditAction.backup => 'Backup',
+    AuditAction.restore => 'Restore',
+  };
 }

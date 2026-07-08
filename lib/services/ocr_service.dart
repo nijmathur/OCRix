@@ -10,7 +10,7 @@ import '../core/interfaces/ocr_service_interface.dart';
 import '../core/base/base_service.dart';
 import '../core/exceptions/app_exceptions.dart';
 
-class OCRService extends BaseService implements IOCRService {
+final class OCRService extends BaseService implements IOCRService {
   TextRecognizer? _textRecognizer;
 
   @override
@@ -62,9 +62,7 @@ class OCRService extends BaseService implements IOCRService {
       );
     } catch (e) {
       logError('Failed to extract text from image', e);
-      if (e is OCRException) {
-        rethrow;
-      }
+      if (e is OCRException) rethrow;
       throw OCRException(
         'Failed to extract text from image: ${e.toString()}',
         originalError: e,
@@ -113,9 +111,7 @@ class OCRService extends BaseService implements IOCRService {
       );
     } catch (e) {
       logError('Failed to extract text from bytes', e);
-      if (e is OCRException) {
-        rethrow;
-      }
+      if (e is OCRException) rethrow;
       throw OCRException(
         'Failed to extract text from bytes: ${e.toString()}',
         originalError: e,
@@ -228,9 +224,7 @@ class OCRService extends BaseService implements IOCRService {
       return img.encodeJpg(sharpenedImage, quality: 95);
     } catch (e) {
       logError('Failed to preprocess image', e);
-      if (e is OCRException) {
-        rethrow;
-      }
+      if (e is OCRException) rethrow;
       throw OCRException(
         'Failed to preprocess image: ${e.toString()}',
         originalError: e,

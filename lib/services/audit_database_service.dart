@@ -9,7 +9,7 @@ import '../core/exceptions/app_exceptions.dart';
 
 /// Tamper-proof audit database service
 /// Stores audit logs in the main database with integrity checks (checksums, chaining)
-class AuditDatabaseService extends BaseService
+final class AuditDatabaseService extends BaseService
     implements IAuditDatabaseService {
   static final AuditDatabaseService _instance =
       AuditDatabaseService._internal();

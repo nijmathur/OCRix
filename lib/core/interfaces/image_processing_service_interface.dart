@@ -1,7 +1,7 @@
 import '../models/processed_image_result.dart';
 
 /// Interface for image processing operations
-abstract class IImageProcessingService {
+abstract interface class IImageProcessingService {
   /// Process image for optimal storage in database
   /// Returns processed image bytes, dimensions, and metadata
   Future<ProcessedImageResult> processImageForStorage(List<int> imageBytes);

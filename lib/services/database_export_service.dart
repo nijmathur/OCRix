@@ -12,7 +12,7 @@ import 'storage_provider_service.dart';
 
 /// Service for exporting and importing the entire database to/from Google Drive
 /// with encryption at rest and in transit
-class DatabaseExportService extends BaseService {
+final class DatabaseExportService extends BaseService {
   final DatabaseService _databaseService;
   final IEncryptionService _encryptionService;
 
@@ -168,9 +168,7 @@ class DatabaseExportService extends BaseService {
       }
     } catch (e) {
       logError('Failed to export database to Google Drive', e);
-      if (e is AppException) {
-        rethrow;
-      }
+      if (e is AppException) rethrow;
       throw DatabaseException(
         'Failed to export database: ${e.toString()}',
         originalError: e,
@@ -341,9 +339,7 @@ class DatabaseExportService extends BaseService {
       }
     } catch (e) {
       logError('Failed to import database from Google Drive', e);
-      if (e is AppException) {
-        rethrow;
-      }
+      if (e is AppException) rethrow;
       throw DatabaseException(
         'Failed to import database: ${e.toString()}',
         originalError: e,
@@ -415,9 +411,7 @@ class DatabaseExportService extends BaseService {
       return backups;
     } catch (e) {
       logError('Failed to list database backups', e);
-      if (e is AppException) {
-        rethrow;
-      }
+      if (e is AppException) rethrow;
       throw DatabaseException(
         'Failed to list database backups: ${e.toString()}',
         originalError: e,
@@ -458,9 +452,7 @@ class DatabaseExportService extends BaseService {
       logInfo('Database backup deleted successfully');
     } catch (e) {
       logError('Failed to delete database backup', e);
-      if (e is AppException) {
-        rethrow;
-      }
+      if (e is AppException) rethrow;
       throw DatabaseException(
         'Failed to delete database backup: ${e.toString()}',
         originalError: e,

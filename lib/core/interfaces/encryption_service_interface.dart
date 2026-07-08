@@ -1,5 +1,5 @@
 /// Interface for encryption operations
-abstract class IEncryptionService {
+abstract interface class IEncryptionService {
   /// Check if service is initialized
   bool get isInitialized;
 
