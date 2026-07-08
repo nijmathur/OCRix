@@ -1,90 +1,56 @@
-import 'package:json_annotation/json_annotation.dart';
-import 'package:equatable/equatable.dart';
-import 'package:uuid/uuid.dart';
-import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:json_annotation/json_annotation.dart';
+import 'package:uuid/uuid.dart';
 
 import '../utils/json_converters.dart';
 
+part 'document.freezed.dart';
 part 'document.g.dart';
 
-@JsonSerializable()
-class Document extends Equatable {
-  final String id;
-  final String title;
-  @Uint8ListConverter()
-  final Uint8List? imageData;
-  @Uint8ListConverter()
-  final Uint8List? thumbnailData;
-  final String imageFormat;
-  final int? imageSize;
-  final int? imageWidth;
-  final int? imageHeight;
-  final String? imagePath; // Keep for backward compatibility
-  final String extractedText;
-  final DocumentType type;
-  final DateTime scanDate;
-  final List<String> tags;
-  final Map<String, dynamic> metadata;
-  final String storageProvider;
-  final bool isEncrypted;
-  final double confidenceScore;
-  final String detectedLanguage;
-  final String deviceInfo;
-  final String? notes;
-  final String? location;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final bool isSynced;
-  final String? cloudId;
-  final DateTime? lastSyncedAt;
-  final bool isMultiPage;
-  final int pageCount;
+@freezed
+abstract class Document with _$Document {
+  const Document._();
 
-  // Entity extraction fields (for NLP querying)
-  final String? vendor;
-  final double? amount;
-  final DateTime? transactionDate;
-  final String? category;
-  final double entityConfidence;
-  final DateTime? entitiesExtractedAt;
-
-  const Document({
-    required this.id,
-    required this.title,
-    this.imageData,
-    this.thumbnailData,
-    this.imageFormat = 'jpeg',
-    this.imageSize,
-    this.imageWidth,
-    this.imageHeight,
-    this.imagePath,
-    required this.extractedText,
-    required this.type,
-    required this.scanDate,
-    required this.tags,
-    required this.metadata,
-    required this.storageProvider,
-    required this.isEncrypted,
-    required this.confidenceScore,
-    required this.detectedLanguage,
-    required this.deviceInfo,
-    this.notes,
-    this.location,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.isSynced,
-    this.cloudId,
-    this.lastSyncedAt,
-    this.isMultiPage = false,
-    this.pageCount = 1,
-    this.vendor,
-    this.amount,
-    this.transactionDate,
-    this.category,
-    this.entityConfidence = 0.0,
-    this.entitiesExtractedAt,
-  });
+  const factory Document({
+    required String id,
+    required String title,
+    @Uint8ListConverter() Uint8List? imageData,
+    @Uint8ListConverter() Uint8List? thumbnailData,
+    @Default('jpeg') String imageFormat,
+    int? imageSize,
+    int? imageWidth,
+    int? imageHeight,
+    String? imagePath,
+    required String extractedText,
+    required DocumentType type,
+    required DateTime scanDate,
+    required List<String> tags,
+    required Map<String, dynamic> metadata,
+    required String storageProvider,
+    required bool isEncrypted,
+    required double confidenceScore,
+    required String detectedLanguage,
+    required String deviceInfo,
+    String? notes,
+    String? location,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    required bool isSynced,
+    String? cloudId,
+    DateTime? lastSyncedAt,
+    @Default(false) bool isMultiPage,
+    @Default(1) int pageCount,
+    // Entity extraction fields (for NLP querying)
+    String? vendor,
+    double? amount,
+    DateTime? transactionDate,
+    String? category,
+    @Default(0.0) double entityConfidence,
+    DateTime? entitiesExtractedAt,
+  }) = _Document;
 
   factory Document.create({
     required String title,
@@ -105,7 +71,7 @@ class Document extends Equatable {
     List<String> tags = const [],
     Map<String, dynamic> metadata = const {},
     String storageProvider = 'local',
-    bool isEncrypted = false, // Changed to false since we're storing in DB now
+    bool isEncrypted = false,
     bool isMultiPage = false,
     int pageCount = 1,
   }) {
@@ -137,80 +103,6 @@ class Document extends Equatable {
       isSynced: false,
       isMultiPage: isMultiPage,
       pageCount: pageCount,
-    );
-  }
-
-  Document copyWith({
-    String? id,
-    String? title,
-    Uint8List? imageData,
-    Uint8List? thumbnailData,
-    String? imageFormat,
-    int? imageSize,
-    int? imageWidth,
-    int? imageHeight,
-    String? imagePath,
-    String? extractedText,
-    DocumentType? type,
-    DateTime? scanDate,
-    List<String>? tags,
-    Map<String, dynamic>? metadata,
-    String? storageProvider,
-    bool? isEncrypted,
-    double? confidenceScore,
-    String? detectedLanguage,
-    String? deviceInfo,
-    String? notes,
-    String? location,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-    bool? isSynced,
-    String? cloudId,
-    DateTime? lastSyncedAt,
-    bool? isMultiPage,
-    int? pageCount,
-    String? vendor,
-    double? amount,
-    DateTime? transactionDate,
-    String? category,
-    double? entityConfidence,
-    DateTime? entitiesExtractedAt,
-  }) {
-    return Document(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      imageData: imageData ?? this.imageData,
-      thumbnailData: thumbnailData ?? this.thumbnailData,
-      imageFormat: imageFormat ?? this.imageFormat,
-      imageSize: imageSize ?? this.imageSize,
-      imageWidth: imageWidth ?? this.imageWidth,
-      imageHeight: imageHeight ?? this.imageHeight,
-      imagePath: imagePath ?? this.imagePath,
-      extractedText: extractedText ?? this.extractedText,
-      type: type ?? this.type,
-      scanDate: scanDate ?? this.scanDate,
-      tags: tags ?? this.tags,
-      metadata: metadata ?? this.metadata,
-      storageProvider: storageProvider ?? this.storageProvider,
-      isEncrypted: isEncrypted ?? this.isEncrypted,
-      confidenceScore: confidenceScore ?? this.confidenceScore,
-      detectedLanguage: detectedLanguage ?? this.detectedLanguage,
-      deviceInfo: deviceInfo ?? this.deviceInfo,
-      notes: notes ?? this.notes,
-      location: location ?? this.location,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      isSynced: isSynced ?? this.isSynced,
-      cloudId: cloudId ?? this.cloudId,
-      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
-      isMultiPage: isMultiPage ?? this.isMultiPage,
-      pageCount: pageCount ?? this.pageCount,
-      vendor: vendor ?? this.vendor,
-      amount: amount ?? this.amount,
-      transactionDate: transactionDate ?? this.transactionDate,
-      category: category ?? this.category,
-      entityConfidence: entityConfidence ?? this.entityConfidence,
-      entitiesExtractedAt: entitiesExtractedAt ?? this.entitiesExtractedAt,
     );
   }
 
@@ -273,45 +165,6 @@ class Document extends Equatable {
 
   factory Document.fromJson(Map<String, dynamic> json) =>
       _$DocumentFromJson(json);
-  Map<String, dynamic> toJson() => _$DocumentToJson(this);
-
-  @override
-  List<Object?> get props => [
-    id,
-    title,
-    imageData,
-    thumbnailData,
-    imageFormat,
-    imageSize,
-    imageWidth,
-    imageHeight,
-    imagePath,
-    extractedText,
-    type,
-    scanDate,
-    tags,
-    metadata,
-    storageProvider,
-    isEncrypted,
-    confidenceScore,
-    detectedLanguage,
-    deviceInfo,
-    notes,
-    location,
-    createdAt,
-    updatedAt,
-    isSynced,
-    cloudId,
-    lastSyncedAt,
-    isMultiPage,
-    pageCount,
-    vendor,
-    amount,
-    transactionDate,
-    category,
-    entityConfidence,
-    entitiesExtractedAt,
-  ];
 
   /// Check if entity data has been extracted
   bool get hasEntityData => entitiesExtractedAt != null;

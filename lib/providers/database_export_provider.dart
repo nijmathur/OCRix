@@ -1,7 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import '../services/database_service.dart';
 import '../services/database_export_service.dart';
 import 'document_provider.dart'; // Import existing providers
+
+part 'database_export_provider.freezed.dart';
 
 /// Provider for DatabaseExportService
 final databaseExportServiceProvider = Provider<DatabaseExportService>((ref) {
@@ -18,40 +22,16 @@ final databaseExportServiceProvider = Provider<DatabaseExportService>((ref) {
 });
 
 /// State for database export/import operations
-class DatabaseExportState {
-  final bool isExporting;
-  final bool isImporting;
-  final double progress;
-  final String? error;
-  final String? lastExportFileId;
-  final List<Map<String, dynamic>> availableBackups;
-
-  const DatabaseExportState({
-    this.isExporting = false,
-    this.isImporting = false,
-    this.progress = 0.0,
-    this.error,
-    this.lastExportFileId,
-    this.availableBackups = const [],
-  });
-
-  DatabaseExportState copyWith({
-    bool? isExporting,
-    bool? isImporting,
-    double? progress,
+@freezed
+abstract class DatabaseExportState with _$DatabaseExportState {
+  const factory DatabaseExportState({
+    @Default(false) bool isExporting,
+    @Default(false) bool isImporting,
+    @Default(0.0) double progress,
     String? error,
     String? lastExportFileId,
-    List<Map<String, dynamic>>? availableBackups,
-  }) {
-    return DatabaseExportState(
-      isExporting: isExporting ?? this.isExporting,
-      isImporting: isImporting ?? this.isImporting,
-      progress: progress ?? this.progress,
-      error: error,
-      lastExportFileId: lastExportFileId ?? this.lastExportFileId,
-      availableBackups: availableBackups ?? this.availableBackups,
-    );
-  }
+    @Default([]) List<Map<String, dynamic>> availableBackups,
+  }) = _DatabaseExportState;
 }
 
 /// Notifier for database export/import operations

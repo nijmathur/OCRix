@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:camera/camera.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 import '../models/document.dart';
 import '../services/database_service.dart';
 import '../services/ocr_service.dart';
@@ -27,6 +28,8 @@ import '../services/llm_search/gemma_model_service.dart';
 import '../services/llm_search/vector_search_service.dart';
 import '../services/entity_extraction_service.dart';
 import '../services/database_service.dart' show DatabaseService;
+
+part 'document_provider.freezed.dart';
 
 // Service providers - using interfaces for dependency inversion
 final databaseServiceProvider = Provider<IDatabaseService>((ref) {
@@ -793,7 +796,7 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
     this._ocrService, {
     ITroubleshootingLogger? troubleshootingLogger,
   }) : _troubleshootingLogger = troubleshootingLogger,
-       super(const ScannerState.initial());
+       super(const ScannerState());
 
   Future<void> initializeCamera() async {
     try {
@@ -879,7 +882,7 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
   }
 
   void clearState() {
-    state = const ScannerState.initial();
+    state = const ScannerState();
   }
 
   void setFlashMode(FlashMode mode) {
@@ -903,44 +906,15 @@ final scannerNotifierProvider =
       );
     });
 
-class ScannerState {
-  final bool isLoading;
-  final bool isInitialized;
-  final bool isCapturing;
-  final bool isProcessing;
-  final String? error;
-  final String? lastCapturedImage;
-  final OCRResult? lastOCRResult;
-
-  const ScannerState({
-    this.isLoading = false,
-    this.isInitialized = false,
-    this.isCapturing = false,
-    this.isProcessing = false,
-    this.error,
-    this.lastCapturedImage,
-    this.lastOCRResult,
-  });
-
-  const ScannerState.initial() : this();
-
-  ScannerState copyWith({
-    bool? isLoading,
-    bool? isInitialized,
-    bool? isCapturing,
-    bool? isProcessing,
+@freezed
+abstract class ScannerState with _$ScannerState {
+  const factory ScannerState({
+    @Default(false) bool isLoading,
+    @Default(false) bool isInitialized,
+    @Default(false) bool isCapturing,
+    @Default(false) bool isProcessing,
     String? error,
     String? lastCapturedImage,
     OCRResult? lastOCRResult,
-  }) {
-    return ScannerState(
-      isLoading: isLoading ?? this.isLoading,
-      isInitialized: isInitialized ?? this.isInitialized,
-      isCapturing: isCapturing ?? this.isCapturing,
-      isProcessing: isProcessing ?? this.isProcessing,
-      error: error,
-      lastCapturedImage: lastCapturedImage ?? this.lastCapturedImage,
-      lastOCRResult: lastOCRResult ?? this.lastOCRResult,
-    );
-  }
+  }) = _ScannerState;
 }

@@ -1,10 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import '../models/user_settings.dart';
 import '../core/interfaces/database_service_interface.dart';
 import '../core/interfaces/encryption_service_interface.dart';
 import 'document_provider.dart';
 import 'troubleshooting_logger_provider.dart';
 import '../core/interfaces/troubleshooting_logger_interface.dart';
+
+part 'settings_provider.freezed.dart';
 
 final settingsNotifierProvider =
     StateNotifierProvider<SettingsNotifier, AsyncValue<UserSettings>>((ref) {
@@ -267,7 +271,7 @@ class EncryptionNotifier extends StateNotifier<EncryptionState> {
     this._encryptionService, {
     ITroubleshootingLogger? troubleshootingLogger,
   }) : _troubleshootingLogger = troubleshootingLogger,
-       super(const EncryptionState.initial()) {
+       super(const EncryptionState()) {
     _initialize();
   }
 
@@ -418,44 +422,15 @@ final encryptionNotifierProvider =
       );
     });
 
-class EncryptionState {
-  final bool isLoading;
-  final bool isInitialized;
-  final bool isAuthenticating;
-  final bool isAuthenticated;
-  final bool isBiometricAvailable;
-  final String? error;
-  final Map<String, dynamic> encryptionInfo;
-
-  const EncryptionState({
-    this.isLoading = false,
-    this.isInitialized = false,
-    this.isAuthenticating = false,
-    this.isAuthenticated = false,
-    this.isBiometricAvailable = false,
-    this.error,
-    this.encryptionInfo = const {},
-  });
-
-  const EncryptionState.initial() : this();
-
-  EncryptionState copyWith({
-    bool? isLoading,
-    bool? isInitialized,
-    bool? isAuthenticating,
-    bool? isAuthenticated,
-    bool? isBiometricAvailable,
+@freezed
+abstract class EncryptionState with _$EncryptionState {
+  const factory EncryptionState({
+    @Default(false) bool isLoading,
+    @Default(false) bool isInitialized,
+    @Default(false) bool isAuthenticating,
+    @Default(false) bool isAuthenticated,
+    @Default(false) bool isBiometricAvailable,
     String? error,
-    Map<String, dynamic>? encryptionInfo,
-  }) {
-    return EncryptionState(
-      isLoading: isLoading ?? this.isLoading,
-      isInitialized: isInitialized ?? this.isInitialized,
-      isAuthenticating: isAuthenticating ?? this.isAuthenticating,
-      isAuthenticated: isAuthenticated ?? this.isAuthenticated,
-      isBiometricAvailable: isBiometricAvailable ?? this.isBiometricAvailable,
-      error: error,
-      encryptionInfo: encryptionInfo ?? this.encryptionInfo,
-    );
-  }
+    @Default({}) Map<String, dynamic> encryptionInfo,
+  }) = _EncryptionState;
 }

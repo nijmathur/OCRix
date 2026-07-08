@@ -6,8 +6,8 @@ part of 'storage_provider.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-StorageProvider _$StorageProviderFromJson(Map<String, dynamic> json) =>
-    StorageProvider(
+_StorageProvider _$StorageProviderFromJson(Map<String, dynamic> json) =>
+    _StorageProvider(
       id: json['id'] as String,
       name: json['name'] as String,
       type: $enumDecode(_$StorageProviderTypeEnumMap, json['type']),
@@ -17,7 +17,7 @@ StorageProvider _$StorageProviderFromJson(Map<String, dynamic> json) =>
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
 
-Map<String, dynamic> _$StorageProviderToJson(StorageProvider instance) =>
+Map<String, dynamic> _$StorageProviderToJson(_StorageProvider instance) =>
     <String, dynamic>{
       'id': instance.id,
       'name': instance.name,

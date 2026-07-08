@@ -1,42 +1,22 @@
-import 'package:json_annotation/json_annotation.dart';
-import 'package:equatable/equatable.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
+part 'storage_provider.freezed.dart';
 part 'storage_provider.g.dart';
 
-@JsonSerializable()
-class StorageProvider extends Equatable {
-  final String id;
-  final String name;
-  final StorageProviderType type;
-  final bool isEnabled;
-  final Map<String, dynamic> configuration;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-
-  const StorageProvider({
-    required this.id,
-    required this.name,
-    required this.type,
-    required this.isEnabled,
-    required this.configuration,
-    required this.createdAt,
-    required this.updatedAt,
-  });
+@freezed
+abstract class StorageProvider with _$StorageProvider {
+  const factory StorageProvider({
+    required String id,
+    required String name,
+    required StorageProviderType type,
+    required bool isEnabled,
+    required Map<String, dynamic> configuration,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+  }) = _StorageProvider;
 
   factory StorageProvider.fromJson(Map<String, dynamic> json) =>
       _$StorageProviderFromJson(json);
-  Map<String, dynamic> toJson() => _$StorageProviderToJson(this);
-
-  @override
-  List<Object?> get props => [
-    id,
-    name,
-    type,
-    isEnabled,
-    configuration,
-    createdAt,
-    updatedAt,
-  ];
 }
 
 enum StorageProviderType { local, googleDrive, oneDrive, dropbox, box }

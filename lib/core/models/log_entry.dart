@@ -1,25 +1,23 @@
-import 'package:equatable/equatable.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import 'log_level.dart';
 
-/// Represents a single log entry
-class LogEntry extends Equatable {
-  final DateTime timestamp;
-  final LogLevel level;
-  final String message;
-  final String? tag;
-  final String? error;
-  final StackTrace? stackTrace;
-  final Map<String, dynamic>? metadata;
+part 'log_entry.freezed.dart';
 
-  const LogEntry({
-    required this.timestamp,
-    required this.level,
-    required this.message,
-    this.tag,
-    this.error,
-    this.stackTrace,
-    this.metadata,
-  });
+/// Represents a single log entry
+@freezed
+abstract class LogEntry with _$LogEntry {
+  const LogEntry._();
+
+  const factory LogEntry({
+    required DateTime timestamp,
+    required LogLevel level,
+    required String message,
+    String? tag,
+    String? error,
+    StackTrace? stackTrace,
+    Map<String, dynamic>? metadata,
+  }) = _LogEntry;
 
   factory LogEntry.create({
     required LogLevel level,
@@ -39,15 +37,4 @@ class LogEntry extends Equatable {
       metadata: metadata,
     );
   }
-
-  @override
-  List<Object?> get props => [
-    timestamp,
-    level,
-    message,
-    tag,
-    error,
-    stackTrace,
-    metadata,
-  ];
 }

@@ -1,36 +1,26 @@
-import 'package:json_annotation/json_annotation.dart';
-import 'package:equatable/equatable.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:uuid/uuid.dart';
 
+part 'audit_log.freezed.dart';
 part 'audit_log.g.dart';
 
-@JsonSerializable()
-class AuditLog extends Equatable {
-  final String id;
-  final AuditAction action;
-  final String resourceType;
-  final String resourceId;
-  final String userId;
-  final DateTime timestamp;
-  final String? details;
-  final String? location;
-  final String? deviceInfo;
-  final bool isSuccess;
-  final String? errorMessage;
+@freezed
+abstract class AuditLog with _$AuditLog {
+  const AuditLog._();
 
-  const AuditLog({
-    required this.id,
-    required this.action,
-    required this.resourceType,
-    required this.resourceId,
-    required this.userId,
-    required this.timestamp,
-    this.details,
-    this.location,
-    this.deviceInfo,
-    required this.isSuccess,
-    this.errorMessage,
-  });
+  const factory AuditLog({
+    required String id,
+    required AuditAction action,
+    required String resourceType,
+    required String resourceId,
+    required String userId,
+    required DateTime timestamp,
+    String? details,
+    String? location,
+    String? deviceInfo,
+    required bool isSuccess,
+    String? errorMessage,
+  }) = _AuditLog;
 
   factory AuditLog.create({
     required AuditAction action,
@@ -60,22 +50,6 @@ class AuditLog extends Equatable {
 
   factory AuditLog.fromJson(Map<String, dynamic> json) =>
       _$AuditLogFromJson(json);
-  Map<String, dynamic> toJson() => _$AuditLogToJson(this);
-
-  @override
-  List<Object?> get props => [
-    id,
-    action,
-    resourceType,
-    resourceId,
-    userId,
-    timestamp,
-    details,
-    location,
-    deviceInfo,
-    isSuccess,
-    errorMessage,
-  ];
 }
 
 enum AuditAction {

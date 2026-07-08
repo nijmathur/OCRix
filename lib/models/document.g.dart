@@ -6,7 +6,7 @@ part of 'document.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-Document _$DocumentFromJson(Map<String, dynamic> json) => Document(
+_Document _$DocumentFromJson(Map<String, dynamic> json) => _Document(
   id: json['id'] as String,
   title: json['title'] as String,
   imageData: const Uint8ListConverter().fromJson(json['imageData'] as String?),
@@ -39,9 +39,19 @@ Document _$DocumentFromJson(Map<String, dynamic> json) => Document(
       : DateTime.parse(json['lastSyncedAt'] as String),
   isMultiPage: json['isMultiPage'] as bool? ?? false,
   pageCount: (json['pageCount'] as num?)?.toInt() ?? 1,
+  vendor: json['vendor'] as String?,
+  amount: (json['amount'] as num?)?.toDouble(),
+  transactionDate: json['transactionDate'] == null
+      ? null
+      : DateTime.parse(json['transactionDate'] as String),
+  category: json['category'] as String?,
+  entityConfidence: (json['entityConfidence'] as num?)?.toDouble() ?? 0.0,
+  entitiesExtractedAt: json['entitiesExtractedAt'] == null
+      ? null
+      : DateTime.parse(json['entitiesExtractedAt'] as String),
 );
 
-Map<String, dynamic> _$DocumentToJson(Document instance) => <String, dynamic>{
+Map<String, dynamic> _$DocumentToJson(_Document instance) => <String, dynamic>{
   'id': instance.id,
   'title': instance.title,
   'imageData': const Uint8ListConverter().toJson(instance.imageData),
@@ -70,6 +80,12 @@ Map<String, dynamic> _$DocumentToJson(Document instance) => <String, dynamic>{
   'lastSyncedAt': instance.lastSyncedAt?.toIso8601String(),
   'isMultiPage': instance.isMultiPage,
   'pageCount': instance.pageCount,
+  'vendor': instance.vendor,
+  'amount': instance.amount,
+  'transactionDate': instance.transactionDate?.toIso8601String(),
+  'category': instance.category,
+  'entityConfidence': instance.entityConfidence,
+  'entitiesExtractedAt': instance.entitiesExtractedAt?.toIso8601String(),
 };
 
 const _$DocumentTypeEnumMap = {

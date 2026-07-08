@@ -1,51 +1,39 @@
-import 'package:json_annotation/json_annotation.dart';
-import 'package:equatable/equatable.dart';
-import 'package:uuid/uuid.dart';
-import 'package:crypto/crypto.dart';
 import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:json_annotation/json_annotation.dart';
+import 'package:uuid/uuid.dart';
+
 import '../core/models/audit_log_level.dart';
 import 'audit_log.dart';
 
+part 'audit_entry.freezed.dart';
 part 'audit_entry.g.dart';
 
 /// Tamper-proof audit entry with checksums and chaining for integrity verification
-@JsonSerializable()
-class AuditEntry extends Equatable {
-  final String id;
-  final AuditLogLevel level;
-  final AuditAction action;
-  final String resourceType;
-  final String resourceId;
-  final String userId;
-  final DateTime timestamp;
-  final String? details;
-  final String? location;
-  final String? deviceInfo;
-  final bool isSuccess;
-  final String? errorMessage;
+@freezed
+abstract class AuditEntry with _$AuditEntry {
+  const AuditEntry._();
 
-  // Tamper-proof fields
-  final String checksum; // SHA-256 hash of entry data
-  final String? previousEntryId; // Chain to previous entry
-  final String? previousChecksum; // Verify chain integrity
-
-  const AuditEntry({
-    required this.id,
-    required this.level,
-    required this.action,
-    required this.resourceType,
-    required this.resourceId,
-    required this.userId,
-    required this.timestamp,
-    this.details,
-    this.location,
-    this.deviceInfo,
-    required this.isSuccess,
-    this.errorMessage,
-    required this.checksum,
-    this.previousEntryId,
-    this.previousChecksum,
-  });
+  const factory AuditEntry({
+    required String id,
+    required AuditLogLevel level,
+    required AuditAction action,
+    required String resourceType,
+    required String resourceId,
+    required String userId,
+    required DateTime timestamp,
+    String? details,
+    String? location,
+    String? deviceInfo,
+    required bool isSuccess,
+    String? errorMessage,
+    // Tamper-proof fields
+    required String checksum,
+    String? previousEntryId,
+    String? previousChecksum,
+  }) = _AuditEntry;
 
   factory AuditEntry.create({
     required AuditLogLevel level,
@@ -159,24 +147,4 @@ class AuditEntry extends Equatable {
 
   factory AuditEntry.fromJson(Map<String, dynamic> json) =>
       _$AuditEntryFromJson(json);
-  Map<String, dynamic> toJson() => _$AuditEntryToJson(this);
-
-  @override
-  List<Object?> get props => [
-    id,
-    level,
-    action,
-    resourceType,
-    resourceId,
-    userId,
-    timestamp,
-    details,
-    location,
-    deviceInfo,
-    isSuccess,
-    errorMessage,
-    checksum,
-    previousEntryId,
-    previousChecksum,
-  ];
 }
