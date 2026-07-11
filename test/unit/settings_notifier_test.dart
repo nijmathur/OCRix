@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:ocrix/models/user_settings.dart';
+import 'package:ocrix/providers/document_provider.dart';
 import 'package:ocrix/providers/settings_provider.dart';
+import 'package:ocrix/providers/troubleshooting_logger_provider.dart';
 import '../helpers/mocks.dart';
 
 void main() {
@@ -20,99 +22,126 @@ void main() {
     mockLogger = MockTroubleshootingLogger();
 
     // Stub logger methods so they don't return null
-    when(() => mockLogger.info(any(), tag: any(named: 'tag'), metadata: any(named: 'metadata')))
-        .thenAnswer((_) async {});
-    when(() => mockLogger.error(any(), tag: any(named: 'tag'), error: any(named: 'error'), stackTrace: any(named: 'stackTrace'), metadata: any(named: 'metadata')))
-        .thenAnswer((_) async {});
+    when(
+      () => mockLogger.info(
+        any(),
+        tag: any(named: 'tag'),
+        metadata: any(named: 'metadata'),
+      ),
+    ).thenAnswer((_) async {});
+    when(
+      () => mockLogger.error(
+        any(),
+        tag: any(named: 'tag'),
+        error: any(named: 'error'),
+        stackTrace: any(named: 'stackTrace'),
+        metadata: any(named: 'metadata'),
+      ),
+    ).thenAnswer((_) async {});
   });
+
+  ProviderContainer createContainer() {
+    return ProviderContainer(
+      overrides: [
+        databaseServiceProvider.overrideWithValue(mockDb),
+        troubleshootingLoggerProvider.overrideWithValue(mockLogger),
+      ],
+    );
+  }
 
   group('SettingsNotifier', () {
     test('loads settings on creation', () async {
-      when(() => mockDb.getUserSettings())
-          .thenAnswer((_) async => testSettings);
+      when(
+        () => mockDb.getUserSettings(),
+      ).thenAnswer((_) async => testSettings);
 
-      final notifier = SettingsNotifier(
-        mockDb,
-        troubleshootingLogger: mockLogger,
-      );
+      final container = createContainer();
+      addTearDown(container.dispose);
 
-      // Initially loading
-      expect(notifier.state, const AsyncValue<UserSettings>.loading());
+      // Trigger the provider
+      final future = container.read(settingsNotifierProvider.future);
+      final result = await future;
 
-      // Wait for settings to load
-      await Future.delayed(Duration.zero);
-
-      expect(notifier.state.value, testSettings);
+      expect(result, testSettings);
       verify(() => mockDb.getUserSettings()).called(1);
     });
 
     test('handles load error', () async {
-      when(() => mockDb.getUserSettings())
-          .thenThrow(Exception('DB error'));
+      when(() => mockDb.getUserSettings()).thenThrow(Exception('DB error'));
 
-      final notifier = SettingsNotifier(
-        mockDb,
-        troubleshootingLogger: mockLogger,
-      );
+      final container = createContainer();
+      addTearDown(container.dispose);
 
-      await Future.delayed(Duration.zero);
+      final state = await container
+          .read(settingsNotifierProvider.future)
+          .then((_) => false)
+          .catchError((_) => true);
 
-      expect(notifier.state.hasError, true);
+      expect(state, true);
     });
 
     test('updateSettings persists and updates state', () async {
-      when(() => mockDb.getUserSettings())
-          .thenAnswer((_) async => testSettings);
-      when(() => mockDb.updateUserSettings(any()))
-          .thenAnswer((_) async {});
+      when(
+        () => mockDb.getUserSettings(),
+      ).thenAnswer((_) async => testSettings);
+      when(() => mockDb.updateUserSettings(any())).thenAnswer((_) async {});
 
-      final notifier = SettingsNotifier(
-        mockDb,
-        troubleshootingLogger: mockLogger,
-      );
-      await Future.delayed(Duration.zero);
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      // Wait for initial load
+      await container.read(settingsNotifierProvider.future);
 
       final updated = testSettings.copyWith(theme: 'dark');
-      await notifier.updateSettings(updated);
+      await container
+          .read(settingsNotifierProvider.notifier)
+          .updateSettings(updated);
 
-      expect(notifier.state.value?.theme, 'dark');
+      final current = container.read(settingsNotifierProvider).value;
+      expect(current?.theme, 'dark');
       verify(() => mockDb.updateUserSettings(updated)).called(1);
     });
 
     test('updateSettings handles error', () async {
-      when(() => mockDb.getUserSettings())
-          .thenAnswer((_) async => testSettings);
-      when(() => mockDb.updateUserSettings(any()))
-          .thenThrow(Exception('Write failed'));
+      when(
+        () => mockDb.getUserSettings(),
+      ).thenAnswer((_) async => testSettings);
+      when(
+        () => mockDb.updateUserSettings(any()),
+      ).thenThrow(Exception('Write failed'));
 
-      final notifier = SettingsNotifier(
-        mockDb,
-        troubleshootingLogger: mockLogger,
-      );
-      await Future.delayed(Duration.zero);
+      final container = createContainer();
+      addTearDown(container.dispose);
 
-      await notifier.updateSettings(testSettings.copyWith(theme: 'dark'));
+      // Wait for initial load
+      await container.read(settingsNotifierProvider.future);
 
-      expect(notifier.state.hasError, true);
+      await container
+          .read(settingsNotifierProvider.notifier)
+          .updateSettings(testSettings.copyWith(theme: 'dark'));
+
+      expect(container.read(settingsNotifierProvider).hasError, true);
     });
 
     test('updateMetadataStorageProvider updates specific field', () async {
-      when(() => mockDb.getUserSettings())
-          .thenAnswer((_) async => testSettings);
-      when(() => mockDb.updateUserSettings(any()))
-          .thenAnswer((_) async {});
+      when(
+        () => mockDb.getUserSettings(),
+      ).thenAnswer((_) async => testSettings);
+      when(() => mockDb.updateUserSettings(any())).thenAnswer((_) async {});
 
-      final notifier = SettingsNotifier(
-        mockDb,
-        troubleshootingLogger: mockLogger,
-      );
-      await Future.delayed(Duration.zero);
+      final container = createContainer();
+      addTearDown(container.dispose);
 
-      await notifier.updateMetadataStorageProvider('googleDrive');
+      // Wait for initial load
+      await container.read(settingsNotifierProvider.future);
 
-      final captured = verify(
-        () => mockDb.updateUserSettings(captureAny()),
-      ).captured.single as UserSettings;
+      await container
+          .read(settingsNotifierProvider.notifier)
+          .updateMetadataStorageProvider('googleDrive');
+
+      final captured =
+          verify(() => mockDb.updateUserSettings(captureAny())).captured.single
+              as UserSettings;
       expect(captured.metadataStorageProvider, 'googleDrive');
     });
   });

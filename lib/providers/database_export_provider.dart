@@ -35,11 +35,12 @@ abstract class DatabaseExportState with _$DatabaseExportState {
 }
 
 /// Notifier for database export/import operations
-class DatabaseExportNotifier extends StateNotifier<DatabaseExportState> {
-  final DatabaseExportService _exportService;
+class DatabaseExportNotifier extends Notifier<DatabaseExportState> {
+  @override
+  DatabaseExportState build() => const DatabaseExportState();
 
-  DatabaseExportNotifier(this._exportService)
-    : super(const DatabaseExportState());
+  DatabaseExportService get _exportService =>
+      ref.read(databaseExportServiceProvider);
 
   /// Export database to Google Drive with password
   Future<String?> exportDatabase({
@@ -130,7 +131,6 @@ class DatabaseExportNotifier extends StateNotifier<DatabaseExportState> {
 
 /// Provider for DatabaseExportNotifier
 final databaseExportNotifierProvider =
-    StateNotifierProvider<DatabaseExportNotifier, DatabaseExportState>((ref) {
-      final exportService = ref.read(databaseExportServiceProvider);
-      return DatabaseExportNotifier(exportService);
-    });
+    NotifierProvider<DatabaseExportNotifier, DatabaseExportState>(
+      DatabaseExportNotifier.new,
+    );

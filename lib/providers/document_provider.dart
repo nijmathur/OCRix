@@ -85,39 +85,31 @@ final documentByTypeProvider =
       return await databaseService.getAllDocuments(type: type);
     });
 
-class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
-  final IDatabaseService _databaseService;
-  final IOCRService _ocrService;
-  final IImageProcessingService _imageProcessingService;
-  final AuditLoggingService? _auditLoggingService;
-  final ITroubleshootingLogger? _troubleshootingLogger;
-  final VectorSearchService? _vectorSearchService;
-  final EntityExtractionService? _entityExtractionService;
-
+class DocumentNotifier extends AsyncNotifier<List<Document>> {
   int _currentPage = 0;
   bool _hasMore = true;
   DocumentType? _currentTypeFilter;
   String? _currentSearchQuery;
 
-  DocumentNotifier(
-    this._databaseService,
-    this._ocrService,
-    ICameraService cameraService,
-    IStorageProviderService storageService, {
-    IImageProcessingService? imageProcessingService,
-    AuditLoggingService? auditLoggingService,
-    ITroubleshootingLogger? troubleshootingLogger,
-    VectorSearchService? vectorSearchService,
-    EntityExtractionService? entityExtractionService,
-  }) : _imageProcessingService =
-           imageProcessingService ?? ImageProcessingService(),
-       _auditLoggingService = auditLoggingService,
-       _troubleshootingLogger = troubleshootingLogger,
-       _vectorSearchService = vectorSearchService,
-       _entityExtractionService =
-           entityExtractionService ?? EntityExtractionService(),
-       super(const AsyncValue.loading()) {
-    _loadDocuments();
+  IDatabaseService get _databaseService => ref.read(databaseServiceProvider);
+  IOCRService get _ocrService => ref.read(ocrServiceProvider);
+  IImageProcessingService get _imageProcessingService =>
+      ref.read(imageProcessingServiceProvider);
+  AuditLoggingService get _auditLoggingService =>
+      ref.read(auditLoggingServiceProvider);
+  ITroubleshootingLogger get _troubleshootingLogger =>
+      ref.read(troubleshootingLoggerProvider);
+  EntityExtractionService get _entityExtractionService =>
+      EntityExtractionService();
+
+  @override
+  Future<List<Document>> build() async {
+    final documents = await _databaseService.getAllDocuments(
+      limit: AppConfig.documentsPerPage,
+      offset: 0,
+    );
+    _hasMore = documents.length >= AppConfig.documentsPerPage;
+    return documents;
   }
 
   Future<void> _loadDocuments({
@@ -161,7 +153,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         state = AsyncValue.data(documents);
       }
     } catch (e, stackTrace) {
-      _troubleshootingLogger?.error(
+      _troubleshootingLogger.error(
         'Failed to load documents',
         tag: 'DocumentNotifier',
         error: e,
@@ -237,7 +229,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         final settings = await _databaseService.getUserSettings();
         useLLM = settings.useLLMCategorization;
       } catch (e) {
-        _troubleshootingLogger?.warning(
+        _troubleshootingLogger.warning(
           'Failed to load settings, using default categorization',
           tag: 'DocumentNotifier',
           error: e,
@@ -247,7 +239,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       try {
         if (useLLM) {
           // Use LLM categorization (smarter but slower)
-          _troubleshootingLogger?.info(
+          _troubleshootingLogger.info(
             'Using LLM categorization',
             tag: 'DocumentNotifier',
           );
@@ -259,7 +251,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
             orElse: () => DocumentType.other,
           );
           extractedTags = result.tags;
-          _troubleshootingLogger?.info(
+          _troubleshootingLogger.info(
             'LLM categorized as: $documentType (confidence: ${result.confidence}, tags: $extractedTags)',
             tag: 'DocumentNotifier',
           );
@@ -268,7 +260,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
           documentType = await _ocrService.categorizeDocument(ocrResult.text);
         }
       } catch (e) {
-        _troubleshootingLogger?.warning(
+        _troubleshootingLogger.warning(
           'Categorization failed, falling back to keyword-based',
           tag: 'DocumentNotifier',
           error: e,
@@ -316,14 +308,14 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       try {
         if (await imageFile.exists()) {
           await imageFile.delete();
-          _troubleshootingLogger?.info(
+          _troubleshootingLogger.info(
             'Cleaned up temporary image file: $imagePath',
             tag: 'DocumentNotifier',
           );
         }
       } catch (e) {
         // Log but don't fail if cleanup fails
-        _troubleshootingLogger?.warning(
+        _troubleshootingLogger.warning(
           'Failed to cleanup image file',
           tag: 'DocumentNotifier',
           error: e,
@@ -331,7 +323,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       }
 
       // Log user action (INFO level)
-      await _auditLoggingService?.logInfoAction(
+      await _auditLoggingService.logInfoAction(
         action: AuditAction.create,
         resourceType: 'document',
         resourceId: documentId,
@@ -346,13 +338,13 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         await refreshDocuments();
       }
 
-      _troubleshootingLogger?.info(
+      _troubleshootingLogger.info(
         'Document scanned and saved: $documentId',
         tag: 'DocumentNotifier',
       );
       return documentId;
     } catch (e, stackTrace) {
-      _troubleshootingLogger?.error(
+      _troubleshootingLogger.error(
         'Failed to scan document',
         tag: 'DocumentNotifier',
         error: e,
@@ -431,7 +423,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       _extractEntitiesAsync(document);
 
       // Log user action (INFO level)
-      await _auditLoggingService?.logInfoAction(
+      await _auditLoggingService.logInfoAction(
         action: AuditAction.create,
         resourceType: 'document',
         resourceId: documentId,
@@ -447,13 +439,13 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         await refreshDocuments();
       }
 
-      _troubleshootingLogger?.info(
+      _troubleshootingLogger.info(
         'Multi-page document scanned and saved: $documentId (${pages.length} pages)',
         tag: 'DocumentNotifier',
       );
       return documentId;
     } catch (e, stackTrace) {
-      _troubleshootingLogger?.error(
+      _troubleshootingLogger.error(
         'Failed to scan multi-page document',
         tag: 'DocumentNotifier',
         error: e,
@@ -471,7 +463,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       await _databaseService.updateDocument(updatedDocument);
 
       // Log user action (INFO level)
-      await _auditLoggingService?.logInfoAction(
+      await _auditLoggingService.logInfoAction(
         action: AuditAction.update,
         resourceType: 'document',
         resourceId: document.id,
@@ -496,12 +488,12 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         await refreshDocuments();
       }
 
-      _troubleshootingLogger?.info(
+      _troubleshootingLogger.info(
         'Document updated: ${document.id}',
         tag: 'DocumentNotifier',
       );
     } catch (e, stackTrace) {
-      _troubleshootingLogger?.error(
+      _troubleshootingLogger.error(
         'Failed to update document',
         tag: 'DocumentNotifier',
         error: e,
@@ -516,7 +508,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       await _databaseService.deleteDocument(documentId);
 
       // Log user action (INFO level)
-      await _auditLoggingService?.logInfoAction(
+      await _auditLoggingService.logInfoAction(
         action: AuditAction.delete,
         resourceType: 'document',
         resourceId: documentId,
@@ -531,12 +523,12 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
         await refreshDocuments();
       }
 
-      _troubleshootingLogger?.info(
+      _troubleshootingLogger.info(
         'Document deleted: $documentId',
         tag: 'DocumentNotifier',
       );
     } catch (e, stackTrace) {
-      _troubleshootingLogger?.error(
+      _troubleshootingLogger.error(
         'Failed to delete document',
         tag: 'DocumentNotifier',
         error: e,
@@ -551,7 +543,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       await filterDocuments(searchQuery: query);
       return state.value ?? [];
     } catch (e) {
-      _troubleshootingLogger?.error(
+      _troubleshootingLogger.error(
         'Failed to search documents',
         tag: 'DocumentNotifier',
         error: e,
@@ -565,7 +557,7 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
       await filterDocuments(type: type);
       return state.value ?? [];
     } catch (e) {
-      _troubleshootingLogger?.error(
+      _troubleshootingLogger.error(
         'Failed to get documents by type',
         tag: 'DocumentNotifier',
         error: e,
@@ -576,7 +568,8 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
 
   /// Vectorize document asynchronously in the background (non-blocking)
   void _vectorizeDocumentAsync(Document document) {
-    final vectorService = _vectorSearchService;
+    final VectorSearchService? vectorService =
+        null; // TODO: wire up when provider exists
     if (vectorService == null || !vectorService.isReady) {
       // Silently skip if vector search service is not available
       return;
@@ -591,13 +584,13 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
           'extracted_text': document.extractedText,
         };
         await vectorService.vectorizeDocument(documentMap);
-        _troubleshootingLogger?.info(
+        _troubleshootingLogger.info(
           'Document vectorized successfully: ${document.id}',
           tag: 'DocumentNotifier',
         );
       } catch (e) {
         // Fail silently, just log the error
-        _troubleshootingLogger?.warning(
+        _troubleshootingLogger.warning(
           'Failed to vectorize document: ${document.id}',
           tag: 'DocumentNotifier',
           error: e,
@@ -638,21 +631,21 @@ class DocumentNotifier extends StateNotifier<AsyncValue<List<Document>>> {
             entityConfidence: entity.confidence,
           );
 
-          _troubleshootingLogger?.info(
+          _troubleshootingLogger.info(
             'Entities extracted for ${document.id}: '
             'vendor=${entity.vendor}, amount=${entity.amount}, '
             'category=${entity.category?.name}',
             tag: 'DocumentNotifier',
           );
         } else {
-          _troubleshootingLogger?.info(
+          _troubleshootingLogger.info(
             'No entities found for document: ${document.id}',
             tag: 'DocumentNotifier',
           );
         }
       } catch (e) {
         // Fail silently, just log the error
-        _troubleshootingLogger?.warning(
+        _troubleshootingLogger.warning(
           'Failed to extract entities from document: ${document.id}',
           tag: 'DocumentNotifier',
           error: e,
@@ -682,66 +675,30 @@ final imageProcessingServiceProvider = Provider<IImageProcessingService>((ref) {
 });
 
 final documentNotifierProvider =
-    StateNotifierProvider<DocumentNotifier, AsyncValue<List<Document>>>((ref) {
-      final databaseService = ref.read(databaseServiceProvider);
-      final ocrService = ref.read(ocrServiceProvider);
-      final cameraService = ref.read(cameraServiceProvider);
-      final storageService = ref.read(storageProviderServiceProvider);
-      final imageProcessingService = ref.read(imageProcessingServiceProvider);
-      final auditLoggingService = ref.read(auditLoggingServiceProvider);
+    AsyncNotifierProvider<DocumentNotifier, List<Document>>(
+      DocumentNotifier.new,
+    );
 
-      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
-
-      return DocumentNotifier(
-        databaseService,
-        ocrService,
-        cameraService,
-        storageService,
-        imageProcessingService: imageProcessingService,
-        auditLoggingService: auditLoggingService,
-        troubleshootingLogger: troubleshootingLogger,
-      );
-    });
-
-class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
-  final IDatabaseService _databaseService;
-  final ITroubleshootingLogger? _troubleshootingLogger;
-
-  DocumentDetailNotifier(
-    this._databaseService, {
-    ITroubleshootingLogger? troubleshootingLogger,
-  }) : _troubleshootingLogger = troubleshootingLogger,
-       super(const AsyncValue.loading());
-
-  Future<void> loadDocument(String documentId) async {
-    try {
-      state = const AsyncValue.loading();
-      final document = await _databaseService.getDocument(documentId);
-      state = AsyncValue.data(document);
-    } catch (e, stackTrace) {
-      _troubleshootingLogger?.error(
-        'Failed to load document',
-        tag: 'DocumentDetailNotifier',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      state = AsyncValue.error(e, stackTrace);
-    }
+class DocumentDetailNotifier extends FamilyAsyncNotifier<Document?, String> {
+  @override
+  Future<Document?> build(String arg) async {
+    final databaseService = ref.read(databaseServiceProvider);
+    return await databaseService.getDocument(arg);
   }
 
   Future<void> updateDocument(Document document) async {
+    final databaseService = ref.read(databaseServiceProvider);
+    final logger = ref.read(troubleshootingLoggerProvider);
     try {
       final updatedDocument = document.copyWith(updatedAt: DateTime.now());
-
-      await _databaseService.updateDocument(updatedDocument);
+      await databaseService.updateDocument(updatedDocument);
       state = AsyncValue.data(updatedDocument);
-
-      _troubleshootingLogger?.info(
+      logger.info(
         'Document updated: ${document.id}',
         tag: 'DocumentDetailNotifier',
       );
     } catch (e, stackTrace) {
-      _troubleshootingLogger?.error(
+      logger.error(
         'Failed to update document',
         tag: 'DocumentDetailNotifier',
         error: e,
@@ -752,16 +709,17 @@ class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
   }
 
   Future<void> deleteDocument(String documentId) async {
+    final databaseService = ref.read(databaseServiceProvider);
+    final logger = ref.read(troubleshootingLoggerProvider);
     try {
-      await _databaseService.deleteDocument(documentId);
+      await databaseService.deleteDocument(documentId);
       state = const AsyncValue.data(null);
-
-      _troubleshootingLogger?.info(
+      logger.info(
         'Document deleted: $documentId',
         tag: 'DocumentDetailNotifier',
       );
     } catch (e, stackTrace) {
-      _troubleshootingLogger?.error(
+      logger.error(
         'Failed to delete document',
         tag: 'DocumentDetailNotifier',
         error: e,
@@ -773,30 +731,18 @@ class DocumentDetailNotifier extends StateNotifier<AsyncValue<Document?>> {
 }
 
 final documentDetailNotifierProvider =
-    StateNotifierProvider.family<
-      DocumentDetailNotifier,
-      AsyncValue<Document?>,
-      String
-    >((ref, documentId) {
-      final databaseService = ref.read(databaseServiceProvider);
-      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
-      return DocumentDetailNotifier(
-        databaseService,
-        troubleshootingLogger: troubleshootingLogger,
-      );
-    });
+    AsyncNotifierProvider.family<DocumentDetailNotifier, Document?, String>(
+      DocumentDetailNotifier.new,
+    );
 
-class ScannerNotifier extends StateNotifier<ScannerState> {
-  final ICameraService _cameraService;
-  final IOCRService _ocrService;
-  final ITroubleshootingLogger? _troubleshootingLogger;
+class ScannerNotifier extends Notifier<ScannerState> {
+  @override
+  ScannerState build() => const ScannerState();
 
-  ScannerNotifier(
-    this._cameraService,
-    this._ocrService, {
-    ITroubleshootingLogger? troubleshootingLogger,
-  }) : _troubleshootingLogger = troubleshootingLogger,
-       super(const ScannerState());
+  ICameraService get _cameraService => ref.read(cameraServiceProvider);
+  IOCRService get _ocrService => ref.read(ocrServiceProvider);
+  ITroubleshootingLogger get _troubleshootingLogger =>
+      ref.read(troubleshootingLoggerProvider);
 
   Future<void> initializeCamera() async {
     try {
@@ -811,12 +757,12 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
         error: null,
       );
 
-      _troubleshootingLogger?.info(
+      _troubleshootingLogger.info(
         'Camera initialized successfully',
         tag: 'ScannerNotifier',
       );
     } catch (e) {
-      _troubleshootingLogger?.error(
+      _troubleshootingLogger.error(
         'Failed to initialize camera',
         tag: 'ScannerNotifier',
         error: e,
@@ -837,13 +783,13 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
         error: null,
       );
 
-      _troubleshootingLogger?.info(
+      _troubleshootingLogger.info(
         'Image captured: $imagePath',
         tag: 'ScannerNotifier',
       );
       return imagePath;
     } catch (e) {
-      _troubleshootingLogger?.error(
+      _troubleshootingLogger.error(
         'Failed to capture image',
         tag: 'ScannerNotifier',
         error: e,
@@ -865,13 +811,13 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
         error: null,
       );
 
-      _troubleshootingLogger?.info(
+      _troubleshootingLogger.info(
         'Text extracted: ${ocrResult.text.length} characters',
         tag: 'ScannerNotifier',
       );
       return ocrResult;
     } catch (e) {
-      _troubleshootingLogger?.error(
+      _troubleshootingLogger.error(
         'Failed to extract text',
         tag: 'ScannerNotifier',
         error: e,
@@ -894,17 +840,9 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
   }
 }
 
-final scannerNotifierProvider =
-    StateNotifierProvider<ScannerNotifier, ScannerState>((ref) {
-      final cameraService = ref.read(cameraServiceProvider);
-      final ocrService = ref.read(ocrServiceProvider);
-      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
-      return ScannerNotifier(
-        cameraService,
-        ocrService,
-        troubleshootingLogger: troubleshootingLogger,
-      );
-    });
+final scannerNotifierProvider = NotifierProvider<ScannerNotifier, ScannerState>(
+  ScannerNotifier.new,
+);
 
 @freezed
 abstract class ScannerState with _$ScannerState {
