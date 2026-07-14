@@ -2,17 +2,45 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
+import 'package:workmanager/workmanager.dart';
 import 'providers/document_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/biometric_auth_provider.dart';
 import 'providers/audit_provider.dart';
 import 'providers/troubleshooting_logger_provider.dart';
+import 'providers/sync_provider.dart';
 import 'services/database_service.dart';
 import 'utils/navigation_observer.dart';
 import 'utils/error_handler.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/splash_screen.dart';
 import 'ui/screens/login_screen.dart';
+
+/// Top-level workmanager callback — must be a top-level function.
+/// workmanager runs tasks in a separate isolate so services need re-initializing.
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((taskName, inputData) async {
+    if (taskName == 'com.ocrix.app.backgroundSync') {
+      // Minimal re-initialization inside the isolate
+      try {
+        final container = ProviderContainer();
+        final db = container.read(databaseServiceProvider);
+        final storage = container.read(storageProviderServiceProvider);
+        await db.initialize();
+        await storage.initialize();
+        final syncService = container.read(syncQueueServiceProvider);
+        await syncService.initialize();
+        await syncService.processQueue();
+        container.dispose();
+      } catch (_) {
+        // Silently fail — workmanager will retry on next interval
+        return Future.value(false);
+      }
+    }
+    return Future.value(true);
+  });
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -340,6 +368,20 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
           metadata: {'note': 'Camera features will be disabled'},
         );
         debugPrint('Warning: Camera service initialization failed: $e');
+      }
+
+      // Initialize sync queue service
+      final syncQueueService = ref.read(syncQueueServiceProvider);
+      await syncQueueService.initialize();
+
+      // Initialize workmanager and register background sync if autoSync is on
+      await Workmanager().initialize(callbackDispatcher);
+      final settings = await databaseService.getUserSettings();
+      if (settings.autoSync) {
+        await ref.read(syncProvider.notifier).onAutoSyncToggled(
+              true,
+              settings.syncIntervalMinutes,
+            );
       }
 
       await troubleshootingLogger.info(

@@ -4,6 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import '../core/interfaces/encryption_service_interface.dart';
 import '../models/user_settings.dart';
 import 'document_provider.dart';
+import 'sync_provider.dart';
 import 'troubleshooting_logger_provider.dart';
 
 part 'settings_provider.freezed.dart';
@@ -55,9 +56,14 @@ class SettingsNotifier extends AsyncNotifier<UserSettings> {
   Future<void> toggleAutoSync() async {
     final currentSettings = state.value;
     if (currentSettings != null) {
+      final newEnabled = !currentSettings.autoSync;
       await updateSettings(
-        currentSettings.copyWith(autoSync: !currentSettings.autoSync),
+        currentSettings.copyWith(autoSync: newEnabled),
       );
+      await ref.read(syncProvider.notifier).onAutoSyncToggled(
+            newEnabled,
+            currentSettings.syncIntervalMinutes,
+          );
     }
   }
 
@@ -67,6 +73,10 @@ class SettingsNotifier extends AsyncNotifier<UserSettings> {
       await updateSettings(
         currentSettings.copyWith(syncIntervalMinutes: minutes),
       );
+      // Re-register background task with new interval if autoSync is enabled
+      if (currentSettings.autoSync) {
+        await ref.read(syncProvider.notifier).onAutoSyncToggled(true, minutes);
+      }
     }
   }
 

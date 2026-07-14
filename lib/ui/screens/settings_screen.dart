@@ -6,6 +6,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/biometric_auth_provider.dart';
 import '../../providers/database_export_provider.dart';
+import '../../providers/sync_provider.dart';
 import '../../models/user_settings.dart';
 import '../widgets/settings_tile.dart';
 import '../widgets/password_dialog.dart';
@@ -101,29 +102,85 @@ class SettingsScreen extends ConsumerWidget {
         icon: Icons.folder,
         onTap: () => _showStorageProviderDialog(context, ref, 'file'),
       ),
-      SettingsTile(
-        title: 'Auto Sync',
-        subtitle: settings.autoSync ? 'Enabled' : 'Disabled',
-        icon: Icons.sync,
-        trailing: Switch(
-          value: settings.autoSync,
-          onChanged: (value) {
-            ref.read(settingsNotifierProvider.notifier).toggleAutoSync();
-          },
-        ),
-      ),
-      if (settings.autoSync)
+      _buildSyncSection(context, ref, settings),
+    ]);
+  }
+
+  Widget _buildSyncSection(
+    BuildContext context,
+    WidgetRef ref,
+    UserSettings settings,
+  ) {
+    final syncState = ref.watch(syncProvider);
+    final isSyncing = syncState.phase == SyncPhase.syncing;
+    final lastSynced = syncState.lastSyncedAt;
+    final syncError = syncState.phase == SyncPhase.error ? syncState.lastError : null;
+
+    String lastSyncedText = 'Never synced';
+    if (lastSynced != null) {
+      final diff = DateTime.now().difference(lastSynced);
+      if (diff.inMinutes < 1) {
+        lastSyncedText = 'Synced just now';
+      } else if (diff.inHours < 1) {
+        lastSyncedText = 'Synced ${diff.inMinutes}m ago';
+      } else {
+        lastSyncedText = 'Synced ${diff.inHours}h ago';
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         SettingsTile(
-          title: 'Sync Interval',
-          subtitle: '${settings.syncIntervalMinutes} minutes',
-          icon: Icons.schedule,
-          onTap: () => _showSyncIntervalDialog(
-            context,
-            ref,
-            settings.syncIntervalMinutes,
+          title: 'Auto Sync',
+          subtitle: settings.autoSync ? 'Enabled' : 'Disabled',
+          icon: Icons.sync,
+          trailing: Switch(
+            value: settings.autoSync,
+            onChanged: (_) {
+              ref.read(settingsNotifierProvider.notifier).toggleAutoSync();
+            },
           ),
         ),
-    ]);
+        if (settings.autoSync)
+          SettingsTile(
+            title: 'Sync Interval',
+            subtitle: '${settings.syncIntervalMinutes} minutes',
+            icon: Icons.schedule,
+            onTap: () => _showSyncIntervalDialog(
+              context,
+              ref,
+              settings.syncIntervalMinutes,
+            ),
+          ),
+        SettingsTile(
+          title: isSyncing ? 'Syncing…' : 'Sync Now',
+          subtitle: syncError != null ? 'Error: $syncError' : lastSyncedText,
+          icon: isSyncing ? Icons.sync : Icons.sync_outlined,
+          trailing: isSyncing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : null,
+          onTap: isSyncing
+              ? null
+              : () => ref.read(syncProvider.notifier).manualSync(),
+        ),
+        if (syncError != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Text(
+              syncError,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontSize: 12,
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   Widget _buildSecuritySection(

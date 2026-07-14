@@ -8,6 +8,7 @@ import 'document_list_screen.dart';
 import 'ai_search_screen.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/sync_provider.dart';
 import '../../models/document.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -41,6 +42,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final documentsAsync = ref.watch(documentNotifierProvider);
     final authState = ref.watch(authNotifierProvider);
     final user = authState.valueOrNull;
+    final syncState = ref.watch(syncProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -66,6 +68,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               )
             : null,
         actions: [
+          // Sync status indicator — only visible during sync or on error
+          if (syncState.phase == SyncPhase.syncing)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            )
+          else if (syncState.phase == SyncPhase.error)
+            IconButton(
+              icon: const Icon(Icons.sync_problem, color: Colors.amber),
+              tooltip: 'Sync error — tap to retry',
+              onPressed: () =>
+                  ref.read(syncProvider.notifier).manualSync(),
+            ),
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {

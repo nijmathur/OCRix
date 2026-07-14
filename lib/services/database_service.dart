@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/document.dart';
 import '../models/document_page.dart';
 import '../models/document_summary.dart';
+import '../models/sync_queue_item.dart';
 import '../models/user_settings.dart';
 import '../models/audit_log.dart';
 import '../core/interfaces/database_service_interface.dart';
@@ -1594,6 +1595,72 @@ final class DatabaseService extends BaseService implements IDatabaseService {
       logError('Failed to decrypt data', e);
       return encryptedData; // Return original on failure for backward compatibility
     }
+  }
+
+  // ---- Sync Queue ----
+
+  @override
+  Future<void> insertSyncQueueItem(SyncQueueItem item) async {
+    final db = await database;
+    await db.insert(
+      'sync_queue',
+      SyncQueueItem.toMap(item),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    logInfo('Enqueued sync item ${item.id} action=${item.action} resource=${item.resourceId}');
+  }
+
+  @override
+  Future<List<SyncQueueItem>> getPendingSyncItems({int limit = 20}) async {
+    final db = await database;
+    final rows = await db.query(
+      'sync_queue',
+      where: 'status = ? OR status = ?',
+      whereArgs: [SyncStatus.pending.name, SyncStatus.failed.name],
+      orderBy: 'created_at ASC',
+      limit: limit,
+    );
+    return rows.map(SyncQueueItem.fromMap).toList();
+  }
+
+  @override
+  Future<void> updateSyncQueueItemStatus(
+    String id,
+    SyncStatus status, {
+    int? retryCount,
+    DateTime? lastRetryAt,
+  }) async {
+    final db = await database;
+    final values = <String, Object?>{
+      'status': status.name,
+    };
+    if (retryCount != null) values['retry_count'] = retryCount;
+    if (lastRetryAt != null) {
+      values['last_retry_at'] = lastRetryAt.millisecondsSinceEpoch;
+    }
+    await db.update('sync_queue', values, where: 'id = ?', whereArgs: [id]);
+  }
+
+  @override
+  Future<void> deleteSyncQueueItem(String id) async {
+    final db = await database;
+    await db.delete('sync_queue', where: 'id = ?', whereArgs: [id]);
+  }
+
+  @override
+  Future<void> markDocumentSynced(String documentId, String cloudId) async {
+    final db = await database;
+    await db.update(
+      'documents',
+      {
+        'is_synced': 1,
+        'cloud_id': cloudId,
+        'last_synced_at': DateTime.now().millisecondsSinceEpoch,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'id = ?',
+      whereArgs: [documentId],
+    );
   }
 
   @override

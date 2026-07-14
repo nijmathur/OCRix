@@ -1,6 +1,7 @@
 import '../../models/document.dart';
 import '../../models/document_summary.dart';
 import '../../models/document_page.dart';
+import '../../models/sync_queue_item.dart';
 import '../../models/user_settings.dart';
 import '../../models/audit_log.dart';
 import 'dart:typed_data';
@@ -83,6 +84,28 @@ abstract interface class IDatabaseService {
     String? category,
     required double entityConfidence,
   });
+
+  // ---- Sync Queue ----
+
+  /// Insert an item into the sync queue
+  Future<void> insertSyncQueueItem(SyncQueueItem item);
+
+  /// Get pending (and failed-with-retries-remaining) sync items, oldest first
+  Future<List<SyncQueueItem>> getPendingSyncItems({int limit = 20});
+
+  /// Update a sync queue item's status and optionally its retry count
+  Future<void> updateSyncQueueItemStatus(
+    String id,
+    SyncStatus status, {
+    int? retryCount,
+    DateTime? lastRetryAt,
+  });
+
+  /// Remove a completed sync queue item
+  Future<void> deleteSyncQueueItem(String id);
+
+  /// Mark a document as synced and record the cloud ID
+  Future<void> markDocumentSynced(String documentId, String cloudId);
 
   /// Set the audit logging service for COMPULSORY-level DB operation logging
   void setAuditLoggingService(covariant Object? auditService);

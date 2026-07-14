@@ -76,7 +76,7 @@ void main() {
       final container = makeContainer();
       addTearDown(container.dispose);
 
-      final state = await container
+      await container
           .read(settingsNotifierProvider.future)
           .then((_) => null)
           .catchError((_) => null);

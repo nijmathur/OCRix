@@ -9,6 +9,7 @@ import 'package:ocrix/core/interfaces/log_formatter_interface.dart';
 import 'package:ocrix/core/interfaces/log_rotation_service_interface.dart';
 import 'package:ocrix/core/interfaces/ocr_service_interface.dart';
 import 'package:ocrix/core/interfaces/storage_provider_service_interface.dart';
+import 'package:ocrix/core/interfaces/sync_queue_service_interface.dart';
 import 'package:ocrix/core/interfaces/troubleshooting_logger_interface.dart';
 
 class MockDatabaseService extends Mock implements IDatabaseService {}
@@ -34,3 +35,5 @@ class MockLogFileService extends Mock implements ILogFileService {}
 class MockLogFormatter extends Mock implements ILogFormatter {}
 
 class MockLogRotationService extends Mock implements ILogRotationService {}
+
+class MockSyncQueueService extends Mock implements ISyncQueueService {}
