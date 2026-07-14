@@ -45,5 +45,13 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>OCRix needs camera access to scan documents and receipts.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OCRix needs photo library access to import existing images for scanning.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>OCRix saves processed document images to your photo library.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>OCRix uses Face ID to protect access to your private documents.</string>
 </dict>
 </plist>
