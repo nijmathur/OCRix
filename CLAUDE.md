@@ -70,6 +70,21 @@ Write tests for core business logic and important paths. Do NOT write tests for 
 
 When adding a new service or provider method, ask: *"could a bug here cause data loss, a security breach, or a broken user flow?"* If yes, write a test. If no, skip it.
 
+## Documentation Update Policy
+
+**Before every commit**, update any docs affected by the change:
+
+| If you changed… | Update… |
+|---|---|
+| A new service, interface, or provider | `docs/guides/CLAUDE.md` (architecture section) |
+| Implementation status of a feature | `docs/requirements/requirements.md` §7 |
+| A new architectural pattern or rule | `CLAUDE.md` (this file) + `docs/guides/CLAUDE.md` |
+| Refactoring / tech debt resolution | `docs/architecture/REFACTORING_SUMMARY.md` |
+| A screen or user-visible workflow | `docs/guides/CLAUDE.md` (screens / data flows) |
+| Test count or testing patterns | `MEMORY.md` (auto-memory) |
+
+If a code commit touches `lib/` or `test/` but **no** `docs/` file is staged, the pre-commit hook will ask you to confirm. Either update the relevant doc(s) and re-stage, or confirm that no doc change is needed.
+
 ## Documentation Map
 
 | File | Purpose |

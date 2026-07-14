@@ -1,0 +1,32 @@
+#!/bin/sh
+# OCRix pre-commit hook: remind to update documentation when code changes.
+#
+# Install once per clone:
+#   git config core.hooksPath .githooks
+
+STAGED=$(git diff --cached --name-only)
+
+CODE_CHANGED=$(echo "$STAGED" | grep -E '^(lib|test)/')
+DOCS_CHANGED=$(echo "$STAGED" | grep -E '^(docs/|CLAUDE\.md)')
+
+if [ -n "$CODE_CHANGED" ] && [ -z "$DOCS_CHANGED" ]; then
+  echo ""
+  echo "  Documentation reminder"
+  echo "  Code changes staged but no docs/ or CLAUDE.md files included."
+  echo ""
+  echo "  Consider updating (see CLAUDE.md 'Documentation Update Policy'):"
+  echo "    docs/guides/CLAUDE.md              new service / interface / provider"
+  echo "    docs/requirements/requirements.md  implementation status changed"
+  echo "    CLAUDE.md                          new pattern or architectural rule"
+  echo "    docs/architecture/REFACTORING_SUMMARY.md   tech debt resolved"
+  echo ""
+  printf "  Commit without doc changes? [y/N] "
+  exec < /dev/tty
+  read -r response
+  case "$response" in
+    [yY][eE][sS]|[yY]) exit 0 ;;
+    *) echo "  Aborted. Stage your doc changes and retry."; exit 1 ;;
+  esac
+fi
+
+exit 0
