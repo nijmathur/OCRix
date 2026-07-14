@@ -74,6 +74,22 @@ abstract interface class IDatabaseService {
     String? resourceType,
   });
 
+  /// Update entity extraction data for a document
+  Future<void> updateDocumentEntities({
+    required String documentId,
+    String? vendor,
+    double? amount,
+    DateTime? transactionDate,
+    String? category,
+    required double entityConfidence,
+  });
+
+  /// Set the audit logging service for COMPULSORY-level DB operation logging
+  void setAuditLoggingService(covariant Object? auditService);
+
   /// Initialize the database
   Future<void> initialize();
+
+  /// Close the database connection
+  Future<void> close();
 }

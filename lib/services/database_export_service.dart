@@ -3,25 +3,25 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import '../core/base/base_service.dart';
 import '../core/exceptions/app_exceptions.dart';
+import '../core/interfaces/database_service_interface.dart';
 import '../core/interfaces/encryption_service_interface.dart';
-import '../core/interfaces/storage_provider_service_interface.dart';
-import '../models/audit_log.dart';
 import '../models/storage_provider.dart';
-import 'database_service.dart';
 import 'storage_provider_service.dart';
 
 /// Service for exporting and importing the entire database to/from Google Drive
 /// with encryption at rest and in transit
 final class DatabaseExportService extends BaseService {
-  final DatabaseService _databaseService;
+  final IDatabaseService _databaseService;
   final IEncryptionService _encryptionService;
+  final StorageProviderService _storageProviderService;
 
   DatabaseExportService({
-    required DatabaseService databaseService,
+    required IDatabaseService databaseService,
     required IEncryptionService encryptionService,
-    required IStorageProviderService storageProviderService,
+    required StorageProviderService storageProviderService,
   }) : _databaseService = databaseService,
-       _encryptionService = encryptionService;
+       _encryptionService = encryptionService,
+       _storageProviderService = storageProviderService;
 
   @override
   String get serviceName => 'DatabaseExportService';
@@ -106,12 +106,8 @@ final class DatabaseExportService extends BaseService {
 
         final remotePath = 'backups/$fileName';
 
-        // Get Google Drive provider via storage provider service
-        final storageService = StorageProviderService();
-        await storageService.initialize();
-
-        // Get the Google Drive provider directly
-        final provider = await storageService.getProvider(
+        // Get the Google Drive provider directly via injected storage service
+        final provider = await _storageProviderService.getProvider(
           StorageProviderType.googleDrive,
         );
 
@@ -146,14 +142,6 @@ final class DatabaseExportService extends BaseService {
         // Step 7: Reopen database connection
         await _databaseService.initialize();
         logInfo('Database connection reopened');
-
-        // Step 8: Log audit entry
-        await _databaseService.logAudit(
-          AuditAction.backup,
-          'database',
-          'database_export',
-          'Database exported to Google Drive: $driveFileId',
-        );
 
         logInfo('Database export completed successfully: $driveFileId');
         return driveFileId;
@@ -207,11 +195,8 @@ final class DatabaseExportService extends BaseService {
         await _encryptionService.initialize();
       }
 
-      // Step 1: Get Google Drive provider
-      final storageService = StorageProviderService();
-      await storageService.initialize();
-
-      final provider = await storageService.getProvider(
+      // Step 1: Get Google Drive provider via injected storage service
+      final provider = await _storageProviderService.getProvider(
         StorageProviderType.googleDrive,
       );
 
@@ -319,14 +304,6 @@ final class DatabaseExportService extends BaseService {
         await _databaseService.initialize();
         logInfo('Database connection reopened');
 
-        // Step 9: Log audit entry
-        await _databaseService.logAudit(
-          AuditAction.restore,
-          'database',
-          'database_import',
-          'Database imported from Google Drive: $driveFileId',
-        );
-
         logInfo('Database import completed successfully');
       } catch (e) {
         // Ensure database is reopened even on error
@@ -354,10 +331,7 @@ final class DatabaseExportService extends BaseService {
     try {
       logInfo('Listing database backups from Google Drive...');
 
-      final storageService = StorageProviderService();
-      await storageService.initialize();
-
-      final provider = await storageService.getProvider(
+      final provider = await _storageProviderService.getProvider(
         StorageProviderType.googleDrive,
       );
 
@@ -424,8 +398,7 @@ final class DatabaseExportService extends BaseService {
     try {
       logInfo('Deleting database backup from Google Drive: $driveFileId');
 
-      final storageService = StorageProviderService();
-      final provider = await storageService.getProvider(
+      final provider = await _storageProviderService.getProvider(
         StorageProviderType.googleDrive,
       );
 
@@ -440,14 +413,6 @@ final class DatabaseExportService extends BaseService {
       }
 
       await provider.deleteFile(driveFileId);
-
-      // Log audit entry
-      await _databaseService.logAudit(
-        AuditAction.delete,
-        'database_backup',
-        driveFileId,
-        'Database backup deleted from Google Drive',
-      );
 
       logInfo('Database backup deleted successfully');
     } catch (e) {

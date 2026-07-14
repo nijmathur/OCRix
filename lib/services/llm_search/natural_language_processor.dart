@@ -11,7 +11,7 @@ class NaturalLanguageProcessor {
 
   /// Process natural language query and convert to SQL using Gemma LLM
   Future<String> processQuery(String naturalLanguage) async {
-    return await _gemmaService.generateSQL(naturalLanguage);
+    return _gemmaService.generateSQL(naturalLanguage);
   }
 
   /// Get example queries for UI

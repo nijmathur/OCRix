@@ -416,8 +416,8 @@ final class EncryptionService extends BaseService
 
     // Derive key using PBKDF2 (implemented via repeated HMAC-SHA256)
     final passwordBytes = utf8.encode(password);
-    var derivedKey = Uint8List(keyLength);
-    var block = Uint8List(keySalt.length + 4);
+    final derivedKey = Uint8List(keyLength);
+    final block = Uint8List(keySalt.length + 4);
     block.setRange(0, keySalt.length, keySalt);
 
     for (var i = 0; i < keyLength; i += 32) {
@@ -430,7 +430,7 @@ final class EncryptionService extends BaseService
 
       // First iteration
       var u = Hmac(sha256, passwordBytes).convert(block).bytes;
-      var result = Uint8List.fromList(u);
+      final result = Uint8List.fromList(u);
 
       // Remaining iterations
       for (var j = 1; j < iterations; j++) {

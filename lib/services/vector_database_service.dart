@@ -2,10 +2,10 @@
 /// Manages semantic embeddings storage and vector similarity search
 library;
 
-import 'dart:typed_data';
-import 'package:sqflite/sqflite.dart';
-import 'package:crypto/crypto.dart';
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sqflite/sqflite.dart';
 import 'embedding_service.dart';
 
 class VectorDatabaseService {
@@ -32,7 +32,7 @@ class VectorDatabaseService {
       ON document_embeddings(document_id)
     ''');
 
-    print('[VectorDatabaseService] Tables created successfully');
+    debugPrint('[VectorDatabaseService] Tables created successfully');
   }
 
   /// Store embedding for a document
@@ -51,7 +51,7 @@ class VectorDatabaseService {
       'created_at': DateTime.now().millisecondsSinceEpoch,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
 
-    print('[VectorDatabaseService] Stored embedding for document: $documentId');
+    debugPrint('[VectorDatabaseService] Stored embedding for document: $documentId');
   }
 
   /// Check if document has embedding and if text changed
@@ -98,7 +98,7 @@ class VectorDatabaseService {
         embedding,
       );
 
-      print(
+      debugPrint(
         '[VectorDatabaseService] Document $documentId similarity: $similarity (threshold: $minSimilarity)',
       );
 
@@ -132,7 +132,7 @@ class VectorDatabaseService {
       }
     }
 
-    print(
+    debugPrint(
       '[VectorDatabaseService] Found ${results.length} similar documents for: "$queryText"',
     );
     return results;
@@ -148,13 +148,13 @@ class VectorDatabaseService {
     final text = '$title. $extractedText'.trim();
 
     if (text.isEmpty) {
-      print('[VectorDatabaseService] Skipping empty document: $documentId');
+      debugPrint('[VectorDatabaseService] Skipping empty document: $documentId');
       return;
     }
 
     // Check if we need to generate embedding
     if (!await needsEmbedding(documentId, text)) {
-      print('[VectorDatabaseService] Document already vectorized: $documentId');
+      debugPrint('[VectorDatabaseService] Document already vectorized: $documentId');
       return;
     }
 
@@ -180,7 +180,7 @@ class VectorDatabaseService {
     final total = documents.length;
 
     if (total == 0) {
-      print('[VectorDatabaseService] No documents to vectorize');
+      debugPrint('[VectorDatabaseService] No documents to vectorize');
       return VectorizationProgress(
         totalDocuments: 0,
         vectorizedDocuments: 0,
@@ -192,7 +192,7 @@ class VectorDatabaseService {
     int vectorized = 0;
     int skipped = 0;
 
-    print(
+    debugPrint(
       '[VectorDatabaseService] Starting vectorization of $total documents...',
     );
 
@@ -230,13 +230,13 @@ class VectorDatabaseService {
           await Future.delayed(const Duration(milliseconds: 100));
         }
       } catch (e) {
-        print('[VectorDatabaseService] Failed to vectorize document: $e');
+        debugPrint('[VectorDatabaseService] Failed to vectorize document: $e');
         skipped++;
       }
     }
 
     final duration = DateTime.now().difference(startTime);
-    print(
+    debugPrint(
       '[VectorDatabaseService] Vectorization complete: $vectorized vectorized, $skipped skipped in ${duration.inSeconds}s',
     );
 
@@ -262,7 +262,7 @@ class VectorDatabaseService {
         ) ??
         0;
 
-    print(
+    debugPrint(
       '[VectorDatabaseService] Stats: total=$totalDocs, vectorized=$vectorizedDocs, pending=${totalDocs - vectorizedDocs}',
     );
 

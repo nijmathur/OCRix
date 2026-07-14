@@ -478,7 +478,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
               Expanded(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Container(
+                  child: DecoratedBox(
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.grey[400]!),
                       borderRadius: BorderRadius.circular(8),

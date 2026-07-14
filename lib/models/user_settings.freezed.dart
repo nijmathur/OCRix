@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$UserSettings {
 
- String get metadataStorageProvider; String get fileStorageProvider; bool get autoSync; int get syncIntervalMinutes; bool get biometricAuth; bool get encryptionEnabled; String get defaultDocumentType; List<String> get defaultTags; bool get privacyAuditEnabled; String get language; String get theme; bool get notificationsEnabled; bool get autoCategorization;@JsonKey(defaultValue: false) bool get useLLMCategorization; double get ocrConfidenceThreshold; bool get backupEnabled; DateTime? get lastBackupAt; Map<String, dynamic> get customSettings;
+ String get metadataStorageProvider; String get fileStorageProvider; bool get autoSync; int get syncIntervalMinutes; bool get biometricAuth; bool get encryptionEnabled; String get defaultDocumentType; List<String> get defaultTags; bool get privacyAuditEnabled; String get language; String get theme; bool get notificationsEnabled; bool get autoCategorization; bool get useLLMCategorization; double get ocrConfidenceThreshold; bool get backupEnabled; DateTime? get lastBackupAt; Map<String, dynamic> get customSettings;
 /// Create a copy of UserSettings
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $UserSettingsCopyWith<$Res>  {
   factory $UserSettingsCopyWith(UserSettings value, $Res Function(UserSettings) _then) = _$UserSettingsCopyWithImpl;
 @useResult
 $Res call({
- String metadataStorageProvider, String fileStorageProvider, bool autoSync, int syncIntervalMinutes, bool biometricAuth, bool encryptionEnabled, String defaultDocumentType, List<String> defaultTags, bool privacyAuditEnabled, String language, String theme, bool notificationsEnabled, bool autoCategorization,@JsonKey(defaultValue: false) bool useLLMCategorization, double ocrConfidenceThreshold, bool backupEnabled, DateTime? lastBackupAt, Map<String, dynamic> customSettings
+ String metadataStorageProvider, String fileStorageProvider, bool autoSync, int syncIntervalMinutes, bool biometricAuth, bool encryptionEnabled, String defaultDocumentType, List<String> defaultTags, bool privacyAuditEnabled, String language, String theme, bool notificationsEnabled, bool autoCategorization, bool useLLMCategorization, double ocrConfidenceThreshold, bool backupEnabled, DateTime? lastBackupAt, Map<String, dynamic> customSettings
 });
 
 
@@ -170,7 +170,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String metadataStorageProvider,  String fileStorageProvider,  bool autoSync,  int syncIntervalMinutes,  bool biometricAuth,  bool encryptionEnabled,  String defaultDocumentType,  List<String> defaultTags,  bool privacyAuditEnabled,  String language,  String theme,  bool notificationsEnabled,  bool autoCategorization, @JsonKey(defaultValue: false)  bool useLLMCategorization,  double ocrConfidenceThreshold,  bool backupEnabled,  DateTime? lastBackupAt,  Map<String, dynamic> customSettings)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String metadataStorageProvider,  String fileStorageProvider,  bool autoSync,  int syncIntervalMinutes,  bool biometricAuth,  bool encryptionEnabled,  String defaultDocumentType,  List<String> defaultTags,  bool privacyAuditEnabled,  String language,  String theme,  bool notificationsEnabled,  bool autoCategorization,  bool useLLMCategorization,  double ocrConfidenceThreshold,  bool backupEnabled,  DateTime? lastBackupAt,  Map<String, dynamic> customSettings)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UserSettings() when $default != null:
 return $default(_that.metadataStorageProvider,_that.fileStorageProvider,_that.autoSync,_that.syncIntervalMinutes,_that.biometricAuth,_that.encryptionEnabled,_that.defaultDocumentType,_that.defaultTags,_that.privacyAuditEnabled,_that.language,_that.theme,_that.notificationsEnabled,_that.autoCategorization,_that.useLLMCategorization,_that.ocrConfidenceThreshold,_that.backupEnabled,_that.lastBackupAt,_that.customSettings);case _:
@@ -191,7 +191,7 @@ return $default(_that.metadataStorageProvider,_that.fileStorageProvider,_that.au
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String metadataStorageProvider,  String fileStorageProvider,  bool autoSync,  int syncIntervalMinutes,  bool biometricAuth,  bool encryptionEnabled,  String defaultDocumentType,  List<String> defaultTags,  bool privacyAuditEnabled,  String language,  String theme,  bool notificationsEnabled,  bool autoCategorization, @JsonKey(defaultValue: false)  bool useLLMCategorization,  double ocrConfidenceThreshold,  bool backupEnabled,  DateTime? lastBackupAt,  Map<String, dynamic> customSettings)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String metadataStorageProvider,  String fileStorageProvider,  bool autoSync,  int syncIntervalMinutes,  bool biometricAuth,  bool encryptionEnabled,  String defaultDocumentType,  List<String> defaultTags,  bool privacyAuditEnabled,  String language,  String theme,  bool notificationsEnabled,  bool autoCategorization,  bool useLLMCategorization,  double ocrConfidenceThreshold,  bool backupEnabled,  DateTime? lastBackupAt,  Map<String, dynamic> customSettings)  $default,) {final _that = this;
 switch (_that) {
 case _UserSettings():
 return $default(_that.metadataStorageProvider,_that.fileStorageProvider,_that.autoSync,_that.syncIntervalMinutes,_that.biometricAuth,_that.encryptionEnabled,_that.defaultDocumentType,_that.defaultTags,_that.privacyAuditEnabled,_that.language,_that.theme,_that.notificationsEnabled,_that.autoCategorization,_that.useLLMCategorization,_that.ocrConfidenceThreshold,_that.backupEnabled,_that.lastBackupAt,_that.customSettings);case _:
@@ -211,7 +211,7 @@ return $default(_that.metadataStorageProvider,_that.fileStorageProvider,_that.au
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String metadataStorageProvider,  String fileStorageProvider,  bool autoSync,  int syncIntervalMinutes,  bool biometricAuth,  bool encryptionEnabled,  String defaultDocumentType,  List<String> defaultTags,  bool privacyAuditEnabled,  String language,  String theme,  bool notificationsEnabled,  bool autoCategorization, @JsonKey(defaultValue: false)  bool useLLMCategorization,  double ocrConfidenceThreshold,  bool backupEnabled,  DateTime? lastBackupAt,  Map<String, dynamic> customSettings)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String metadataStorageProvider,  String fileStorageProvider,  bool autoSync,  int syncIntervalMinutes,  bool biometricAuth,  bool encryptionEnabled,  String defaultDocumentType,  List<String> defaultTags,  bool privacyAuditEnabled,  String language,  String theme,  bool notificationsEnabled,  bool autoCategorization,  bool useLLMCategorization,  double ocrConfidenceThreshold,  bool backupEnabled,  DateTime? lastBackupAt,  Map<String, dynamic> customSettings)?  $default,) {final _that = this;
 switch (_that) {
 case _UserSettings() when $default != null:
 return $default(_that.metadataStorageProvider,_that.fileStorageProvider,_that.autoSync,_that.syncIntervalMinutes,_that.biometricAuth,_that.encryptionEnabled,_that.defaultDocumentType,_that.defaultTags,_that.privacyAuditEnabled,_that.language,_that.theme,_that.notificationsEnabled,_that.autoCategorization,_that.useLLMCategorization,_that.ocrConfidenceThreshold,_that.backupEnabled,_that.lastBackupAt,_that.customSettings);case _:
@@ -226,7 +226,7 @@ return $default(_that.metadataStorageProvider,_that.fileStorageProvider,_that.au
 @JsonSerializable()
 
 class _UserSettings implements UserSettings {
-  const _UserSettings({required this.metadataStorageProvider, required this.fileStorageProvider, required this.autoSync, required this.syncIntervalMinutes, required this.biometricAuth, required this.encryptionEnabled, required this.defaultDocumentType, required final  List<String> defaultTags, required this.privacyAuditEnabled, required this.language, required this.theme, required this.notificationsEnabled, required this.autoCategorization, @JsonKey(defaultValue: false) required this.useLLMCategorization, required this.ocrConfidenceThreshold, required this.backupEnabled, this.lastBackupAt, required final  Map<String, dynamic> customSettings}): _defaultTags = defaultTags,_customSettings = customSettings;
+  const _UserSettings({required this.metadataStorageProvider, required this.fileStorageProvider, required this.autoSync, required this.syncIntervalMinutes, required this.biometricAuth, required this.encryptionEnabled, required this.defaultDocumentType, required final  List<String> defaultTags, required this.privacyAuditEnabled, required this.language, required this.theme, required this.notificationsEnabled, required this.autoCategorization, this.useLLMCategorization = false, required this.ocrConfidenceThreshold, required this.backupEnabled, this.lastBackupAt, required final  Map<String, dynamic> customSettings}): _defaultTags = defaultTags,_customSettings = customSettings;
   factory _UserSettings.fromJson(Map<String, dynamic> json) => _$UserSettingsFromJson(json);
 
 @override final  String metadataStorageProvider;
@@ -248,7 +248,7 @@ class _UserSettings implements UserSettings {
 @override final  String theme;
 @override final  bool notificationsEnabled;
 @override final  bool autoCategorization;
-@override@JsonKey(defaultValue: false) final  bool useLLMCategorization;
+@override@JsonKey() final  bool useLLMCategorization;
 @override final  double ocrConfidenceThreshold;
 @override final  bool backupEnabled;
 @override final  DateTime? lastBackupAt;
@@ -293,7 +293,7 @@ abstract mixin class _$UserSettingsCopyWith<$Res> implements $UserSettingsCopyWi
   factory _$UserSettingsCopyWith(_UserSettings value, $Res Function(_UserSettings) _then) = __$UserSettingsCopyWithImpl;
 @override @useResult
 $Res call({
- String metadataStorageProvider, String fileStorageProvider, bool autoSync, int syncIntervalMinutes, bool biometricAuth, bool encryptionEnabled, String defaultDocumentType, List<String> defaultTags, bool privacyAuditEnabled, String language, String theme, bool notificationsEnabled, bool autoCategorization,@JsonKey(defaultValue: false) bool useLLMCategorization, double ocrConfidenceThreshold, bool backupEnabled, DateTime? lastBackupAt, Map<String, dynamic> customSettings
+ String metadataStorageProvider, String fileStorageProvider, bool autoSync, int syncIntervalMinutes, bool biometricAuth, bool encryptionEnabled, String defaultDocumentType, List<String> defaultTags, bool privacyAuditEnabled, String language, String theme, bool notificationsEnabled, bool autoCategorization, bool useLLMCategorization, double ocrConfidenceThreshold, bool backupEnabled, DateTime? lastBackupAt, Map<String, dynamic> customSettings
 });
 
 

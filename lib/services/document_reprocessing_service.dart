@@ -102,7 +102,7 @@ final class DocumentReprocessingService extends BaseService {
 
       if (total == 0) {
         logInfo('No documents to reprocess');
-        return ReprocessingResult(
+        return const ReprocessingResult(
           totalDocuments: 0,
           processedDocuments: 0,
           skippedDocuments: 0,
@@ -141,7 +141,7 @@ final class DocumentReprocessingService extends BaseService {
 
           // Update database with extracted entities
           if (_databaseService is DatabaseService) {
-            await (_databaseService as DatabaseService).updateDocumentEntities(
+            await _databaseService.updateDocumentEntities(
               documentId: doc.id,
               vendor: entity.vendor,
               amount: entity.amount,
@@ -214,7 +214,7 @@ final class DocumentReprocessingService extends BaseService {
       );
 
       if (_databaseService is DatabaseService) {
-        await (_databaseService as DatabaseService).updateDocumentEntities(
+        await _databaseService.updateDocumentEntities(
           documentId: doc.id,
           vendor: entity.vendor,
           amount: entity.amount,
@@ -238,8 +238,7 @@ final class DocumentReprocessingService extends BaseService {
   Future<Map<String, int>> getReprocessingStats() async {
     try {
       if (_databaseService is DatabaseService) {
-        return await (_databaseService as DatabaseService)
-            .getEntityExtractionStats();
+        return _databaseService.getEntityExtractionStats();
       }
 
       // Fallback if not using DatabaseService

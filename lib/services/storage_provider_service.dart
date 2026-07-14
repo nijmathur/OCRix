@@ -10,6 +10,7 @@ import '../models/storage_provider.dart';
 import '../models/document.dart';
 import '../core/interfaces/storage_provider_service_interface.dart';
 import '../core/interfaces/encryption_service_interface.dart';
+import '../core/interfaces/database_service_interface.dart';
 import '../core/base/base_service.dart';
 import '../core/exceptions/app_exceptions.dart';
 import 'encryption_service.dart';
@@ -202,14 +203,7 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       }
 
       // If lightweight auth didn't work, do full authentication
-      if (user == null) {
-        user = await _googleSignIn.authenticate(scopeHint: _scopes);
-      }
-
-      if (user == null) {
-        logger.w('Google Sign-In cancelled or failed');
-        return false;
-      }
+      user ??= await _googleSignIn.authenticate(scopeHint: _scopes);
 
       _currentUser = user;
 
@@ -221,11 +215,7 @@ class GoogleDriveStorageProvider implements StorageProviderInterface {
       if (clientAuth == null) {
         // Need to authorize scopes
         logger.i('Requesting authorization for Drive scopes');
-        final newAuth = await user.authorizationClient.authorizeScopes(_scopes);
-        if (newAuth == null) {
-          logger.e('Failed to authorize Drive scopes');
-          return false;
-        }
+        await user.authorizationClient.authorizeScopes(_scopes);
 
         // Get the access token after authorization
         final finalAuth = await user.authorizationClient.authorizationForScopes(
@@ -410,19 +400,26 @@ final class StorageProviderService extends BaseService
     implements IStorageProviderService {
   final Map<StorageProviderType, StorageProviderInterface> _providers = {};
   IEncryptionService? _encryptionService;
+  IDatabaseService? _databaseService;
   StorageProviderType? _currentProvider;
 
   @override
   String get serviceName => 'StorageProviderService';
 
-  // Dependency injection for encryption service
   void setEncryptionService(IEncryptionService encryptionService) {
     _encryptionService = encryptionService;
+  }
+
+  /// Inject database service (avoids direct DatabaseService() instantiation in sync methods)
+  void setDatabaseService(IDatabaseService databaseService) {
+    _databaseService = databaseService;
   }
 
   IEncryptionService get encryptionService {
     return _encryptionService ?? EncryptionService();
   }
+
+  IDatabaseService get _db => _databaseService ?? DatabaseService();
 
   @override
   Future<void> initialize() async {
@@ -620,8 +617,7 @@ final class StorageProviderService extends BaseService
       }
 
       // Get database service to fetch unsynced documents
-      final dbService = DatabaseService();
-      final documents = await dbService.getAllDocuments();
+      final documents = await _db.getAllDocuments();
 
       // Filter unsynced documents
       final unsyncedDocs = documents.where((doc) => !doc.isSynced).toList();
@@ -645,7 +641,7 @@ final class StorageProviderService extends BaseService
             isSynced: true,
           );
 
-          await dbService.updateDocument(updatedDoc);
+          await _db.updateDocument(updatedDoc);
           syncedCount++;
 
           logInfo('Synced document: ${doc.title}');
@@ -690,8 +686,7 @@ final class StorageProviderService extends BaseService
       logInfo('Found ${cloudFiles.length} files in cloud');
 
       // Get database service to check existing documents
-      final dbService = DatabaseService();
-      final localDocs = await dbService.getAllDocuments();
+      final localDocs = await _db.getAllDocuments();
       final localFileNames = localDocs
           .where((d) => d.imagePath != null)
           .map((d) => path.basename(d.imagePath!))
@@ -730,7 +725,7 @@ final class StorageProviderService extends BaseService
 
   // Backward compatibility methods
   Future<bool> isProviderConnected(StorageProviderType providerType) async {
-    return await getProvider(providerType).then((p) => p.isConnected());
+    return getProvider(providerType).then((p) => p.isConnected());
   }
 
   Future<void> disconnectProvider(StorageProviderType providerType) async {

@@ -69,3 +69,23 @@ class ValidationException extends AppException {
 class AuthException extends AppException {
   const AuthException(super.message, {super.originalError, super.stackTrace});
 }
+
+/// Network/connectivity exceptions
+class NetworkException extends AppException {
+  const NetworkException(
+    super.message, {
+    super.originalError,
+    super.stackTrace,
+  });
+}
+
+/// Background task exceptions (vectorization, entity extraction)
+class BackgroundTaskException extends AppException {
+  final String documentId;
+  const BackgroundTaskException(
+    super.message, {
+    required this.documentId,
+    super.originalError,
+    super.stackTrace,
+  });
+}

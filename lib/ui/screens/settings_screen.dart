@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/settings_provider.dart';
@@ -390,9 +392,9 @@ class SettingsScreen extends ConsumerWidget {
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.orange.withOpacity(0.1),
+            color: Colors.orange.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.orange.withOpacity(0.3)),
+            border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
           ),
           child: Row(
             children: [
@@ -774,6 +776,7 @@ class SettingsScreen extends ConsumerWidget {
     final password = await showExportPasswordDialog(context);
 
     if (password == null || password.isEmpty) return;
+    if (!context.mounted) return;
 
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
@@ -801,11 +804,11 @@ class SettingsScreen extends ConsumerWidget {
 
     // Show progress dialog
     if (!context.mounted) return;
-    showDialog(
+    unawaited(showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => const _ExportProgressDialog(),
-    );
+    ));
 
     // Perform export with password
     final notifier = ref.read(databaseExportNotifierProvider.notifier);
@@ -850,11 +853,11 @@ class SettingsScreen extends ConsumerWidget {
 
     // Show loading dialog while fetching backups
     if (!context.mounted) return;
-    showDialog(
+    unawaited(showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
+    ));
 
     // Fetch available backups
     final notifier = ref.read(databaseExportNotifierProvider.notifier);
@@ -923,11 +926,11 @@ class SettingsScreen extends ConsumerWidget {
 
     // Show progress dialog
     if (!context.mounted) return;
-    showDialog(
+    unawaited(showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => const _ImportProgressDialog(),
-    );
+    ));
 
     // Perform import with password
     final success = await notifier.importDatabase(

@@ -5,7 +5,6 @@ library;
 import '../../core/base/base_service.dart';
 import '../../core/interfaces/database_service_interface.dart';
 import '../../models/document.dart';
-import '../embedding_service.dart';
 import '../vector_database_service.dart';
 import 'gemma_model_service.dart';
 import 'vector_search_service.dart';
@@ -256,19 +255,16 @@ final class QueryRouterService extends BaseService {
   };
 
   final IDatabaseService _databaseService;
-  final EmbeddingService _embeddingService;
   final VectorDatabaseService? _vectorDbService;
   final GemmaModelService? _gemmaService;
   final VectorSearchService? _vectorSearchService;
 
   QueryRouterService(
     this._databaseService, {
-    EmbeddingService? embeddingService,
     VectorDatabaseService? vectorDbService,
     GemmaModelService? gemmaService,
     VectorSearchService? vectorSearchService,
-  }) : _embeddingService = embeddingService ?? EmbeddingService(),
-       _vectorDbService = vectorDbService,
+  }) : _vectorDbService = vectorDbService,
        _gemmaService = gemmaService,
        _vectorSearchService = vectorSearchService;
 
@@ -438,7 +434,7 @@ final class QueryRouterService extends BaseService {
 
     // Build SQL query
     String sql = 'SELECT * FROM documents WHERE 1=1';
-    List<dynamic> args = [];
+    final List<dynamic> args = [];
 
     if (params.vendor != null) {
       sql += ' AND LOWER(vendor) LIKE ?';
@@ -520,8 +516,8 @@ final class QueryRouterService extends BaseService {
     String query,
     Stopwatch stopwatch,
   ) async {
-    List<Document> documents = [];
-    List<double> similarities = [];
+    final List<Document> documents = [];
+    final List<double> similarities = [];
 
     // Use VectorSearchService if available (preferred path)
     if (_vectorSearchService != null && _vectorSearchService.isReady) {
@@ -694,9 +690,9 @@ final class QueryRouterService extends BaseService {
     String? analysis;
     double? confidence;
 
-    if (_gemmaService != null && await _gemmaService!.isModelDownloaded()) {
+    if (_gemmaService != null && await _gemmaService.isModelDownloaded()) {
       try {
-        await _gemmaService!.initialize();
+        await _gemmaService.initialize();
 
         // TODO: Use Gemma to analyze documents with proper chat session
         // For now, return a summary of what was found

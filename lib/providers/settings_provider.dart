@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../core/interfaces/database_service_interface.dart';
 import '../core/interfaces/encryption_service_interface.dart';
 import '../models/user_settings.dart';
 import 'document_provider.dart';
@@ -13,7 +12,7 @@ class SettingsNotifier extends AsyncNotifier<UserSettings> {
   @override
   Future<UserSettings> build() async {
     final databaseService = ref.read(databaseServiceProvider);
-    return await databaseService.getUserSettings();
+    return databaseService.getUserSettings();
   }
 
   Future<void> updateSettings(UserSettings newSettings) async {
@@ -23,9 +22,9 @@ class SettingsNotifier extends AsyncNotifier<UserSettings> {
       state = const AsyncValue.loading();
       await databaseService.updateUserSettings(newSettings);
       state = AsyncValue.data(newSettings);
-      logger.info('Settings updated successfully', tag: 'SettingsNotifier');
+      await logger.info('Settings updated successfully', tag: 'SettingsNotifier');
     } catch (e, stackTrace) {
-      logger.error(
+      await logger.error(
         'Failed to update settings',
         tag: 'SettingsNotifier',
         error: e,
@@ -202,9 +201,9 @@ class SettingsNotifier extends AsyncNotifier<UserSettings> {
       final defaultSettings = UserSettings.defaultSettings();
       await databaseService.updateUserSettings(defaultSettings);
       state = AsyncValue.data(defaultSettings);
-      logger.info('Settings reset to defaults', tag: 'SettingsNotifier');
+      await logger.info('Settings reset to defaults', tag: 'SettingsNotifier');
     } catch (e, stackTrace) {
-      logger.error(
+      await logger.error(
         'Failed to reset settings',
         tag: 'SettingsNotifier',
         error: e,
@@ -249,9 +248,9 @@ class EncryptionNotifier extends Notifier<EncryptionState> {
         encryptionInfo: encryptionInfo,
       );
 
-      logger.info('Encryption service initialized', tag: 'EncryptionNotifier');
+      await logger.info('Encryption service initialized', tag: 'EncryptionNotifier');
     } catch (e) {
-      logger.error(
+      await logger.error(
         'Failed to initialize encryption service',
         tag: 'EncryptionNotifier',
         error: e,
@@ -276,7 +275,7 @@ class EncryptionNotifier extends Notifier<EncryptionState> {
 
       return isAuthenticated;
     } catch (e) {
-      logger.error(
+      await logger.error(
         'Biometric authentication failed',
         tag: 'EncryptionNotifier',
         error: e,
@@ -297,12 +296,12 @@ class EncryptionNotifier extends Notifier<EncryptionState> {
 
       state = state.copyWith(isLoading: false, encryptionInfo: encryptionInfo);
 
-      logger.info(
+      await logger.info(
         'Encryption key changed successfully',
         tag: 'EncryptionNotifier',
       );
     } catch (e) {
-      logger.error(
+      await logger.error(
         'Failed to change encryption key',
         tag: 'EncryptionNotifier',
         error: e,
@@ -325,9 +324,9 @@ class EncryptionNotifier extends Notifier<EncryptionState> {
         encryptionInfo: {},
       );
 
-      logger.info('Encryption key cleared', tag: 'EncryptionNotifier');
+      await logger.info('Encryption key cleared', tag: 'EncryptionNotifier');
     } catch (e) {
-      logger.error(
+      await logger.error(
         'Failed to clear encryption key',
         tag: 'EncryptionNotifier',
         error: e,
@@ -341,7 +340,7 @@ class EncryptionNotifier extends Notifier<EncryptionState> {
     try {
       return await _encryptionService.encryptText(text);
     } catch (e) {
-      logger.error(
+      await logger.error(
         'Failed to encrypt text',
         tag: 'EncryptionNotifier',
         error: e,
@@ -355,7 +354,7 @@ class EncryptionNotifier extends Notifier<EncryptionState> {
     try {
       return await _encryptionService.decryptText(encryptedText);
     } catch (e) {
-      logger.error(
+      await logger.error(
         'Failed to decrypt text',
         tag: 'EncryptionNotifier',
         error: e,

@@ -27,37 +27,52 @@ import '../models/document_page.dart';
 import '../services/llm_search/gemma_model_service.dart';
 import '../services/llm_search/vector_search_service.dart';
 import '../services/entity_extraction_service.dart';
-import '../services/database_service.dart' show DatabaseService;
+import 'background_task_provider.dart';
 
 part 'document_provider.freezed.dart';
 
 // Service providers - using interfaces for dependency inversion
 final databaseServiceProvider = Provider<IDatabaseService>((ref) {
-  return DatabaseService();
+  final service = DatabaseService();
+  service.setTroubleshootingLogger(ref.read(troubleshootingLoggerProvider));
+  return service;
 });
 
 final ocrServiceProvider = Provider<IOCRService>((ref) {
-  return OCRService();
+  final service = OCRService();
+  service.setTroubleshootingLogger(ref.read(troubleshootingLoggerProvider));
+  return service;
 });
 
 final cameraServiceProvider = ChangeNotifierProvider<CameraService>((ref) {
-  return CameraService();
+  final service = CameraService();
+  service.setTroubleshootingLogger(ref.read(troubleshootingLoggerProvider));
+  return service;
 });
 
 final encryptionServiceProvider = Provider<IEncryptionService>((ref) {
-  return EncryptionService();
+  final service = EncryptionService();
+  service.setTroubleshootingLogger(ref.read(troubleshootingLoggerProvider));
+  return service;
 });
 
 final storageProviderServiceProvider = Provider<IStorageProviderService>((ref) {
   final service = StorageProviderService();
-  // Inject encryption service
   service.setEncryptionService(ref.read(encryptionServiceProvider));
+  service.setTroubleshootingLogger(ref.read(troubleshootingLoggerProvider));
+  service.setDatabaseService(ref.read(databaseServiceProvider));
   return service;
+});
+
+/// Provider for VectorSearchService (semantic document search)
+/// Note: VectorSearchService uses debugPrint directly, not BaseService logging
+final vectorSearchServiceProvider = Provider<VectorSearchService>((ref) {
+  return VectorSearchService(ref.read(databaseServiceProvider));
 });
 
 final documentListProvider = FutureProvider<List<Document>>((ref) async {
   final databaseService = ref.read(databaseServiceProvider);
-  return await databaseService.getAllDocuments();
+  return databaseService.getAllDocuments();
 });
 
 final documentProvider = FutureProvider.family<Document?, String>((
@@ -65,7 +80,7 @@ final documentProvider = FutureProvider.family<Document?, String>((
   documentId,
 ) async {
   final databaseService = ref.read(databaseServiceProvider);
-  return await databaseService.getDocument(documentId);
+  return databaseService.getDocument(documentId);
 });
 
 final documentSearchProvider = FutureProvider.family<List<Document>, String>((
@@ -74,15 +89,15 @@ final documentSearchProvider = FutureProvider.family<List<Document>, String>((
 ) async {
   final databaseService = ref.read(databaseServiceProvider);
   if (query.isEmpty) {
-    return await databaseService.getAllDocuments();
+    return databaseService.getAllDocuments();
   }
-  return await databaseService.searchDocuments(query);
+  return databaseService.searchDocuments(query);
 });
 
 final documentByTypeProvider =
     FutureProvider.family<List<Document>, DocumentType>((ref, type) async {
       final databaseService = ref.read(databaseServiceProvider);
-      return await databaseService.getAllDocuments(type: type);
+      return databaseService.getAllDocuments(type: type);
     });
 
 class DocumentNotifier extends AsyncNotifier<List<Document>> {
@@ -153,7 +168,7 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
         state = AsyncValue.data(documents);
       }
     } catch (e, stackTrace) {
-      _troubleshootingLogger.error(
+      await _troubleshootingLogger.error(
         'Failed to load documents',
         tag: 'DocumentNotifier',
         error: e,
@@ -199,6 +214,7 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
     String? notes,
     String? location,
   }) async {
+    final previousState = state;
     try {
       state = const AsyncValue.loading();
 
@@ -229,7 +245,7 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
         final settings = await _databaseService.getUserSettings();
         useLLM = settings.useLLMCategorization;
       } catch (e) {
-        _troubleshootingLogger.warning(
+        await _troubleshootingLogger.warning(
           'Failed to load settings, using default categorization',
           tag: 'DocumentNotifier',
           error: e,
@@ -239,7 +255,7 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
       try {
         if (useLLM) {
           // Use LLM categorization (smarter but slower)
-          _troubleshootingLogger.info(
+          await _troubleshootingLogger.info(
             'Using LLM categorization',
             tag: 'DocumentNotifier',
           );
@@ -251,7 +267,7 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
             orElse: () => DocumentType.other,
           );
           extractedTags = result.tags;
-          _troubleshootingLogger.info(
+          await _troubleshootingLogger.info(
             'LLM categorized as: $documentType (confidence: ${result.confidence}, tags: $extractedTags)',
             tag: 'DocumentNotifier',
           );
@@ -260,7 +276,7 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
           documentType = await _ocrService.categorizeDocument(ocrResult.text);
         }
       } catch (e) {
-        _troubleshootingLogger.warning(
+        await _troubleshootingLogger.warning(
           'Categorization failed, falling back to keyword-based',
           tag: 'DocumentNotifier',
           error: e,
@@ -308,14 +324,14 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
       try {
         if (await imageFile.exists()) {
           await imageFile.delete();
-          _troubleshootingLogger.info(
+          await _troubleshootingLogger.info(
             'Cleaned up temporary image file: $imagePath',
             tag: 'DocumentNotifier',
           );
         }
       } catch (e) {
         // Log but don't fail if cleanup fails
-        _troubleshootingLogger.warning(
+        await _troubleshootingLogger.warning(
           'Failed to cleanup image file',
           tag: 'DocumentNotifier',
           error: e,
@@ -338,19 +354,20 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
         await refreshDocuments();
       }
 
-      _troubleshootingLogger.info(
+      await _troubleshootingLogger.info(
         'Document scanned and saved: $documentId',
         tag: 'DocumentNotifier',
       );
       return documentId;
     } catch (e, stackTrace) {
-      _troubleshootingLogger.error(
+      await _troubleshootingLogger.error(
         'Failed to scan document',
         tag: 'DocumentNotifier',
         error: e,
         stackTrace: stackTrace,
       );
-      state = AsyncValue.error(e, stackTrace);
+      // Rollback optimistic update
+      if (state != previousState) state = previousState;
       rethrow;
     }
   }
@@ -362,6 +379,7 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
     String? notes,
     String? location,
   }) async {
+    final previousState = state;
     try {
       state = const AsyncValue.loading();
 
@@ -439,24 +457,25 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
         await refreshDocuments();
       }
 
-      _troubleshootingLogger.info(
+      await _troubleshootingLogger.info(
         'Multi-page document scanned and saved: $documentId (${pages.length} pages)',
         tag: 'DocumentNotifier',
       );
       return documentId;
     } catch (e, stackTrace) {
-      _troubleshootingLogger.error(
+      await _troubleshootingLogger.error(
         'Failed to scan multi-page document',
         tag: 'DocumentNotifier',
         error: e,
         stackTrace: stackTrace,
       );
-      state = AsyncValue.error(e, stackTrace);
+      state = previousState; // Rollback
       rethrow;
     }
   }
 
   Future<void> updateDocument(Document document) async {
+    final previousState = state;
     try {
       final updatedDocument = document.copyWith(updatedAt: DateTime.now());
 
@@ -488,22 +507,23 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
         await refreshDocuments();
       }
 
-      _troubleshootingLogger.info(
+      await _troubleshootingLogger.info(
         'Document updated: ${document.id}',
         tag: 'DocumentNotifier',
       );
     } catch (e, stackTrace) {
-      _troubleshootingLogger.error(
+      await _troubleshootingLogger.error(
         'Failed to update document',
         tag: 'DocumentNotifier',
         error: e,
         stackTrace: stackTrace,
       );
-      state = AsyncValue.error(e, stackTrace);
+      state = previousState; // Rollback
     }
   }
 
   Future<void> deleteDocument(String documentId) async {
+    final previousState = state;
     try {
       await _databaseService.deleteDocument(documentId);
 
@@ -523,18 +543,18 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
         await refreshDocuments();
       }
 
-      _troubleshootingLogger.info(
+      await _troubleshootingLogger.info(
         'Document deleted: $documentId',
         tag: 'DocumentNotifier',
       );
     } catch (e, stackTrace) {
-      _troubleshootingLogger.error(
+      await _troubleshootingLogger.error(
         'Failed to delete document',
         tag: 'DocumentNotifier',
         error: e,
         stackTrace: stackTrace,
       );
-      state = AsyncValue.error(e, stackTrace);
+      state = previousState; // Rollback
     }
   }
 
@@ -543,7 +563,7 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
       await filterDocuments(searchQuery: query);
       return state.value ?? [];
     } catch (e) {
-      _troubleshootingLogger.error(
+      await _troubleshootingLogger.error(
         'Failed to search documents',
         tag: 'DocumentNotifier',
         error: e,
@@ -557,7 +577,7 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
       await filterDocuments(type: type);
       return state.value ?? [];
     } catch (e) {
-      _troubleshootingLogger.error(
+      await _troubleshootingLogger.error(
         'Failed to get documents by type',
         tag: 'DocumentNotifier',
         error: e,
@@ -568,14 +588,14 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
 
   /// Vectorize document asynchronously in the background (non-blocking)
   void _vectorizeDocumentAsync(Document document) {
-    final VectorSearchService? vectorService =
-        null; // TODO: wire up when provider exists
-    if (vectorService == null || !vectorService.isReady) {
-      // Silently skip if vector search service is not available
-      return;
+    final vectorService = ref.read(vectorSearchServiceProvider);
+    if (!vectorService.isReady) {
+      return; // Embedding model not loaded; task skipped (not an error)
     }
 
-    // Run vectorization in background without blocking
+    final taskNotifier = ref.read(backgroundTaskNotifierProvider.notifier);
+    taskNotifier.markRunning(document.id, BackgroundTaskType.vectorization);
+
     Future.microtask(() async {
       try {
         final documentMap = {
@@ -584,14 +604,15 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
           'extracted_text': document.extractedText,
         };
         await vectorService.vectorizeDocument(documentMap);
-        _troubleshootingLogger.info(
-          'Document vectorized successfully: ${document.id}',
+        taskNotifier.markCompleted(document.id, BackgroundTaskType.vectorization);
+        await _troubleshootingLogger.info(
+          'Document vectorized: ${document.id}',
           tag: 'DocumentNotifier',
         );
       } catch (e) {
-        // Fail silently, just log the error
-        _troubleshootingLogger.warning(
-          'Failed to vectorize document: ${document.id}',
+        taskNotifier.markFailed(document.id, BackgroundTaskType.vectorization, e);
+        await _troubleshootingLogger.warning(
+          'Vectorization failed for ${document.id}',
           tag: 'DocumentNotifier',
           error: e,
         );
@@ -601,28 +622,25 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
 
   /// Extract entities from document asynchronously in the background (non-blocking)
   void _extractEntitiesAsync(Document document) {
-    final entityService = _entityExtractionService;
-    if (entityService == null) {
-      // Silently skip if entity extraction service is not available
-      return;
-    }
-
     // Skip if document has empty text
     if (document.extractedText.trim().isEmpty) {
       return;
     }
 
+    final taskNotifier = ref.read(backgroundTaskNotifierProvider.notifier);
+    taskNotifier.markRunning(document.id, BackgroundTaskType.entityExtraction);
+
     // Run entity extraction in background without blocking
     Future.microtask(() async {
       try {
-        final entity = await entityService.extractEntities(
+        final entity = await _entityExtractionService.extractEntities(
           document.id,
           document.extractedText,
         );
 
         // Only update if meaningful entities were found
-        if (entity.hasData && _databaseService is DatabaseService) {
-          await (_databaseService as DatabaseService).updateDocumentEntities(
+        if (entity.hasData) {
+          await _databaseService.updateDocumentEntities(
             documentId: document.id,
             vendor: entity.vendor,
             amount: entity.amount,
@@ -631,21 +649,22 @@ class DocumentNotifier extends AsyncNotifier<List<Document>> {
             entityConfidence: entity.confidence,
           );
 
-          _troubleshootingLogger.info(
+          await _troubleshootingLogger.info(
             'Entities extracted for ${document.id}: '
             'vendor=${entity.vendor}, amount=${entity.amount}, '
             'category=${entity.category?.name}',
             tag: 'DocumentNotifier',
           );
         } else {
-          _troubleshootingLogger.info(
+          await _troubleshootingLogger.info(
             'No entities found for document: ${document.id}',
             tag: 'DocumentNotifier',
           );
         }
+        taskNotifier.markCompleted(document.id, BackgroundTaskType.entityExtraction);
       } catch (e) {
-        // Fail silently, just log the error
-        _troubleshootingLogger.warning(
+        taskNotifier.markFailed(document.id, BackgroundTaskType.entityExtraction, e);
+        await _troubleshootingLogger.warning(
           'Failed to extract entities from document: ${document.id}',
           tag: 'DocumentNotifier',
           error: e,
@@ -683,7 +702,7 @@ class DocumentDetailNotifier extends FamilyAsyncNotifier<Document?, String> {
   @override
   Future<Document?> build(String arg) async {
     final databaseService = ref.read(databaseServiceProvider);
-    return await databaseService.getDocument(arg);
+    return databaseService.getDocument(arg);
   }
 
   Future<void> updateDocument(Document document) async {
@@ -693,12 +712,12 @@ class DocumentDetailNotifier extends FamilyAsyncNotifier<Document?, String> {
       final updatedDocument = document.copyWith(updatedAt: DateTime.now());
       await databaseService.updateDocument(updatedDocument);
       state = AsyncValue.data(updatedDocument);
-      logger.info(
+      await logger.info(
         'Document updated: ${document.id}',
         tag: 'DocumentDetailNotifier',
       );
     } catch (e, stackTrace) {
-      logger.error(
+      await logger.error(
         'Failed to update document',
         tag: 'DocumentDetailNotifier',
         error: e,
@@ -714,12 +733,12 @@ class DocumentDetailNotifier extends FamilyAsyncNotifier<Document?, String> {
     try {
       await databaseService.deleteDocument(documentId);
       state = const AsyncValue.data(null);
-      logger.info(
+      await logger.info(
         'Document deleted: $documentId',
         tag: 'DocumentDetailNotifier',
       );
     } catch (e, stackTrace) {
-      logger.error(
+      await logger.error(
         'Failed to delete document',
         tag: 'DocumentDetailNotifier',
         error: e,
@@ -757,12 +776,12 @@ class ScannerNotifier extends Notifier<ScannerState> {
         error: null,
       );
 
-      _troubleshootingLogger.info(
+      await _troubleshootingLogger.info(
         'Camera initialized successfully',
         tag: 'ScannerNotifier',
       );
     } catch (e) {
-      _troubleshootingLogger.error(
+      await _troubleshootingLogger.error(
         'Failed to initialize camera',
         tag: 'ScannerNotifier',
         error: e,
@@ -783,13 +802,13 @@ class ScannerNotifier extends Notifier<ScannerState> {
         error: null,
       );
 
-      _troubleshootingLogger.info(
+      await _troubleshootingLogger.info(
         'Image captured: $imagePath',
         tag: 'ScannerNotifier',
       );
       return imagePath;
     } catch (e) {
-      _troubleshootingLogger.error(
+      await _troubleshootingLogger.error(
         'Failed to capture image',
         tag: 'ScannerNotifier',
         error: e,
@@ -811,13 +830,13 @@ class ScannerNotifier extends Notifier<ScannerState> {
         error: null,
       );
 
-      _troubleshootingLogger.info(
+      await _troubleshootingLogger.info(
         'Text extracted: ${ocrResult.text.length} characters',
         tag: 'ScannerNotifier',
       );
       return ocrResult;
     } catch (e) {
-      _troubleshootingLogger.error(
+      await _troubleshootingLogger.error(
         'Failed to extract text',
         tag: 'ScannerNotifier',
         error: e,

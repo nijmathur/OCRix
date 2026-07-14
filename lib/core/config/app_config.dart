@@ -7,7 +7,7 @@ class AppConfig {
   // Database configuration
   static const String databaseName = 'privacy_documents.db';
   static const int databaseVersion =
-      11; // Force migration for entities_extracted_at column
+      12; // v12: encrypt vendor field at rest
 
   // Audit database configuration (now uses main database)
   // Kept for backward compatibility, but audit_entries table is in main database

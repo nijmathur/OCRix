@@ -2,6 +2,8 @@
 /// Hybrid NLP search with entity extraction, vector search, and LLM analysis
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
@@ -38,11 +40,9 @@ class _AISearchScreenState extends State<AISearchScreen> {
   bool _isReprocessing = false;
   bool _modelFileAvailable = false;
   bool _embeddingModelJustLoaded = false;
-  bool _gemmaModelJustInstalled = false;
   bool _showEmbeddingSuccess = false;
   bool _showGemmaSuccess = false;
   double _gemmaDownloadProgress = 0.0;
-  double _embeddingDownloadProgress = 0.0;
   double _vectorizationProgress = 0.0;
   double _reprocessingProgress = 0.0;
   int _vectorizedCount = 0;
@@ -124,14 +124,14 @@ class _AISearchScreenState extends State<AISearchScreen> {
       }
 
       // Auto-start vectorization if embedding model is ready but docs need vectorization
-      print(
+      debugPrint(
         '[AISearchScreen] Vectorization check: isReady=${_searchService.isReady}, pending=${vectorStats['pending_documents']}',
       );
       if (_searchService.isReady && vectorStats['pending_documents']! > 0) {
-        print('[AISearchScreen] Starting auto-vectorization...');
-        _startBackgroundVectorization();
+        debugPrint('[AISearchScreen] Starting auto-vectorization...');
+        unawaited(_startBackgroundVectorization());
       } else {
-        print(
+        debugPrint(
           '[AISearchScreen] Skipping vectorization: isReady=${_searchService.isReady}, pending=${vectorStats['pending_documents']}',
         );
       }
@@ -155,7 +155,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
     });
 
     try {
-      print('[AISearchScreen] Starting background vectorization...');
+      debugPrint('[AISearchScreen] Starting background vectorization...');
 
       final result = await _searchService.vectorizeAllDocuments(
         onProgress: (current, total) {
@@ -176,6 +176,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
 
         // Refresh stats
         final stats = await _searchService.getVectorizationStats();
+        if (!mounted) return;
         setState(() {
           _vectorizationStats = stats;
         });
@@ -211,7 +212,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
     });
 
     try {
-      print('[AISearchScreen] Starting entity extraction reprocessing...');
+      debugPrint('[AISearchScreen] Starting entity extraction reprocessing...');
 
       final result = await _reprocessingService.reprocessAllDocuments(
         onProgress: (current, total) {
@@ -232,6 +233,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
 
         // Refresh stats
         final entityStats = await _reprocessingService.getReprocessingStats();
+        if (!mounted) return;
         setState(() {
           _entityExtractionStats = entityStats;
         });
@@ -290,7 +292,6 @@ class _AISearchScreenState extends State<AISearchScreen> {
         setState(() {
           _isDownloadingGemmaModel = false;
           _gemmaDownloadProgress = 1.0;
-          _gemmaModelJustInstalled = true;
           _showGemmaSuccess = true;
         });
 
@@ -308,11 +309,11 @@ class _AISearchScreenState extends State<AISearchScreen> {
           await _gemmaService.initialize();
           await _searchService.refreshLLMStatus();
           setState(() {}); // Trigger rebuild to show AI + Vector badge
-          print(
+          debugPrint(
             '[AISearchScreen] Gemma initialized and search service refreshed',
           );
         } catch (e) {
-          print(
+          debugPrint(
             '[AISearchScreen] Failed to initialize Gemma after install: $e',
           );
         }
@@ -403,7 +404,6 @@ class _AISearchScreenState extends State<AISearchScreen> {
         setState(() {
           _isDownloadingGemmaModel = false;
           _gemmaDownloadProgress = 1.0;
-          _gemmaModelJustInstalled = true;
           _showGemmaSuccess = true;
         });
 
@@ -421,11 +421,11 @@ class _AISearchScreenState extends State<AISearchScreen> {
           await _gemmaService.initialize();
           await _searchService.refreshLLMStatus();
           setState(() {}); // Trigger rebuild to show AI + Vector badge
-          print(
+          debugPrint(
             '[AISearchScreen] Gemma initialized and search service refreshed',
           );
         } catch (e) {
-          print(
+          debugPrint(
             '[AISearchScreen] Failed to initialize Gemma after install: $e',
           );
         }
@@ -701,7 +701,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      color: Colors.green.withOpacity(0.15),
+      color: Colors.green.withValues(alpha: 0.15),
       child: Row(
         children: [
           const Icon(Icons.check_circle, color: Colors.green, size: 24),
@@ -745,7 +745,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      color: Colors.green.withOpacity(0.15),
+      color: Colors.green.withValues(alpha: 0.15),
       child: Row(
         children: [
           const Icon(Icons.auto_awesome, color: Colors.green, size: 24),
@@ -826,7 +826,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(
                 context,
-              ).colorScheme.onPrimaryContainer.withOpacity(0.8),
+              ).colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -838,7 +838,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      color: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.5),
+      color: Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1004,7 +1004,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
     if (pending == 0 && vectorized > 0) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: Colors.green.withOpacity(0.1),
+        color: Colors.green.withValues(alpha: 0.1),
         child: Row(
           children: [
             const Icon(Icons.check_circle, color: Colors.green, size: 16),
@@ -1026,7 +1026,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
     if (pending > 0) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: Colors.orange.withOpacity(0.1),
+        color: Colors.orange.withValues(alpha: 0.1),
         child: Row(
           children: [
             const Icon(Icons.info_outline, color: Colors.orange, size: 16),
@@ -1058,7 +1058,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
   Widget _buildReprocessingProgress() {
     return Container(
       padding: const EdgeInsets.all(16),
-      color: Colors.deepPurple.withOpacity(0.1),
+      color: Colors.deepPurple.withValues(alpha: 0.1),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1093,7 +1093,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
             minHeight: 8,
             borderRadius: BorderRadius.circular(4),
             color: Colors.deepPurple,
-            backgroundColor: Colors.deepPurple.withOpacity(0.2),
+            backgroundColor: Colors.deepPurple.withValues(alpha: 0.2),
           ),
           const SizedBox(height: 8),
           Text(
@@ -1122,7 +1122,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
     if (pending == 0 && extracted > 0) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: Colors.deepPurple.withOpacity(0.1),
+        color: Colors.deepPurple.withValues(alpha: 0.1),
         child: Row(
           children: [
             const Icon(Icons.auto_fix_high, color: Colors.deepPurple, size: 16),
@@ -1145,7 +1145,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
     if (pending > 0) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: Colors.deepPurple.withOpacity(0.1),
+        color: Colors.deepPurple.withValues(alpha: 0.1),
         child: Row(
           children: [
             const Icon(Icons.auto_fix_high, color: Colors.deepPurple, size: 16),
@@ -1224,46 +1224,6 @@ class _AISearchScreenState extends State<AISearchScreen> {
     );
   }
 
-  Widget _buildExampleQueries() {
-    final examples = [
-      'receipts from last month',
-      'tax documents 2024',
-      'invoices over \$100',
-      'medical records',
-      'contracts and agreements',
-    ];
-
-    return ExpansionTile(
-      title: Text(
-        'Example queries',
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
-      ),
-      leading: const Icon(Icons.lightbulb_outline, size: 20),
-      initiallyExpanded: false,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: examples.map((example) {
-              return ActionChip(
-                label: Text(example),
-                onPressed: () {
-                  _queryController.text = example;
-                  _performSearch();
-                },
-                avatar: const Icon(Icons.lightbulb_outline, size: 16),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildResults() {
     if (_error != null) {
       return Center(
@@ -1298,7 +1258,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
               decoration: BoxDecoration(
                 color: _getQueryTypeColor(
                   _lastRoutedResult!.queryType,
-                ).withOpacity(0.1),
+                ).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: _getQueryTypeColor(_lastRoutedResult!.queryType),
@@ -1316,8 +1276,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        _getQueryTypeLabel(_lastRoutedResult!.queryType) +
-                            ' Search',
+                        '${_getQueryTypeLabel(_lastRoutedResult!.queryType)} Search',
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(
                               color: _getQueryTypeColor(
@@ -1355,7 +1314,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: _getQueryTypeColor(
                         _lastRoutedResult!.queryType,
-                      ).withOpacity(0.8),
+                      ).withValues(alpha: 0.8),
                     ),
                   ),
                 ],
@@ -1376,7 +1335,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
                     size: 16,
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withOpacity(0.6),
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -1384,7 +1343,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.6),
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ],
@@ -1510,7 +1469,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(
                         context,
-                      ).colorScheme.onPrimaryContainer.withOpacity(0.7),
+                      ).colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -1527,7 +1486,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
                     size: 16,
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withOpacity(0.6),
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -1535,7 +1494,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.6),
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                 ],
@@ -1579,7 +1538,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
             Icon(
               Icons.download_for_offline,
               size: 80,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 24),
             Text(
@@ -1607,7 +1566,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
             Icon(
               Icons.search,
               size: 80,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 24),
             Text(
@@ -1683,7 +1642,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.green.withOpacity(0.3),
+            color: Colors.green.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -1712,7 +1671,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -1775,7 +1734,7 @@ class _AISearchScreenState extends State<AISearchScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

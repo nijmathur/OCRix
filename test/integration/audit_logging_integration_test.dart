@@ -405,7 +405,7 @@ void main() {
               previousEntryId: lastEntry?.id,
               previousChecksum: lastEntry?.checksum,
             );
-            return await auditDatabaseService.insertAuditEntry(entry);
+            return auditDatabaseService.insertAuditEntry(entry);
           }());
         }
 

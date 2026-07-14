@@ -1,5 +1,4 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:json_annotation/json_annotation.dart';
 
 part 'user_settings.freezed.dart';
 part 'user_settings.g.dart';
@@ -20,7 +19,7 @@ abstract class UserSettings with _$UserSettings {
     required String theme,
     required bool notificationsEnabled,
     required bool autoCategorization,
-    @JsonKey(defaultValue: false) required bool useLLMCategorization,
+    @Default(false) bool useLLMCategorization,
     required double ocrConfidenceThreshold,
     required bool backupEnabled,
     DateTime? lastBackupAt,

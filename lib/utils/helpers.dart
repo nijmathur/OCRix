@@ -26,7 +26,7 @@ class FileHelper {
 
   static Future<bool> fileExists(String filePath) async {
     final file = File(filePath);
-    return await file.exists();
+    return file.exists();
   }
 
   static Future<void> deleteFile(String filePath) async {
@@ -64,12 +64,12 @@ class FileHelper {
 
   static Future<Uint8List> readFileAsBytes(String filePath) async {
     final file = File(filePath);
-    return await file.readAsBytes();
+    return file.readAsBytes();
   }
 
   static Future<String> readFileAsString(String filePath) async {
     final file = File(filePath);
-    return await file.readAsString();
+    return file.readAsString();
   }
 
   static Future<void> writeFile(String filePath, Uint8List bytes) async {
@@ -103,7 +103,7 @@ class FileHelper {
   static Future<int> getFileSize(String filePath) async {
     final file = File(filePath);
     if (await file.exists()) {
-      return await file.length();
+      return file.length();
     }
     return 0;
   }
@@ -111,7 +111,7 @@ class FileHelper {
   static Future<DateTime> getFileModifiedDate(String filePath) async {
     final file = File(filePath);
     if (await file.exists()) {
-      return await file.lastModified();
+      return file.lastModified();
     }
     return DateTime.now();
   }

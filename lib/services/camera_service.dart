@@ -366,5 +366,6 @@ final class CameraService extends BaseService
     } catch (e) {
       logError('Failed to dispose camera service: $e');
     }
+    super.dispose();
   }
 }

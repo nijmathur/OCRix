@@ -57,7 +57,7 @@ class AuthNotifier extends AsyncNotifier<GoogleSignInAccount?> {
 
       return true;
     } catch (e, stackTrace) {
-      logger.error(
+      await logger.error(
         'Google Sign-In error',
         tag: 'AuthNotifier',
         error: e,

@@ -1,23 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../services/database_service.dart';
 import '../services/database_export_service.dart';
-import 'document_provider.dart'; // Import existing providers
+import '../services/storage_provider_service.dart';
+import 'document_provider.dart';
 
 part 'database_export_provider.freezed.dart';
 
 /// Provider for DatabaseExportService
+/// Note: DatabaseExportService requires the concrete StorageProviderService
+/// to access getProvider() for direct Google Drive API operations.
 final databaseExportServiceProvider = Provider<DatabaseExportService>((ref) {
-  // Use existing providers from document_provider.dart
-  final databaseService = DatabaseService(); // Get concrete instance
-  final encryptionService = ref.read(encryptionServiceProvider);
-  final storageProviderService = ref.read(storageProviderServiceProvider);
-
   return DatabaseExportService(
-    databaseService: databaseService,
-    encryptionService: encryptionService,
-    storageProviderService: storageProviderService,
+    databaseService: ref.read(databaseServiceProvider),
+    encryptionService: ref.read(encryptionServiceProvider),
+    storageProviderService:
+        ref.read(storageProviderServiceProvider) as StorageProviderService,
   );
 });
 
