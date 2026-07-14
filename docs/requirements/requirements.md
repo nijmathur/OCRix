@@ -251,36 +251,45 @@ CREATE TABLE sync_queue (
 
 ## 7. Implementation Status
 
+_Last updated: July 2026_
+
 ### ✅ Completed Features
 
--   [x] Core document models and data structures
--   [x] SQLite database with FTS5 search
+-   [x] Core document models (freezed, json_serializable, immutable)
+-   [x] SQLite database v12 with FTS5 search, AES-256 vendor field encryption, audit triggers
 -   [x] OCR service with Google ML Kit integration
 -   [x] Camera service with image capture and processing
 -   [x] Encryption service with AES-256 and biometric auth
 -   [x] Storage provider abstraction (local and Google Drive)
--   [x] Riverpod state management
+-   [x] Riverpod state management (modern AsyncNotifier/Notifier pattern)
 -   [x] Complete UI implementation (screens and widgets)
 -   [x] Document scanning and text extraction
--   [x] Document organization and search
+-   [x] Multi-page document scanning
+-   [x] Document organization and search (FTS5 + entity extraction + vector semantic search)
 -   [x] Settings management
--   [x] Privacy audit logging
--   [x] Security and encryption
+-   [x] Privacy audit logging (SHA-256 chain-linked tamper-proof entries)
+-   [x] Security and encryption (AES-256 at rest, PBKDF2 for exports)
+-   [x] Database export/import to Google Drive (password-encrypted)
+-   [x] Google Sign-In authentication
+-   [x] SOLID architecture: interfaces, BaseService, no singletons, Riverpod DI throughout
+-   [x] BackgroundTaskNotifier for tracking async operations
+-   [x] Optimistic rollback on all state mutations
+-   [x] 191 unit tests (business logic, rollback, audit chain, DB atomicity, entity extraction)
+-   [x] Entity extraction service (LLM via Gemma with regex fallback)
+-   [x] Vector search service (USE-Lite 6MB on-device embeddings)
 
-### 🚧 In Progress
+### 🚫 Disabled / Known Issues
 
--   [ ] Cloud storage provider integration testing
--   [ ] Background sync implementation
--   [ ] Data migration wizards
--   [ ] Export/import functionality
--   [ ] Performance optimization
+-   [ ] LLM-powered RAG search — disabled: MediaPipe SIGSEGV crash (bug b/349870091)
+-   [ ] Perspective correction — disabled: native library crash
 
-### 📋 Pending
+### 📋 Not Yet Implemented (product backlog)
 
--   [ ] OneDrive integration
--   [ ] Advanced analytics
--   [ ] Premium features
--   [ ] Localization
+-   [ ] Background sync engine (sync_queue table exists; no sync worker)
+-   [ ] OneDrive integration (Google Drive only currently)
+-   [ ] Data migration wizard (provider switching requires manual export/import)
+-   [ ] Localization (English only)
+-   [ ] Premium features / in-app purchase
 -   [ ] App store deployment
 
 ## 8. Developer Instructions

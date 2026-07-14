@@ -1,60 +1,52 @@
 # Refactoring Implementation Plan
 
-## Status: In Progress
+**Status: COMPLETE** (as of July 2026)
 
-### Completed ✅
-1. ✅ Created service interfaces (IDatabaseService, IOCRService, etc.)
-2. ✅ Created BaseService class
-3. ✅ Created AppConfig for centralized configuration
-4. ✅ Created custom exceptions (AppException hierarchy)
-5. ✅ Created ImageProcessingService interface and implementation
+All phases below have been completed. This document is kept as a historical record.
+See `docs/architecture/REFACTORING_SUMMARY.md` for the full summary of what was done.
 
-### In Progress 🔄
-6. 🔄 Refactoring DatabaseService
-   - Remove encryption duplication
-   - Implement IDatabaseService
-   - Extend BaseService
-   - Use dependency injection for EncryptionService
+---
 
-### Remaining Tasks 📋
-7. Refactor EncryptionService to implement IEncryptionService and extend BaseService
-8. Refactor OCRService to implement IOCRService and extend BaseService
-9. Refactor CameraService to implement ICameraService and extend BaseService
-10. Refactor StorageProviderService to implement IStorageProviderService
-11. Refactor DocumentNotifier to use ImageProcessingService
-12. Update all Riverpod providers to use interfaces
-13. Add unit tests with mocked dependencies
+## Phases (All Complete)
 
-## Implementation Strategy
+### Phase 1: Core Infrastructure ✅
+- Service interfaces created (`IDatabaseService`, `IOCRService`, `ICameraService`, `IEncryptionService`, `IStorageProviderService`, `IImageProcessingService`)
+- `BaseService` class created
+- `AppConfig` for centralized configuration
+- Custom exceptions (`AppException` hierarchy)
+- `ImageProcessingService` interface and implementation
 
-### Phase 1: Core Services (Current)
-- DatabaseService refactoring
-- Remove encryption duplication
-- Implement interfaces
+### Phase 2: Service Refactoring ✅
+- All services implement their interface and extend `BaseService`
+- Singleton pattern removed from all services
+- Riverpod providers inject all dependencies
+- Troubleshooting logger injected in provider factories via `setTroubleshootingLogger()`
 
-### Phase 2: Other Services
-- Refactor remaining services to implement interfaces
-- Use BaseService for common functionality
-- Use AppConfig for configuration
+### Phase 3: State Management ✅
+- All providers migrated from `StateNotifier` to `Notifier`/`AsyncNotifier`
+- Optimistic rollback pattern implemented in `DocumentNotifier`
+- `BackgroundTaskNotifier` added for long-running tasks
+- Circular dependency between `AuditDatabaseService` and `DatabaseService` resolved
 
-### Phase 3: State Management
-- Update DocumentNotifier
-- Extract image processing
-- Update providers to use interfaces
+### Phase 4: Models ✅
+- All models migrated from `Equatable` to `freezed`
+- All state classes use `freezed`
 
-### Phase 4: Testing
-- Add unit tests
-- Mock dependencies
-- Test with interfaces
+### Phase 5: Testing ✅
+- `mocktail` framework adopted
+- 191 unit tests covering core business logic
+- Architecture regression tests in `test/unit/architecture_regression_test.dart`
 
-## Breaking Changes
-- Services now require dependency injection
-- Providers need to be updated to use interfaces
-- Some method signatures may change slightly
+---
 
-## Migration Path
-1. Keep old service classes temporarily
-2. Create new implementations alongside
-3. Update providers gradually
-4. Remove old implementations once migration complete
+## What Remains Outside This Plan's Scope
 
+Features that were never part of this refactoring plan (product features still pending):
+
+- Background sync engine
+- OneDrive integration
+- Data migration wizard
+- Localization
+- Premium features / in-app purchase
+
+See `docs/requirements/requirements.md` §7 for product feature status.

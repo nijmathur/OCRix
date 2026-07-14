@@ -1,128 +1,76 @@
 # Refactoring Summary - SOLID & DRY Implementation
 
-## ✅ Completed Work
+**Status: COMPLETE** (as of July 2026)
 
-### 1. Core Infrastructure Created
+All work described in this document has been implemented. This file is kept as a historical record.
 
-#### Service Interfaces ✅
-- `lib/core/interfaces/database_service_interface.dart` - IDatabaseService
-- `lib/core/interfaces/ocr_service_interface.dart` - IOCRService  
-- `lib/core/interfaces/camera_service_interface.dart` - ICameraService
-- `lib/core/interfaces/encryption_service_interface.dart` - IEncryptionService
-- `lib/core/interfaces/storage_provider_service_interface.dart` - IStorageProviderService
-- `lib/core/interfaces/image_processing_service_interface.dart` - IImageProcessingService
+---
 
-#### Base Classes ✅
-- `lib/core/base/base_service.dart` - BaseService for common logging/functionality
+## Completed Work
 
-#### Configuration ✅
-- `lib/core/config/app_config.dart` - Centralized configuration (AppConfig)
+### 1. Core Infrastructure
 
-#### Error Handling ✅
-- `lib/core/exceptions/app_exceptions.dart` - Custom exception hierarchy
+- `lib/core/interfaces/` — 6 service interfaces: `IDatabaseService`, `IOCRService`, `ICameraService`, `IEncryptionService`, `IStorageProviderService`, `IImageProcessingService`
+- `lib/core/base/base_service.dart` — `BaseService` (common logging, lifecycle)
+- `lib/core/config/app_config.dart` — Centralized config (`AppConfig`)
+- `lib/core/exceptions/app_exceptions.dart` — Custom exception hierarchy
+- `lib/services/image_processing_service.dart` — `ImageProcessingService`
 
-#### New Services ✅
-- `lib/services/image_processing_service.dart` - ImageProcessingService implementation
+### 2. Service Refactoring (All Complete)
 
-## 📋 Remaining Work
+All services implement their interface, extend `BaseService`, and use Riverpod DI — no singletons:
 
-### High Priority
+| Service | Interface | Singleton Removed |
+|---|---|---|
+| DatabaseService | IDatabaseService | ✅ |
+| EncryptionService | IEncryptionService | ✅ |
+| OCRService | IOCRService | ✅ |
+| CameraService | ICameraService | ✅ |
+| StorageProviderService | IStorageProviderService | ✅ |
+| AuditDatabaseService | — | ✅ |
+| VectorSearchService | — | ✅ (added July 2026) |
 
-1. **Refactor DatabaseService** (In Progress)
-   - Remove encryption duplication (lines 50-67)
-   - Implement IDatabaseService interface
-   - Extend BaseService
-   - Use IEncryptionService via dependency injection
-   - Use AppConfig for configuration
-   - Use custom exceptions
+### 3. Dependency Injection
 
-2. **Refactor EncryptionService**
-   - Implement IEncryptionService interface
-   - Extend BaseService
-   - Remove singleton pattern (use Riverpod)
+- All Riverpod providers use interfaces
+- Logger injected via `setTroubleshootingLogger()` in provider factories
+- `StorageProviderService` properly injected into `DatabaseExportService` (was silently ignored before July 2026)
+- `vectorSearchServiceProvider` added
 
-3. **Refactor OCRService**
-   - Implement IOCRService interface
-   - Extend BaseService
-   - Remove singleton pattern
+### 4. Error Recovery
 
-4. **Refactor CameraService**
-   - Implement ICameraService interface
-   - Extend BaseService
-   - Remove singleton pattern
+- Optimistic rollback pattern: `previousState = state` captured before mutations; restored on failure
+- `DocumentNotifier` — `scanDocument()` and `scanMultiPageDocument()` both roll back on any failure
+- No `AsyncValue.error()` emitted for mutations (only for initial load)
 
-5. **Refactor StorageProviderService**
-   - Implement IStorageProviderService interface
-   - Extend BaseService
+### 5. Audit / Security
 
-6. **Refactor DocumentNotifier**
-   - Extract image processing to ImageProcessingService
-   - Reduce class size (currently 450+ lines)
-   - Use dependency injection
+- `AuditDatabaseService.initialize()` no longer calls `DatabaseService.initialize()` (circular dep fixed)
+- DB init order enforced: `DB.initialize()` → `Audit.initialize()` → `DB.setAuditLoggingService(audit)`
+- SHA-256 checksum + chain linking on every `AuditEntry`
+- `vendor` field AES-256 encrypted in DB v12; use `DatabaseService.decryptDocumentVendor()` for plaintext
 
-7. **Update Riverpod Providers**
-   - Update all providers to use interfaces
-   - Implement proper dependency injection
-   - Remove singleton dependencies
+### 6. Background Tasks
 
-### Medium Priority
+- `BackgroundTaskNotifier` (`lib/providers/background_task_provider.dart`) tracks all long-running tasks (vectorization, entity extraction)
 
-8. **Consolidate Configuration**
-   - Merge AppConstants into AppConfig
-   - Remove duplicate configuration values
+### 7. Tests
 
-9. **Add Unit Tests**
-   - Create test mocks for interfaces
-   - Add unit tests for services
-   - Test with mocked dependencies
+- 191 unit tests covering: rollback, DB atomicity, audit chain integrity, FTS5 injection, cascade deletes, entity extraction fallback, encryption init order, settings emissions, vendor encryption, filter logic, multi-page orphan pages
 
-## Implementation Notes
+---
 
-### Breaking Changes
-- Services will require dependency injection
-- Providers need updates to use interfaces
-- Some method signatures may change
+## What Is Still Pending (as of July 2026)
 
-### Migration Strategy
-1. Keep old implementations temporarily
-2. Create new implementations alongside
-3. Update providers gradually
-4. Remove old code once migration complete
+The following were **not** part of this refactoring scope and remain unimplemented:
 
-## Files Modified/Created
+- Background sync (sync queue table exists but no sync engine)
+- OneDrive integration
+- Data migration wizard
+- Perspective correction (disabled — native library crashes)
+- LLM-powered RAG (disabled — MediaPipe SIGSEGV bug b/349870091)
+- Localization
+- Premium / in-app purchase features
+- App store deployment
 
-### Created (9 files)
-- 6 interface files
-- 1 base service class
-- 1 config file
-- 1 exceptions file
-- 1 image processing service
-
-### To Be Modified (6 files)
-- lib/services/database_service.dart
-- lib/services/encryption_service.dart
-- lib/services/ocr_service.dart
-- lib/services/camera_service.dart
-- lib/services/storage_provider_service.dart
-- lib/providers/document_provider.dart
-
-### To Be Updated (1 file)
-- lib/providers/document_provider.dart (Riverpod providers)
-
-## Next Steps
-
-1. Complete DatabaseService refactoring
-2. Refactor remaining services one by one
-3. Update DocumentNotifier
-4. Update providers
-5. Add tests
-6. Remove old code
-
-## Estimated Time
-- DatabaseService: 2-3 hours
-- Other services: 1-2 hours each
-- DocumentNotifier: 2-3 hours
-- Providers: 1-2 hours
-- Tests: 3-4 hours
-- **Total: ~15-20 hours**
-
+See `docs/requirements/requirements.md` §7 for implementation status detail.

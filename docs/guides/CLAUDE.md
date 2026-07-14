@@ -308,10 +308,11 @@ See README.md "Google Cloud Console Setup" for detailed configuration steps.
 
 ### Code Generation Requirements
 
-When modifying models with JSON serialization:
-1. Add/modify `@JsonSerializable()` annotation
-2. Run `dart run build_runner build` to regenerate `.g.dart` files
-3. Commit both model file and generated `.g.dart` file
+When modifying models:
+1. Models use `freezed` + `json_serializable` — do NOT add `@JsonSerializable()` to freezed classes
+2. Add `factory X.fromJson(Map<String, dynamic> json) => _$XFromJson(json);` inside the class body
+3. Run `dart run build_runner build` to regenerate `.freezed.dart` and `.g.dart` files
+4. Commit both model file and generated files
 
 ### Testing Considerations
 
@@ -359,19 +360,6 @@ When implementing features that modify data:
 3. Use `auditService.logNavigation()` for screen transitions (or let `AuditNavigationObserver` handle it)
 4. Set user ID context: `auditService.setUserId(userId)` after authentication
 5. For database operations, set user ID for triggers: `databaseService.setCurrentUserIdForTriggers(userId)`
-
-#### Refactoring Notes (In Progress)
-The codebase is transitioning from singleton services to pure dependency injection:
-- Services currently use singleton pattern but implement interfaces
-- Gradually migrating to constructor injection via Riverpod
-- `DatabaseService`, `EncryptionService`, `OCRService`, `CameraService` being refactored
-- See `docs/architecture/REFACTORING_SUMMARY.md` for status
-
-**When refactoring services:**
-1. Keep old implementation temporarily
-2. Create new implementation alongside
-3. Update providers gradually
-4. Remove old code once migration complete
 
 ### Privacy-First Design Principles
 

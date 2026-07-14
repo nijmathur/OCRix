@@ -70,6 +70,19 @@ Write tests for core business logic and important paths. Do NOT write tests for 
 
 When adding a new service or provider method, ask: *"could a bug here cause data loss, a security breach, or a broken user flow?"* If yes, write a test. If no, skip it.
 
+## Documentation Map
+
+| File | Purpose |
+|---|---|
+| `CLAUDE.md` (this file) | Quick reference — architecture, patterns, testing policy |
+| `docs/guides/CLAUDE.md` | Detailed architecture, data flows, screen list, security, all dev workflows |
+| `docs/guides/EXPLORATION_ROADMAP.md` | Step-by-step codebase walkthrough for onboarding |
+| `docs/requirements/requirements.md` | Product requirements + §7 implementation status |
+| `docs/architecture/ARCHITECTURAL_REVIEW.md` | Nov 2025 SOLID/DRY review (all issues resolved July 2026) |
+| `docs/architecture/REFACTORING_SUMMARY.md` | What was refactored and what remains pending |
+| `docs/architecture/REFACTORING_PLAN.md` | Historical plan (complete) |
+| `docs/session_notes.md` | Historical session log (Jan 2026, superseded) |
+
 ## Privacy-First Principles
 
 - All OCR processing on-device

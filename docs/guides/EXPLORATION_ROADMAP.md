@@ -49,7 +49,6 @@ This roadmap guides you through exploring the codebase step-by-step. Follow this
 **File**: `lib/services/database_service.dart`
 
 **What to look for:**
-- Singleton pattern (only one instance)
 - Database initialization (`_initDatabase()`)
 - CRUD operations (`insertDocument`, `getDocument`, `updateDocument`, `deleteDocument`)
 - SQL table structure (lines 72-99)
@@ -78,18 +77,24 @@ Future<List<Document>> searchDocuments(String query)
 
 **What to look for:**
 - `Provider` - simple service providers (like dependency injection)
-- `FutureProvider` - async data that loads once
-- `StateNotifierProvider` - state that can change
-- `DocumentNotifier` - manages document list state
-- `ScannerNotifier` - manages camera/scanning state
+- `AsyncNotifierProvider` - async state that can load and change
+- `NotifierProvider` - sync state that can change
+- `DocumentNotifier` - manages document list state (extends `AsyncNotifier`)
 
 **Pattern you'll see:**
 ```dart
-// Define provider
-final documentNotifierProvider = StateNotifierProvider<...>((ref) {
-  final dbService = ref.read(databaseServiceProvider);  // Get dependency
-  return DocumentNotifier(dbService);  // Create notifier
-});
+// Define provider (modern Riverpod — AsyncNotifier)
+final documentNotifierProvider = AsyncNotifierProvider<DocumentNotifier, List<Document>>(
+  DocumentNotifier.new,
+);
+
+class DocumentNotifier extends AsyncNotifier<List<Document>> {
+  @override
+  Future<List<Document>> build() async {
+    // Load initial state
+    return ref.read(databaseServiceProvider).getAllDocuments();
+  }
+}
 
 // Use in UI
 final state = ref.watch(documentNotifierProvider);  // Listen to changes
@@ -325,8 +330,8 @@ A: These are generated files for JSON serialization. Don't edit them directly. R
 ### Q: What's `ConsumerWidget` vs `StatelessWidget`?
 A: `ConsumerWidget` is a `StatelessWidget` that can access Riverpod providers via `ref`. Use `ConsumerWidget` when you need state management.
 
-### Q: Why are services singletons?
-A: Services like database and OCR need to be initialized once and shared across the app. Singletons ensure only one instance exists.
+### Q: Why are services created by Riverpod providers instead of singletons?
+A: Services are created once by their Riverpod provider and shared across the app via the provider. This approach (vs. `static final _instance`) makes services testable — tests can override providers with mocks without touching production code.
 
 ### Q: What's the difference between `final`, `const`, and `var`?
 A: 
