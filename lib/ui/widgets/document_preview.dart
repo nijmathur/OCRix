@@ -57,7 +57,7 @@ class _DocumentPreviewState extends State<DocumentPreview> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ColoredBox(
       color: Colors.black,
       child: Stack(
         children: [

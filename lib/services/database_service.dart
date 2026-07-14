@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'dart:convert';
 import 'dart:io' show Platform;
-import 'package:sqflite/sqflite.dart' hide DatabaseException;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' hide DatabaseException;
 import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 import 'package:path/path.dart';
@@ -19,16 +18,11 @@ import '../core/exceptions/app_exceptions.dart';
 import '../services/audit_logging_service.dart';
 import 'encryption_service.dart';
 
-class DatabaseService extends BaseService implements IDatabaseService {
-  static final DatabaseService _instance = DatabaseService._internal();
-  factory DatabaseService() => _instance;
-  DatabaseService._internal();
+final class DatabaseService extends BaseService implements IDatabaseService {
+  DatabaseService();
 
-  // Encryption service - will be refactored to use interface next
-  // For now, use concrete class directly
-  late final EncryptionService _encryptionServiceInstance = EncryptionService();
-
-  // Dependency injection - can be set for testing
+  // Encryption: prefer injected interface, fall back to owned instance
+  late final IEncryptionService _encryptionServiceInstance = EncryptionService();
   IEncryptionService? _encryptionService;
 
   // Audit logging service (optional - for COMPULSORY level logging)
@@ -42,18 +36,11 @@ class DatabaseService extends BaseService implements IDatabaseService {
     _encryptionService = encryptionService;
   }
 
-  // Get encryption service - uses concrete class for now
-  // Will be refactored when EncryptionService implements IEncryptionService
-  dynamic get encryptionService {
-    if (_encryptionService != null) {
-      return _encryptionService!;
-    }
-    // Temporary: use concrete class until EncryptionService implements interface
-    return _EncryptionServiceAdapter(_encryptionServiceInstance);
-  }
+  IEncryptionService get encryptionService =>
+      _encryptionService ?? _encryptionServiceInstance;
 
-  // Set audit logging service for COMPULSORY level logging
-  void setAuditLoggingService(AuditLoggingService? auditLoggingService) {
+  @override
+  void setAuditLoggingService(covariant AuditLoggingService? auditLoggingService) {
     _auditLoggingService = auditLoggingService;
   }
 
@@ -78,14 +65,17 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  // Static so the connection is shared across instances (e.g. StorageProviderService
+  // creating a new DatabaseService() uses the same open SQLite handle).
   static Database? _database;
-  bool _isInitialized = false;
+  static bool _isInitialized = false;
 
   @override
   String get serviceName => 'DatabaseService';
 
   /// Database getter for backward compatibility
   /// Use initialize() instead for new code
+  @override
   Future<Database> get database async {
     if (!_isInitialized) {
       await initialize();
@@ -720,34 +710,46 @@ class DatabaseService extends BaseService implements IDatabaseService {
         logError('Error creating entity column indexes', e);
       }
 
-      logInfo('Database upgraded to version 11 with entity extraction columns (fix)');
-    }
-  }
-
-  /// Create SQLite triggers for automatic audit logging
-  /// Note: Triggers write basic audit info, but checksums are calculated in app code
-  /// This ensures tamper-proofing while keeping it simple
-  Future<void> _createAuditTriggers(Database db) async {
-    try {
-      // Drop existing triggers if they exist (for migrations)
-      await db.execute('DROP TRIGGER IF EXISTS audit_documents_insert');
-      await db.execute('DROP TRIGGER IF EXISTS audit_documents_update');
-      await db.execute('DROP TRIGGER IF EXISTS audit_documents_delete');
-
-      // Note: We're not using triggers for now because:
-      // 1. Checksums need to be calculated in app code (requires crypto)
-      // 2. Chain linking requires reading last entry
-      // 3. SQLite triggers can't easily do this
-      //
-      // Instead, we rely on application-level logging which is more reliable
-      // and can properly implement tamper-proofing with checksums and chaining
-
       logInfo(
-        'Audit triggers skipped - using application-level logging for tamper-proofing',
+        'Database upgraded to version 11 with entity extraction columns (fix)',
       );
-    } catch (e) {
-      logError('Failed to create audit triggers', e);
-      // Don't throw - triggers are nice-to-have, not critical
+    }
+
+    if (oldVersion < 12) {
+      // v12: Encrypt the vendor field at rest using EncryptionService.
+      // The vendor column previously stored plain text (e.g. "Whole Foods").
+      // From v12 onward, vendor is AES-256 encrypted before writing.
+      // All new writes (updateDocumentEntities) encrypt before storing.
+      // Read-side decryption is handled by _decryptVendor().
+      logInfo('Migrating v12: encrypting existing vendor values...');
+      try {
+        // Ensure encryption service is ready before migration
+        if (!encryptionService.isInitialized) {
+          await encryptionService.initialize();
+        }
+        final rows = await db.query(
+          'documents',
+          columns: ['id', 'vendor'],
+          where: 'vendor IS NOT NULL',
+        );
+        for (final row in rows) {
+          final plainVendor = row['vendor'] as String?;
+          if (plainVendor != null && plainVendor.isNotEmpty) {
+            final encrypted = await encryptData(plainVendor);
+            if (encrypted != null) {
+              await db.update(
+                'documents',
+                {'vendor': encrypted},
+                where: 'id = ?',
+                whereArgs: [row['id']],
+              );
+            }
+          }
+        }
+        logInfo('v12 vendor encryption migration complete: ${rows.length} rows processed');
+      } catch (e) {
+        logWarning('v12 vendor migration failed (non-fatal): $e');
+      }
     }
   }
 
@@ -848,7 +850,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
             JOIN search_index s ON d.id = s.doc_id
             WHERE search_index MATCH ?
           ''';
-          List<dynamic> queryArgs = [sanitizedQuery];
+          final List<dynamic> queryArgs = [sanitizedQuery];
 
           if (type != null) {
             query += ' AND d.type = ?';
@@ -878,7 +880,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
             WHERE (s.title LIKE ? OR s.extracted_text LIKE ? OR s.tags LIKE ? OR s.notes LIKE ?)
           ''';
           final searchTerm = '%$searchQuery%';
-          List<dynamic> queryArgs = [
+          final List<dynamic> queryArgs = [
             searchTerm,
             searchTerm,
             searchTerm,
@@ -909,7 +911,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
 
       // No search query - use regular query
       String whereClause = '';
-      List<dynamic> whereArgs = [];
+      final List<dynamic> whereArgs = [];
 
       if (type != null) {
         whereClause += 'type = ?';
@@ -983,6 +985,14 @@ class DatabaseService extends BaseService implements IDatabaseService {
   /// Update only the entity extraction fields for a document
   /// Used by EntityExtractionService to update extracted entities without
   /// modifying other document fields
+  /// Decrypt vendor string. Returns the original string if decryption fails
+  /// (handles pre-v12 unencrypted data gracefully).
+  Future<String?> _decryptVendor(String? encryptedVendor) async {
+    if (encryptedVendor == null) return null;
+    return decryptData(encryptedVendor);
+  }
+
+  @override
   Future<void> updateDocumentEntities({
     required String documentId,
     String? vendor,
@@ -993,10 +1003,12 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }) async {
     final db = await database;
     try {
+      // Encrypt vendor before storing (v12+)
+      final encryptedVendor = vendor != null ? await encryptData(vendor) : null;
       await db.update(
         'documents',
         {
-          'vendor': vendor,
+          'vendor': encryptedVendor ?? vendor,
           'amount': amount,
           'transaction_date': transactionDate?.millisecondsSinceEpoch,
           'category': category,
@@ -1196,7 +1208,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     final db = await database;
     try {
       String whereClause = '';
-      List<dynamic> whereArgs = [];
+      final List<dynamic> whereArgs = [];
 
       if (action != null) {
         whereClause += 'action = ?';
@@ -1513,7 +1525,28 @@ class DatabaseService extends BaseService implements IDatabaseService {
           : null,
       isMultiPage: (map['is_multi_page'] ?? 0) == 1,
       pageCount: map['page_count'] ?? 1,
+      // Entity fields: vendor is stored encrypted (v12+).
+      // Callers requiring decrypted vendor should use decryptDocumentVendor().
+      vendor: map['vendor'] as String?,
+      amount: map['amount'] as double?,
+      transactionDate: map['transaction_date'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['transaction_date'] as int)
+          : null,
+      category: map['category'] as String?,
+      entityConfidence: (map['entity_confidence'] as double?) ?? 0.0,
+      entitiesExtractedAt: map['entities_extracted_at'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(
+              map['entities_extracted_at'] as int)
+          : null,
     );
+  }
+
+  /// Decrypts the vendor field on a Document returned from the database.
+  /// Use this when displaying or processing vendor data.
+  Future<Document> decryptDocumentVendor(Document document) async {
+    if (document.vendor == null) return document;
+    final decrypted = await _decryptVendor(document.vendor);
+    return document.copyWith(vendor: decrypted);
   }
 
   // Removed _auditLogToMap - no longer needed after deprecating old audit system
@@ -1563,6 +1596,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
     }
   }
 
+  @override
   Future<void> close() async {
     final db = _database;
     if (db != null) {
@@ -1718,7 +1752,7 @@ class DatabaseService extends BaseService implements IDatabaseService {
   Future<void> deleteDocumentPages(String documentId) async {
     try {
       final db = await database;
-      final count = await db.delete(
+      await db.delete(
         'document_pages',
         where: 'document_id = ?',
         whereArgs: [documentId],
@@ -1752,65 +1786,3 @@ class DatabaseService extends BaseService implements IDatabaseService {
   }
 }
 
-// Temporary adapter until EncryptionService implements IEncryptionService
-class _EncryptionServiceAdapter implements IEncryptionService {
-  final EncryptionService _service;
-
-  _EncryptionServiceAdapter(this._service);
-
-  @override
-  bool get isInitialized => _service.isInitialized;
-
-  @override
-  Future<void> initialize() => _service.initialize();
-
-  @override
-  Future<String> encryptText(String text) => _service.encryptText(text);
-
-  @override
-  Future<String> decryptText(String encryptedText) =>
-      _service.decryptText(encryptedText);
-
-  @override
-  Future<String> encryptFile(String filePath) => _service.encryptFile(filePath);
-
-  @override
-  Future<String> decryptFile(String encryptedFilePath) =>
-      _service.decryptFile(encryptedFilePath);
-
-  @override
-  Future<List<int>> encryptBytes(List<int> bytes) =>
-      _service.encryptBytes(Uint8List.fromList(bytes)).then((b) => b.toList());
-
-  @override
-  Future<List<int>> decryptBytes(List<int> encryptedBytes) => _service
-      .decryptBytes(Uint8List.fromList(encryptedBytes))
-      .then((b) => b.toList());
-
-  @override
-  Future<String> encryptFileWithPassword(String filePath, String password) =>
-      _service.encryptFileWithPassword(filePath, password);
-
-  @override
-  Future<String> decryptFileWithPassword(
-    String encryptedFilePath,
-    String password,
-  ) => _service.decryptFileWithPassword(encryptedFilePath, password);
-
-  @override
-  Future<bool> isBiometricAvailable() => _service.isBiometricAvailable();
-
-  @override
-  Future<bool> authenticateWithBiometrics({String? reason}) =>
-      _service.authenticateWithBiometrics();
-
-  @override
-  Future<void> changeEncryptionKey() => _service.changeEncryptionKey();
-
-  @override
-  Future<void> clearEncryptionKey() => _service.clearEncryptionKey();
-
-  @override
-  Future<Map<String, dynamic>> getEncryptionInfo() =>
-      _service.getEncryptionInfo();
-}

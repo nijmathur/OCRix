@@ -7,7 +7,8 @@ import 'package:ocrix/core/exceptions/app_exceptions.dart';
 
 /// Mock encryption service for testing
 /// Doesn't use flutter_secure_storage, so it works in unit tests
-class MockEncryptionService extends BaseService implements IEncryptionService {
+final class MockEncryptionService extends BaseService
+    implements IEncryptionService {
   Encrypter? _encrypter;
   IV? _iv;
   Key? _key;

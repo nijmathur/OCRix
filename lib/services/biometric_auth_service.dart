@@ -3,7 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../core/base/base_service.dart';
 import '../core/exceptions/app_exceptions.dart';
 
-class BiometricAuthService extends BaseService {
+final class BiometricAuthService extends BaseService {
   final LocalAuthentication _localAuth = LocalAuthentication();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
@@ -121,9 +121,7 @@ class BiometricAuthService extends BaseService {
       }
     } catch (e, stackTrace) {
       logError('Failed to enable biometric authentication', e, stackTrace);
-      if (e is AuthException) {
-        rethrow;
-      }
+      if (e is AuthException) rethrow;
       throw AuthException(
         'Failed to enable biometric authentication: ${e.toString()}',
         originalError: e,

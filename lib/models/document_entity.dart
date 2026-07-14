@@ -2,7 +2,9 @@
 /// Represents extracted structured data from document OCR text
 library;
 
-import 'package:equatable/equatable.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'document_entity.freezed.dart';
 
 /// Entity categories for document classification
 enum EntityCategory {
@@ -32,37 +34,19 @@ enum EntityCategory {
 }
 
 /// Represents extracted entity data from a document
-class DocumentEntity extends Equatable {
-  /// The document ID this entity belongs to
-  final String documentId;
+@freezed
+abstract class DocumentEntity with _$DocumentEntity {
+  const DocumentEntity._();
 
-  /// Extracted vendor/merchant name (e.g., "Kroger", "CVS Pharmacy")
-  final String? vendor;
-
-  /// Extracted monetary amount (e.g., 47.52)
-  final double? amount;
-
-  /// Extracted transaction date
-  final DateTime? transactionDate;
-
-  /// Inferred category based on content
-  final EntityCategory? category;
-
-  /// Confidence score of the extraction (0.0 - 1.0)
-  final double confidence;
-
-  /// When the entity was extracted
-  final DateTime extractedAt;
-
-  const DocumentEntity({
-    required this.documentId,
-    this.vendor,
-    this.amount,
-    this.transactionDate,
-    this.category,
-    required this.confidence,
-    required this.extractedAt,
-  });
+  const factory DocumentEntity({
+    required String documentId,
+    String? vendor,
+    double? amount,
+    DateTime? transactionDate,
+    EntityCategory? category,
+    required double confidence,
+    required DateTime extractedAt,
+  }) = _DocumentEntity;
 
   /// Create an empty entity for documents where extraction failed
   factory DocumentEntity.empty(String documentId) {
@@ -111,47 +95,4 @@ class DocumentEntity extends Equatable {
       amount != null ||
       transactionDate != null ||
       category != null;
-
-  /// Create a copy with updated fields
-  DocumentEntity copyWith({
-    String? documentId,
-    String? vendor,
-    double? amount,
-    DateTime? transactionDate,
-    EntityCategory? category,
-    double? confidence,
-    DateTime? extractedAt,
-  }) {
-    return DocumentEntity(
-      documentId: documentId ?? this.documentId,
-      vendor: vendor ?? this.vendor,
-      amount: amount ?? this.amount,
-      transactionDate: transactionDate ?? this.transactionDate,
-      category: category ?? this.category,
-      confidence: confidence ?? this.confidence,
-      extractedAt: extractedAt ?? this.extractedAt,
-    );
-  }
-
-  @override
-  List<Object?> get props => [
-    documentId,
-    vendor,
-    amount,
-    transactionDate,
-    category,
-    confidence,
-    extractedAt,
-  ];
-
-  @override
-  String toString() {
-    return 'DocumentEntity('
-        'documentId: $documentId, '
-        'vendor: $vendor, '
-        'amount: $amount, '
-        'transactionDate: $transactionDate, '
-        'category: ${category?.name}, '
-        'confidence: $confidence)';
-  }
 }

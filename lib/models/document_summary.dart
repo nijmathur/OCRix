@@ -1,36 +1,30 @@
-import 'package:equatable/equatable.dart';
 import 'dart:typed_data';
+
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import 'document.dart';
 
-/// Lightweight document model for list views (without full image data)
-class DocumentSummary extends Equatable {
-  final String id;
-  final String title;
-  final Uint8List? thumbnailData; // Only thumbnail, not full image
-  final String imageFormat;
-  final DocumentType type;
-  final DateTime scanDate;
-  final List<String> tags;
-  final double confidenceScore;
-  final String detectedLanguage;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final bool isEncrypted;
+part 'document_summary.freezed.dart';
 
-  const DocumentSummary({
-    required this.id,
-    required this.title,
-    this.thumbnailData,
-    this.imageFormat = 'jpeg',
-    required this.type,
-    required this.scanDate,
-    required this.tags,
-    required this.confidenceScore,
-    required this.detectedLanguage,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.isEncrypted,
-  });
+/// Lightweight document model for list views (without full image data)
+@freezed
+abstract class DocumentSummary with _$DocumentSummary {
+  const DocumentSummary._();
+
+  const factory DocumentSummary({
+    required String id,
+    required String title,
+    Uint8List? thumbnailData,
+    @Default('jpeg') String imageFormat,
+    required DocumentType type,
+    required DateTime scanDate,
+    required List<String> tags,
+    required double confidenceScore,
+    required String detectedLanguage,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    required bool isEncrypted,
+  }) = _DocumentSummary;
 
   /// Convert from full Document (for backward compatibility)
   factory DocumentSummary.fromDocument(Document document) {
@@ -79,20 +73,4 @@ class DocumentSummary extends Equatable {
       isSynced: false,
     );
   }
-
-  @override
-  List<Object?> get props => [
-    id,
-    title,
-    thumbnailData,
-    imageFormat,
-    type,
-    scanDate,
-    tags,
-    confidenceScore,
-    detectedLanguage,
-    createdAt,
-    updatedAt,
-    isEncrypted,
-  ];
 }

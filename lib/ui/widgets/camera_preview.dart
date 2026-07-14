@@ -262,46 +262,34 @@ class CameraPreviewWidget extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Camera Timer'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('Off'),
-              leading: Radio<int>(
-                value: 0,
-                groupValue: 0,
-                onChanged: (value) => Navigator.pop(context),
+        content: RadioGroup<int>(
+          groupValue: 0,
+          onChanged: (value) => Navigator.pop(context),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('Off'),
+                leading: const Radio<int>(value: 0),
+                onTap: () => Navigator.pop(context),
               ),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: const Text('3 seconds'),
-              leading: Radio<int>(
-                value: 3,
-                groupValue: 0,
-                onChanged: (value) => Navigator.pop(context),
+              ListTile(
+                title: const Text('3 seconds'),
+                leading: const Radio<int>(value: 3),
+                onTap: () => Navigator.pop(context),
               ),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: const Text('5 seconds'),
-              leading: Radio<int>(
-                value: 5,
-                groupValue: 0,
-                onChanged: (value) => Navigator.pop(context),
+              ListTile(
+                title: const Text('5 seconds'),
+                leading: const Radio<int>(value: 5),
+                onTap: () => Navigator.pop(context),
               ),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: const Text('10 seconds'),
-              leading: Radio<int>(
-                value: 10,
-                groupValue: 0,
-                onChanged: (value) => Navigator.pop(context),
+              ListTile(
+                title: const Text('10 seconds'),
+                leading: const Radio<int>(value: 10),
+                onTap: () => Navigator.pop(context),
               ),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -312,46 +300,34 @@ class CameraPreviewWidget extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Aspect Ratio'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('4:3 (Standard)'),
-              leading: Radio<String>(
-                value: '4:3',
-                groupValue: '4:3',
-                onChanged: (value) => Navigator.pop(context),
+        content: RadioGroup<String>(
+          groupValue: '4:3',
+          onChanged: (value) => Navigator.pop(context),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('4:3 (Standard)'),
+                leading: const Radio<String>(value: '4:3'),
+                onTap: () => Navigator.pop(context),
               ),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: const Text('16:9 (Widescreen)'),
-              leading: Radio<String>(
-                value: '16:9',
-                groupValue: '4:3',
-                onChanged: (value) => Navigator.pop(context),
+              ListTile(
+                title: const Text('16:9 (Widescreen)'),
+                leading: const Radio<String>(value: '16:9'),
+                onTap: () => Navigator.pop(context),
               ),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: const Text('1:1 (Square)'),
-              leading: Radio<String>(
-                value: '1:1',
-                groupValue: '4:3',
-                onChanged: (value) => Navigator.pop(context),
+              ListTile(
+                title: const Text('1:1 (Square)'),
+                leading: const Radio<String>(value: '1:1'),
+                onTap: () => Navigator.pop(context),
               ),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              title: const Text('Full'),
-              leading: Radio<String>(
-                value: 'full',
-                groupValue: '4:3',
-                onChanged: (value) => Navigator.pop(context),
+              ListTile(
+                title: const Text('Full'),
+                leading: const Radio<String>(value: 'full'),
+                onTap: () => Navigator.pop(context),
               ),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

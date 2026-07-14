@@ -1,5 +1,5 @@
 /// Interface for log rotation (SOLID - Interface Segregation)
-abstract class ILogRotationService {
+abstract interface class ILogRotationService {
   /// Check if rotation is needed and perform it if necessary
   Future<void> checkAndRotate();
 

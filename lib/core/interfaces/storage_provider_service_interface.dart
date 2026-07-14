@@ -2,7 +2,7 @@ import '../../models/document.dart';
 import '../../models/storage_provider.dart';
 
 /// Interface for storage provider operations
-abstract class IStorageProviderService {
+abstract interface class IStorageProviderService {
   /// Initialize the service
   Future<void> initialize();
 

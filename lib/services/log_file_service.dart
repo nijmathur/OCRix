@@ -10,7 +10,7 @@ import '../core/exceptions/app_exceptions.dart';
 import 'log_formatter_service.dart';
 
 /// Service for log file operations (SOLID - Single Responsibility)
-class LogFileService extends BaseService implements ILogFileService {
+final class LogFileService extends BaseService implements ILogFileService {
   String? _logFilePath;
   final ILogFormatter _formatter;
   final String? _logsDirectoryPathOverride;

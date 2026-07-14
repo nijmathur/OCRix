@@ -1,7 +1,7 @@
 import '../models/log_entry.dart';
 
 /// Interface for formatting log entries (SOLID - Interface Segregation)
-abstract class ILogFormatter {
+abstract interface class ILogFormatter {
   /// Format a log entry to string
   String format(LogEntry entry);
 

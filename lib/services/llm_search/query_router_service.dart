@@ -5,7 +5,6 @@ library;
 import '../../core/base/base_service.dart';
 import '../../core/interfaces/database_service_interface.dart';
 import '../../models/document.dart';
-import '../embedding_service.dart';
 import '../vector_database_service.dart';
 import 'gemma_model_service.dart';
 import 'vector_search_service.dart';
@@ -134,38 +133,138 @@ class SQLQueryParams {
 }
 
 /// Service for routing queries to appropriate search methods
-class QueryRouterService extends BaseService {
+final class QueryRouterService extends BaseService {
   /// Common English stop words to filter from search queries
   static const Set<String> _stopWords = {
-    'a', 'an', 'the', 'and', 'or', 'but', 'is', 'are', 'was', 'were',
-    'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
-    'will', 'would', 'could', 'should', 'may', 'might', 'must', 'shall',
-    'can', 'need', 'dare', 'ought', 'used', 'to', 'of', 'in', 'for',
-    'on', 'with', 'at', 'by', 'from', 'as', 'into', 'through', 'during',
-    'before', 'after', 'above', 'below', 'between', 'under', 'again',
-    'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why',
-    'how', 'all', 'each', 'few', 'more', 'most', 'other', 'some', 'such',
-    'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very',
-    'just', 'also', 'now', 'i', 'me', 'my', 'we', 'our', 'you', 'your',
-    'he', 'him', 'his', 'she', 'her', 'it', 'its', 'they', 'them', 'their',
-    'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'am',
-    'many', 'much', 'any', 'both', 'get', 'got', 'buy', 'bought',
+    'a',
+    'an',
+    'the',
+    'and',
+    'or',
+    'but',
+    'is',
+    'are',
+    'was',
+    'were',
+    'be',
+    'been',
+    'being',
+    'have',
+    'has',
+    'had',
+    'do',
+    'does',
+    'did',
+    'will',
+    'would',
+    'could',
+    'should',
+    'may',
+    'might',
+    'must',
+    'shall',
+    'can',
+    'need',
+    'dare',
+    'ought',
+    'used',
+    'to',
+    'of',
+    'in',
+    'for',
+    'on',
+    'with',
+    'at',
+    'by',
+    'from',
+    'as',
+    'into',
+    'through',
+    'during',
+    'before',
+    'after',
+    'above',
+    'below',
+    'between',
+    'under',
+    'again',
+    'further',
+    'then',
+    'once',
+    'here',
+    'there',
+    'when',
+    'where',
+    'why',
+    'how',
+    'all',
+    'each',
+    'few',
+    'more',
+    'most',
+    'other',
+    'some',
+    'such',
+    'no',
+    'nor',
+    'not',
+    'only',
+    'own',
+    'same',
+    'so',
+    'than',
+    'too',
+    'very',
+    'just',
+    'also',
+    'now',
+    'i',
+    'me',
+    'my',
+    'we',
+    'our',
+    'you',
+    'your',
+    'he',
+    'him',
+    'his',
+    'she',
+    'her',
+    'it',
+    'its',
+    'they',
+    'them',
+    'their',
+    'what',
+    'which',
+    'who',
+    'whom',
+    'this',
+    'that',
+    'these',
+    'those',
+    'am',
+    'many',
+    'much',
+    'any',
+    'both',
+    'get',
+    'got',
+    'buy',
+    'bought',
   };
 
   final IDatabaseService _databaseService;
-  final EmbeddingService _embeddingService;
   final VectorDatabaseService? _vectorDbService;
   final GemmaModelService? _gemmaService;
   final VectorSearchService? _vectorSearchService;
 
   QueryRouterService(
     this._databaseService, {
-    EmbeddingService? embeddingService,
     VectorDatabaseService? vectorDbService,
     GemmaModelService? gemmaService,
     VectorSearchService? vectorSearchService,
-  }) : _embeddingService = embeddingService ?? EmbeddingService(),
-       _vectorDbService = vectorDbService,
+  }) : _vectorDbService = vectorDbService,
        _gemmaService = gemmaService,
        _vectorSearchService = vectorSearchService;
 
@@ -181,19 +280,11 @@ class QueryRouterService extends BaseService {
       final queryType = classifyQuery(query);
       logInfo('Query classified as: ${queryType.name} - "$query"');
 
-      QueryResult result;
-
-      switch (queryType) {
-        case QueryType.structured:
-          result = await _handleStructuredQuery(query, stopwatch);
-          break;
-        case QueryType.semantic:
-          result = await _handleSemanticQuery(query, stopwatch);
-          break;
-        case QueryType.complex:
-          result = await _handleComplexQuery(query, stopwatch);
-          break;
-      }
+      final result = switch (queryType) {
+        QueryType.structured => await _handleStructuredQuery(query, stopwatch),
+        QueryType.semantic => await _handleSemanticQuery(query, stopwatch),
+        QueryType.complex => await _handleComplexQuery(query, stopwatch),
+      };
 
       stopwatch.stop();
       logInfo(
@@ -343,7 +434,7 @@ class QueryRouterService extends BaseService {
 
     // Build SQL query
     String sql = 'SELECT * FROM documents WHERE 1=1';
-    List<dynamic> args = [];
+    final List<dynamic> args = [];
 
     if (params.vendor != null) {
       sql += ' AND LOWER(vendor) LIKE ?';
@@ -425,8 +516,8 @@ class QueryRouterService extends BaseService {
     String query,
     Stopwatch stopwatch,
   ) async {
-    List<Document> documents = [];
-    List<double> similarities = [];
+    final List<Document> documents = [];
+    final List<double> similarities = [];
 
     // Use VectorSearchService if available (preferred path)
     if (_vectorSearchService != null && _vectorSearchService.isReady) {
@@ -535,17 +626,23 @@ class QueryRouterService extends BaseService {
           stemmedKeywords.add(k);
           // Strip common plural/verb suffixes for better matching
           if (k.endsWith('ies') && k.length > 4) {
-            stemmedKeywords.add('${k.substring(0, k.length - 3)}y'); // berries -> berry
+            stemmedKeywords.add(
+              '${k.substring(0, k.length - 3)}y',
+            ); // berries -> berry
           } else if (k.endsWith('es') && k.length > 3) {
             stemmedKeywords.add(k.substring(0, k.length - 2)); // boxes -> box
           } else if (k.endsWith('s') && k.length > 3) {
-            stemmedKeywords.add(k.substring(0, k.length - 1)); // yogurts -> yogurt
+            stemmedKeywords.add(
+              k.substring(0, k.length - 1),
+            ); // yogurts -> yogurt
           }
           if (k.endsWith('ing') && k.length > 4) {
             stemmedKeywords.add(k.substring(0, k.length - 3)); // buying -> buy
           }
           if (k.endsWith('ed') && k.length > 3) {
-            stemmedKeywords.add(k.substring(0, k.length - 2)); // purchased -> purchas
+            stemmedKeywords.add(
+              k.substring(0, k.length - 2),
+            ); // purchased -> purchas
           }
         }
 
@@ -593,9 +690,9 @@ class QueryRouterService extends BaseService {
     String? analysis;
     double? confidence;
 
-    if (_gemmaService != null && await _gemmaService!.isModelDownloaded()) {
+    if (_gemmaService != null && await _gemmaService.isModelDownloaded()) {
       try {
-        await _gemmaService!.initialize();
+        await _gemmaService.initialize();
 
         // TODO: Use Gemma to analyze documents with proper chat session
         // For now, return a summary of what was found

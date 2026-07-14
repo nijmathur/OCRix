@@ -9,12 +9,9 @@ import '../core/exceptions/app_exceptions.dart';
 
 /// Tamper-proof audit database service
 /// Stores audit logs in the main database with integrity checks (checksums, chaining)
-class AuditDatabaseService extends BaseService
+final class AuditDatabaseService extends BaseService
     implements IAuditDatabaseService {
-  static final AuditDatabaseService _instance =
-      AuditDatabaseService._internal();
-  factory AuditDatabaseService() => _instance;
-  AuditDatabaseService._internal();
+  AuditDatabaseService();
 
   IDatabaseService? _mainDatabaseService;
   bool _isInitialized = false;
@@ -33,8 +30,8 @@ class AuditDatabaseService extends BaseService
     if (_mainDatabaseService == null) {
       throw StateError('Main database service not set');
     }
-    // Access database through main database service
-    return await (_mainDatabaseService as dynamic).database;
+    // Access database through main database service interface
+    return _mainDatabaseService!.database;
   }
 
   @override
@@ -52,10 +49,8 @@ class AuditDatabaseService extends BaseService
     try {
       logInfo('Initializing audit database (using main database)...');
 
-      // Ensure main database is initialized (audit_entries table will be created there)
-      await _mainDatabaseService!.initialize();
-
       // Load last entry for chain linking
+      // Note: Caller must ensure main database is initialized before calling this
       await _loadLastEntry();
 
       _isInitialized = true;
@@ -138,7 +133,7 @@ class AuditDatabaseService extends BaseService
     final db = await database;
     try {
       String whereClause = '';
-      List<dynamic> whereArgs = [];
+      final List<dynamic> whereArgs = [];
 
       if (level != null) {
         whereClause += 'level = ?';

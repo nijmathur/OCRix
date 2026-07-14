@@ -6,7 +6,7 @@ part of 'audit_log.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-AuditLog _$AuditLogFromJson(Map<String, dynamic> json) => AuditLog(
+_AuditLog _$AuditLogFromJson(Map<String, dynamic> json) => _AuditLog(
   id: json['id'] as String,
   action: $enumDecode(_$AuditActionEnumMap, json['action']),
   resourceType: json['resourceType'] as String,
@@ -20,7 +20,7 @@ AuditLog _$AuditLogFromJson(Map<String, dynamic> json) => AuditLog(
   errorMessage: json['errorMessage'] as String?,
 );
 
-Map<String, dynamic> _$AuditLogToJson(AuditLog instance) => <String, dynamic>{
+Map<String, dynamic> _$AuditLogToJson(_AuditLog instance) => <String, dynamic>{
   'id': instance.id,
   'action': _$AuditActionEnumMap[instance.action]!,
   'resourceType': instance.resourceType,

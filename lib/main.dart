@@ -8,9 +8,6 @@ import 'providers/biometric_auth_provider.dart';
 import 'providers/audit_provider.dart';
 import 'providers/troubleshooting_logger_provider.dart';
 import 'services/database_service.dart';
-import 'services/encryption_service.dart';
-import 'services/ocr_service.dart';
-import 'services/storage_provider_service.dart';
 import 'utils/navigation_observer.dart';
 import 'utils/error_handler.dart';
 import 'ui/screens/home_screen.dart';
@@ -263,8 +260,10 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
       final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
       await troubleshootingLogger.initialize();
 
-      // Initialize services using providers from widget tree
-      // ref is available in ConsumerState after didChangeDependencies
+      // Resolve services via providers.
+      // Logger is already injected into each service by the provider factory.
+      // Initialization order matters: DB first, then audit (breaks circular dep),
+      // then wire audit back to DB for COMPULSORY-level logging.
       final databaseService = ref.read(databaseServiceProvider);
       final encryptionService = ref.read(encryptionServiceProvider);
       final ocrService = ref.read(ocrServiceProvider);
@@ -272,80 +271,54 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
       final storageService = ref.read(storageProviderServiceProvider);
       final auditLoggingService = ref.read(auditLoggingServiceProvider);
 
-      // Inject troubleshooting logger into all services
-      if (databaseService is DatabaseService) {
-        (databaseService).setTroubleshootingLogger(troubleshootingLogger);
-      }
-
-      if (encryptionService is EncryptionService) {
-        (encryptionService).setTroubleshootingLogger(troubleshootingLogger);
-      }
-
-      if (ocrService is OCRService) {
-        (ocrService).setTroubleshootingLogger(troubleshootingLogger);
-      }
-
-      (cameraService).setTroubleshootingLogger(troubleshootingLogger);
-
-      if (storageService is StorageProviderService) {
-        (storageService).setTroubleshootingLogger(troubleshootingLogger);
-      }
-
       // Initialize error handler
       ErrorHandler.initialize(troubleshootingLogger);
 
       // Log app initialization start
-      troubleshootingLogger.info(
+      await troubleshootingLogger.info(
         'App initialization started',
         tag: 'AppInitializer',
       );
 
-      // Initialize audit logging service (needed for DB logging)
-      await auditLoggingService.initialize();
-
-      // Set audit logging service in database service for COMPULSORY logging
-      // Cast to concrete type to access setAuditLoggingService
-      if (databaseService is DatabaseService) {
-        (databaseService).setAuditLoggingService(auditLoggingService);
-      }
-
-      // Get current user ID for audit logging
-      final authState = ref.read(authNotifierProvider);
-      final user = authState.valueOrNull;
-      if (user != null) {
-        // Use email or id as user identifier
-        final userId = user.email.isNotEmpty ? user.email : user.id;
-        auditLoggingService.setUserId(userId);
-
-        // Set user ID in database for SQLite triggers
-        if (databaseService is DatabaseService) {
-          await (databaseService).setCurrentUserIdForTriggers(userId);
-        }
-      }
-
-      // No staging processing needed - audit is in main database
-
-      // Initialize critical services (must succeed)
+      // Step 1: Initialize database (audit does NOT call DB.initialize() anymore)
       await databaseService.initialize();
-      troubleshootingLogger.info(
+      await troubleshootingLogger.info(
         'Database service initialized',
         tag: 'AppInitializer',
       );
 
+      // Step 2: Initialize audit service (DB already initialized; no circular call)
+      await auditLoggingService.initialize();
+
+      // Step 3: Wire audit service into DB for COMPULSORY-level operation logging.
+      // IDatabaseService.setAuditLoggingService uses covariant so this is type-safe.
+      databaseService.setAuditLoggingService(auditLoggingService);
+
+      // Step 4: Set user context for audit logging
+      final authState = ref.read(authNotifierProvider);
+      final user = authState.valueOrNull;
+      if (user != null) {
+        final userId = user.email.isNotEmpty ? user.email : user.id;
+        auditLoggingService.setUserId(userId);
+        if (databaseService is DatabaseService) {
+          await databaseService.setCurrentUserIdForTriggers(userId);
+        }
+      }
+
       await encryptionService.initialize();
-      troubleshootingLogger.info(
+      await troubleshootingLogger.info(
         'Encryption service initialized',
         tag: 'AppInitializer',
       );
 
       await ocrService.initialize();
-      troubleshootingLogger.info(
+      await troubleshootingLogger.info(
         'OCR service initialized',
         tag: 'AppInitializer',
       );
 
       await storageService.initialize();
-      troubleshootingLogger.info(
+      await troubleshootingLogger.info(
         'Storage service initialized',
         tag: 'AppInitializer',
       );
@@ -353,14 +326,14 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
       // Camera service is optional (may fail in CI/test environments)
       try {
         await cameraService.initialize();
-        troubleshootingLogger.info(
+        await troubleshootingLogger.info(
           'Camera service initialized',
           tag: 'AppInitializer',
         );
       } catch (e) {
         // Log but don't fail app initialization if camera is unavailable
         // Camera features will be disabled, but app can still function
-        troubleshootingLogger.warning(
+        await troubleshootingLogger.warning(
           'Camera service initialization failed',
           tag: 'AppInitializer',
           error: e,
@@ -369,7 +342,7 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
         debugPrint('Warning: Camera service initialization failed: $e');
       }
 
-      troubleshootingLogger.info(
+      await troubleshootingLogger.info(
         'App initialization completed successfully',
         tag: 'AppInitializer',
       );
@@ -381,12 +354,12 @@ class _AppInitializerState extends ConsumerState<AppInitializer>
         });
 
         // After initialization, check if biometric auth is needed
-        _checkBiometricOnResume();
+        unawaited(_checkBiometricOnResume());
       }
     } catch (e, stackTrace) {
       // Log critical error
       final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
-      troubleshootingLogger.critical(
+      await troubleshootingLogger.critical(
         'App initialization failed',
         tag: 'AppInitializer',
         error: e,

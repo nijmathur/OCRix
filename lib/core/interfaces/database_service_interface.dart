@@ -7,7 +7,7 @@ import 'dart:typed_data';
 import 'package:sqflite/sqflite.dart';
 
 /// Interface for database operations
-abstract class IDatabaseService {
+abstract interface class IDatabaseService {
   /// Get database instance (for advanced queries)
   Future<Database> get database;
 
@@ -74,6 +74,22 @@ abstract class IDatabaseService {
     String? resourceType,
   });
 
+  /// Update entity extraction data for a document
+  Future<void> updateDocumentEntities({
+    required String documentId,
+    String? vendor,
+    double? amount,
+    DateTime? transactionDate,
+    String? category,
+    required double entityConfidence,
+  });
+
+  /// Set the audit logging service for COMPULSORY-level DB operation logging
+  void setAuditLoggingService(covariant Object? auditService);
+
   /// Initialize the database
   Future<void> initialize();
+
+  /// Close the database connection
+  Future<void> close();
 }

@@ -8,7 +8,7 @@ import '../models/document_entity.dart';
 import 'llm_search/gemma_model_service.dart';
 
 /// Service for extracting structured entities from document text using LLM
-class EntityExtractionService extends BaseService {
+final class EntityExtractionService extends BaseService {
   final GemmaModelService _gemmaService;
 
   // Extraction settings
@@ -208,9 +208,9 @@ Response:''';
     // Extract date using regex
     DateTime? transactionDate;
     final datePatterns = [
+      RegExp(r'(\d{4})[/-](\d{1,2})[/-](\d{1,2})'), // YYYY-MM-DD (check first — unambiguous)
       RegExp(r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})'), // MM/DD/YYYY or DD/MM/YYYY
       RegExp(r'(\d{1,2})[/-](\d{1,2})[/-](\d{2})'), // MM/DD/YY
-      RegExp(r'(\d{4})[/-](\d{1,2})[/-](\d{1,2})'), // YYYY-MM-DD
     ];
 
     for (final pattern in datePatterns) {
@@ -222,10 +222,10 @@ Response:''';
     }
 
     // Detect vendor from known patterns
-    String? vendor = _detectVendor(lowerText);
+    final String? vendor = _detectVendor(lowerText);
 
     // Detect category from keywords
-    EntityCategory? category = _detectCategory(lowerText);
+    final EntityCategory? category = _detectCategory(lowerText);
 
     final hasData =
         vendor != null ||

@@ -3,7 +3,7 @@ import '../../models/audit_log.dart';
 import '../models/audit_log_level.dart';
 
 /// Interface for tamper-proof audit database operations
-abstract class IAuditDatabaseService {
+abstract interface class IAuditDatabaseService {
   /// Initialize the audit database
   Future<void> initialize();
 

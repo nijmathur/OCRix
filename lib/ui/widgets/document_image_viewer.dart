@@ -205,7 +205,7 @@ class _DocumentImageViewerState extends ConsumerState<DocumentImageViewer> {
             return InteractiveViewer(
               minScale: 0.5,
               maxScale: 4.0,
-              child: Container(
+              child: ColoredBox(
                 color: Colors.black,
                 child: Center(
                   child: Image.memory(page.imageData!, fit: BoxFit.contain),

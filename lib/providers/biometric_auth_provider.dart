@@ -1,66 +1,43 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:local_auth/local_auth.dart';
-import '../services/biometric_auth_service.dart';
+
 import '../core/exceptions/app_exceptions.dart';
+import '../services/biometric_auth_service.dart';
 import 'troubleshooting_logger_provider.dart';
-import '../core/interfaces/troubleshooting_logger_interface.dart';
+
+part 'biometric_auth_provider.freezed.dart';
 
 final biometricAuthServiceProvider = Provider<BiometricAuthService>((ref) {
   return BiometricAuthService();
 });
 
-class BiometricAuthState {
-  final bool isAvailable;
-  final bool isEnabled;
-  final bool isLoading;
-  final String? error;
-  final List<BiometricType> availableTypes;
-
-  const BiometricAuthState({
-    this.isAvailable = false,
-    this.isEnabled = false,
-    this.isLoading = false,
-    this.error,
-    this.availableTypes = const [],
-  });
-
-  BiometricAuthState copyWith({
-    bool? isAvailable,
-    bool? isEnabled,
-    bool? isLoading,
+@freezed
+abstract class BiometricAuthState with _$BiometricAuthState {
+  const factory BiometricAuthState({
+    @Default(false) bool isAvailable,
+    @Default(false) bool isEnabled,
+    @Default(false) bool isLoading,
     String? error,
-    List<BiometricType>? availableTypes,
-  }) {
-    return BiometricAuthState(
-      isAvailable: isAvailable ?? this.isAvailable,
-      isEnabled: isEnabled ?? this.isEnabled,
-      isLoading: isLoading ?? this.isLoading,
-      error: error,
-      availableTypes: availableTypes ?? this.availableTypes,
-    );
-  }
+    @Default([]) List<BiometricType> availableTypes,
+  }) = _BiometricAuthState;
 }
 
-class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
-  final BiometricAuthService _biometricAuthService;
-  final ITroubleshootingLogger? _troubleshootingLogger;
-
-  BiometricAuthNotifier(
-    this._biometricAuthService, {
-    ITroubleshootingLogger? troubleshootingLogger,
-  }) : _troubleshootingLogger = troubleshootingLogger,
-       super(const BiometricAuthState(isLoading: true)) {
-    _initialize();
+class BiometricAuthNotifier extends Notifier<BiometricAuthState> {
+  @override
+  BiometricAuthState build() {
+    Future.microtask(_initialize);
+    return const BiometricAuthState(isLoading: true);
   }
 
   Future<void> _initialize() async {
     try {
       state = state.copyWith(isLoading: true);
 
-      final isAvailable = await _biometricAuthService.isBiometricAvailable();
-      final isEnabled = await _biometricAuthService.isBiometricEnabled();
-      final availableTypes = await _biometricAuthService
-          .getAvailableBiometrics();
+      final service = ref.read(biometricAuthServiceProvider);
+      final isAvailable = await service.isBiometricAvailable();
+      final isEnabled = await service.isBiometricEnabled();
+      final availableTypes = await service.getAvailableBiometrics();
 
       state = state.copyWith(
         isAvailable: isAvailable,
@@ -74,24 +51,25 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
   }
 
   Future<bool> enableBiometricAuth() async {
+    final logger = ref.read(troubleshootingLoggerProvider);
+    final service = ref.read(biometricAuthServiceProvider);
     try {
-      _troubleshootingLogger?.info(
+      await logger.info(
         'Starting enable biometric authentication',
         tag: 'BiometricAuthNotifier',
       );
       state = state.copyWith(isLoading: true, error: null);
 
-      // enableBiometricAuth() already handles authentication internally
-      await _biometricAuthService.enableBiometricAuth();
+      await service.enableBiometricAuth();
 
-      _troubleshootingLogger?.info(
+      await logger.info(
         'Biometric authentication enabled successfully',
         tag: 'BiometricAuthNotifier',
       );
       state = state.copyWith(isEnabled: true, isLoading: false, error: null);
       return true;
     } catch (e, stackTrace) {
-      _troubleshootingLogger?.error(
+      await logger.error(
         'Failed to enable biometric authentication',
         tag: 'BiometricAuthNotifier',
         error: e,
@@ -103,9 +81,9 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
       );
 
       String errorMessage;
-      if (e is AuthException) {
-        errorMessage = e.message;
-        _troubleshootingLogger?.error(
+      if (e case AuthException(:final message)) {
+        errorMessage = message;
+        await logger.error(
           'AuthException during biometric enable',
           tag: 'BiometricAuthNotifier',
           error: e,
@@ -113,7 +91,7 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
         );
       } else {
         errorMessage = 'Failed to enable biometric sign-in: ${e.toString()}';
-        _troubleshootingLogger?.error(
+        await logger.error(
           'Non-AuthException error during biometric enable',
           tag: 'BiometricAuthNotifier',
           error: e,
@@ -122,7 +100,7 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
       }
 
       state = state.copyWith(
-        isEnabled: false, // Ensure it's false on failure
+        isEnabled: false,
         isLoading: false,
         error: errorMessage,
       );
@@ -131,9 +109,10 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
   }
 
   Future<void> disableBiometricAuth() async {
+    final service = ref.read(biometricAuthServiceProvider);
     try {
       state = state.copyWith(isLoading: true, error: null);
-      await _biometricAuthService.disableBiometricAuth();
+      await service.disableBiometricAuth();
 
       state = state.copyWith(isEnabled: false, isLoading: false);
     } catch (e) {
@@ -142,7 +121,8 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
   }
 
   Future<bool> authenticate({String? reason}) async {
-    return await _biometricAuthService.authenticate(reason: reason);
+    final service = ref.read(biometricAuthServiceProvider);
+    return service.authenticate(reason: reason);
   }
 
   Future<void> refresh() async {
@@ -151,11 +131,6 @@ class BiometricAuthNotifier extends StateNotifier<BiometricAuthState> {
 }
 
 final biometricAuthNotifierProvider =
-    StateNotifierProvider<BiometricAuthNotifier, BiometricAuthState>((ref) {
-      final service = ref.read(biometricAuthServiceProvider);
-      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
-      return BiometricAuthNotifier(
-        service,
-        troubleshootingLogger: troubleshootingLogger,
-      );
-    });
+    NotifierProvider<BiometricAuthNotifier, BiometricAuthState>(
+      BiometricAuthNotifier.new,
+    );

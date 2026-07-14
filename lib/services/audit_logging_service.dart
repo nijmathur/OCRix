@@ -8,7 +8,7 @@ import '../core/config/app_config.dart';
 import '../core/exceptions/app_exceptions.dart';
 
 /// Service for logging audit events with level-based filtering
-class AuditLoggingService extends BaseService {
+final class AuditLoggingService extends BaseService {
   final IAuditDatabaseService _auditDatabase;
   AuditLogLevel _currentLevel = AppConfig.defaultAuditLogLevel;
   String? _currentUserId;
@@ -117,7 +117,7 @@ class AuditLoggingService extends BaseService {
     bool isSuccess = true,
     String? errorMessage,
   }) async {
-    return await log(
+    return log(
       level: AuditLogLevel.compulsory,
       action: action,
       resourceType: resourceType,
@@ -139,7 +139,7 @@ class AuditLoggingService extends BaseService {
     bool isSuccess = true,
     String? errorMessage,
   }) async {
-    return await log(
+    return log(
       level: AuditLogLevel.info,
       action: action,
       resourceType: resourceType,
@@ -161,7 +161,7 @@ class AuditLoggingService extends BaseService {
     bool isSuccess = true,
     String? errorMessage,
   }) async {
-    return await log(
+    return log(
       level: AuditLogLevel.verbose,
       action: action,
       resourceType: resourceType,
@@ -179,7 +179,7 @@ class AuditLoggingService extends BaseService {
     required String resourceId,
     String? details,
   }) async {
-    return await logCompulsory(
+    return logCompulsory(
       action: AuditAction.read,
       resourceType: 'database',
       resourceId: '$resourceType/$resourceId',
@@ -194,7 +194,7 @@ class AuditLoggingService extends BaseService {
     required String resourceId,
     String? details,
   }) async {
-    return await logCompulsory(
+    return logCompulsory(
       action: action,
       resourceType: 'database',
       resourceId: '$resourceType/$resourceId',
@@ -208,7 +208,7 @@ class AuditLoggingService extends BaseService {
     required String toScreen,
     String? details,
   }) async {
-    return await logVerbose(
+    return logVerbose(
       action: AuditAction.read, // Using read for navigation
       resourceType: 'navigation',
       resourceId: '$fromScreen->$toScreen',
@@ -226,7 +226,7 @@ class AuditLoggingService extends BaseService {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    return await _auditDatabase.getAuditEntries(
+    return _auditDatabase.getAuditEntries(
       limit: limit,
       offset: offset,
       level: level,
@@ -239,11 +239,11 @@ class AuditLoggingService extends BaseService {
 
   /// Verify audit database integrity
   Future<List<String>> verifyIntegrity() async {
-    return await _auditDatabase.verifyIntegrity();
+    return _auditDatabase.verifyIntegrity();
   }
 
   /// Get entry count
   Future<int> getEntryCount({AuditLogLevel? level}) async {
-    return await _auditDatabase.getEntryCount(level: level);
+    return _auditDatabase.getEntryCount(level: level);
   }
 }

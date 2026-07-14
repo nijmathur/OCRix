@@ -3,10 +3,10 @@
 /// This approach is fast, works 100% offline, and avoids TFLite compatibility issues
 library;
 
-import 'dart:typed_data';
 import 'dart:math' as math;
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 
 class EmbeddingService {
   static const int embeddingDimension = 384;
@@ -101,7 +101,7 @@ class EmbeddingService {
 
     // No external model needed - using hash-based embeddings
     _isInitialized = true;
-    print(
+    debugPrint(
       '[EmbeddingService] Initialized with hash-based embeddings (${embeddingDimension}D)',
     );
   }
@@ -432,6 +432,6 @@ class EmbeddingService {
   /// Dispose resources
   void dispose() {
     _isInitialized = false;
-    print('[EmbeddingService] Disposed');
+    debugPrint('[EmbeddingService] Disposed');
   }
 }

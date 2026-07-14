@@ -7,7 +7,7 @@ import '../core/config/app_config.dart';
 import '../core/exceptions/app_exceptions.dart';
 
 /// Service for image processing operations
-class ImageProcessingService extends BaseService
+final class ImageProcessingService extends BaseService
     implements IImageProcessingService {
   @override
   String get serviceName => 'ImageProcessingService';

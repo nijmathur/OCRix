@@ -108,7 +108,7 @@ class ReadOnlyDatabaseService {
 
     // Validate and execute
     final validatedSQL = _validator.validateAndSanitizeSQL(sql);
-    return await _database.rawQuery(validatedSQL, arguments);
+    return _database.rawQuery(validatedSQL, arguments);
   }
 
   /// Get document count for a query (for pagination)

@@ -6,7 +6,7 @@ part of 'audit_entry.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-AuditEntry _$AuditEntryFromJson(Map<String, dynamic> json) => AuditEntry(
+_AuditEntry _$AuditEntryFromJson(Map<String, dynamic> json) => _AuditEntry(
   id: json['id'] as String,
   level: $enumDecode(_$AuditLogLevelEnumMap, json['level']),
   action: $enumDecode(_$AuditActionEnumMap, json['action']),
@@ -24,7 +24,7 @@ AuditEntry _$AuditEntryFromJson(Map<String, dynamic> json) => AuditEntry(
   previousChecksum: json['previousChecksum'] as String?,
 );
 
-Map<String, dynamic> _$AuditEntryToJson(AuditEntry instance) =>
+Map<String, dynamic> _$AuditEntryToJson(_AuditEntry instance) =>
     <String, dynamic>{
       'id': instance.id,
       'level': _$AuditLogLevelEnumMap[instance.level]!,

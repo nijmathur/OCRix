@@ -1,68 +1,40 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'troubleshooting_logger_provider.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import '../services/auth_service.dart';
-import '../services/audit_logging_service.dart';
+
 import '../models/audit_log.dart';
+import '../services/auth_service.dart';
 import 'audit_provider.dart';
-import '../core/interfaces/troubleshooting_logger_interface.dart';
+import 'troubleshooting_logger_provider.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService();
 });
 
-final authStateProvider = FutureProvider<GoogleSignInAccount?>((ref) async {
-  final authService = ref.read(authServiceProvider);
-  await authService.initialize();
-  return authService.currentUser;
-});
-
 final isSignedInProvider = Provider<bool>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final authState = ref.watch(authNotifierProvider);
   return authState.valueOrNull != null;
 });
 
-class AuthNotifier extends StateNotifier<AsyncValue<GoogleSignInAccount?>> {
-  final AuthService _authService;
-  final AuditLoggingService? _auditLoggingService;
-  final ITroubleshootingLogger? _troubleshootingLogger;
-
-  AuthNotifier(
-    this._authService, {
-    AuditLoggingService? auditLoggingService,
-    ITroubleshootingLogger? troubleshootingLogger,
-  }) : _auditLoggingService = auditLoggingService,
-       _troubleshootingLogger = troubleshootingLogger,
-       super(const AsyncValue.loading()) {
-    _checkAuthState();
-  }
-
-  Future<void> _checkAuthState() async {
-    try {
-      await _authService.initialize();
-      state = AsyncValue.data(_authService.currentUser);
-    } catch (e, stackTrace) {
-      state = AsyncValue.error(e, stackTrace);
-    }
-  }
-
-  /// Public method to refresh auth state (used after restoring session)
-  Future<void> refreshAuthState() async {
-    await _checkAuthState();
+class AuthNotifier extends AsyncNotifier<GoogleSignInAccount?> {
+  @override
+  Future<GoogleSignInAccount?> build() async {
+    final authService = ref.read(authServiceProvider);
+    await authService.initialize();
+    return authService.currentUser;
   }
 
   Future<bool> signIn() async {
+    final authService = ref.read(authServiceProvider);
+    final auditLoggingService = ref.read(auditLoggingServiceProvider);
+    final logger = ref.read(troubleshootingLoggerProvider);
     try {
       state = const AsyncValue.loading();
-      final account = await _authService.signIn();
+      final account = await authService.signIn();
 
-      // Update state with the account (even if null, to indicate sign-in attempt completed)
       state = AsyncValue.data(account);
 
-      // If account is null, user cancelled - don't treat as error
       if (account == null) {
-        // Log failed login attempt (INFO level)
-        await _auditLoggingService?.logInfoAction(
+        await auditLoggingService.logInfoAction(
           action: AuditAction.login,
           resourceType: 'auth',
           resourceId: 'login',
@@ -72,8 +44,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<GoogleSignInAccount?>> {
         return false;
       }
 
-      // Log successful login (INFO level)
-      await _auditLoggingService?.logInfoAction(
+      await auditLoggingService.logInfoAction(
         action: AuditAction.login,
         resourceType: 'auth',
         resourceId: account.id,
@@ -81,14 +52,12 @@ class AuthNotifier extends StateNotifier<AsyncValue<GoogleSignInAccount?>> {
         isSuccess: true,
       );
 
-      // Update user ID in audit service
       final userId = account.email.isNotEmpty ? account.email : account.id;
-      _auditLoggingService?.setUserId(userId);
+      auditLoggingService.setUserId(userId);
 
       return true;
     } catch (e, stackTrace) {
-      // Log the error for debugging
-      _troubleshootingLogger?.error(
+      await logger.error(
         'Google Sign-In error',
         tag: 'AuthNotifier',
         error: e,
@@ -100,13 +69,14 @@ class AuthNotifier extends StateNotifier<AsyncValue<GoogleSignInAccount?>> {
   }
 
   Future<void> signOut() async {
+    final authService = ref.read(authServiceProvider);
+    final auditLoggingService = ref.read(auditLoggingServiceProvider);
     try {
       state = const AsyncValue.loading();
 
-      // Log logout before signing out (INFO level)
-      final currentUser = _authService.currentUser;
+      final currentUser = authService.currentUser;
       if (currentUser != null) {
-        await _auditLoggingService?.logInfoAction(
+        await auditLoggingService.logInfoAction(
           action: AuditAction.logout,
           resourceType: 'auth',
           resourceId: currentUser.id,
@@ -115,11 +85,21 @@ class AuthNotifier extends StateNotifier<AsyncValue<GoogleSignInAccount?>> {
         );
       }
 
-      await _authService.signOut();
+      await authService.signOut();
       state = const AsyncValue.data(null);
 
-      // Clear user ID from audit service (set to unknown)
-      _auditLoggingService?.setUserId('unknown');
+      auditLoggingService.setUserId('unknown');
+    } catch (e, stackTrace) {
+      state = AsyncValue.error(e, stackTrace);
+    }
+  }
+
+  /// Public method to refresh auth state
+  Future<void> refreshAuthState() async {
+    final authService = ref.read(authServiceProvider);
+    try {
+      await authService.initialize();
+      state = AsyncValue.data(authService.currentUser);
     } catch (e, stackTrace) {
       state = AsyncValue.error(e, stackTrace);
     }
@@ -127,15 +107,4 @@ class AuthNotifier extends StateNotifier<AsyncValue<GoogleSignInAccount?>> {
 }
 
 final authNotifierProvider =
-    StateNotifierProvider<AuthNotifier, AsyncValue<GoogleSignInAccount?>>((
-      ref,
-    ) {
-      final authService = ref.read(authServiceProvider);
-      final auditLoggingService = ref.read(auditLoggingServiceProvider);
-      final troubleshootingLogger = ref.read(troubleshootingLoggerProvider);
-      return AuthNotifier(
-        authService,
-        auditLoggingService: auditLoggingService,
-        troubleshootingLogger: troubleshootingLogger,
-      );
-    });
+    AsyncNotifierProvider<AuthNotifier, GoogleSignInAccount?>(AuthNotifier.new);
